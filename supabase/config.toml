@@ -1,0 +1,23 @@
+# Configuración del CLI de Supabase (supabase start / supabase functions deploy)
+project_id = "cut-real-2"
+
+[auth]
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173", "http://localhost:5173/"]
+
+[auth.external.google]
+enabled = true
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_CLIENT_SECRET)"
+
+[functions.chat]
+verify_jwt = true
+[functions.admin]
+verify_jwt = true
+[functions.transcribe]
+verify_jwt = true
+[functions.tts]
+verify_jwt = true
+# La API pública se autentica con claves crk_... propias, no con JWT de Supabase.
+[functions.api]
+verify_jwt = false

@@ -1,0 +1,54 @@
+import { describe, expect, it } from 'vitest'
+import { readSSE } from '../src/lib/sse'
+import { groupConversations, relativeTime, formatBytes } from '../src/lib/format'
+import { normalizeMath } from '../src/lib/markdown'
+import { markdownToSpeech, splitSentences } from '../src/voice/speechText'
+import { validateFile, safeName } from '../src/lib/files'
+
+describe('readSSE', () => {
+  it('entrega eventos aunque lleguen partidos en varios chunks', async () => {
+    const enc = new TextEncoder()
+    const body = new ReadableStream<Uint8Array>({ start(c) { c.enqueue(enc.encode('data: {"type":"del')); c.enqueue(enc.encode('ta","text":"a"}\n\ndata: {"type":"done"}\n\n')); c.close() } })
+    const got: any[] = []
+    await readSSE(new Response(body), (e) => got.push(e))
+    expect(got).toEqual([{ type: 'delta', text: 'a' }, { type: 'done' }])
+  })
+})
+
+describe('historial', () => {
+  const now = new Date('2026-11-13T15:00:00')
+  const c = (id: string, iso: string, pinned = false) => ({ id, title: id, model_id: null, pinned, created_at: iso, updated_at: iso, last_message_at: iso })
+  it('agrupa por fecha y respeta fijadas', () => {
+    const g = groupConversations([c('p', '2026-01-01T10:00:00', true), c('hoy', '2026-11-13T09:00:00'), c('ayer', '2026-11-12T23:00:00'), c('sem', '2026-11-08T10:00:00'), c('viejo', '2026-06-01T10:00:00')], now)
+    expect(g.map((x) => x.label)).toEqual(['Fijadas', 'Hoy', 'Ayer', 'Últimos 7 días', 'Anteriores'])
+  })
+  it('formatos auxiliares', () => {
+    expect(formatBytes(2048)).toBe('2 KB'); expect(relativeTime(new Date(Date.now() - 5 * 60_000).toISOString())).toBe('hace 5 min')
+  })
+})
+
+describe('markdown y voz', () => {
+  it('convierte delimitadores LaTeX sin tocar el código', () => {
+    expect(normalizeMath('x \\(a+b\\) y')).toContain('$a+b$')
+    expect(normalizeMath('\\[x^2\\]')).toContain('$$x^2$$')
+    expect(normalizeMath('`\\(no\\)`')).toBe('`\\(no\\)`')
+  })
+  it('la lectura en voz alta no incluye símbolos ni código', () => {
+    const t = markdownToSpeech('## Título\n\n**Hola** [enlace](http://x.y)\n\n```js\nconsole.log(1)\n```\n\n- item')
+    expect(t).not.toMatch(/[#*`\[\]]|console|http/); expect(t).toContain('Hola enlace'); expect(t).toContain('bloque de código omitido')
+  })
+  it('splitSentences respeta el máximo', () => {
+    const parts = splitSentences('Una frase. '.repeat(60), 100)
+    expect(parts.every((p) => p.length <= 100)).toBe(true); expect(parts.length).toBeGreaterThan(5)
+  })
+})
+
+describe('validación de archivos', () => {
+  it('acepta formatos soportados y rechaza el resto', () => {
+    for (const n of ['a.pdf', 'a.TXT', 'a.docx', 'a.csv', 'a.json', 'a.png', 'a.jpg', 'a.webp']) expect(validateFile({ name: n, size: 100 })).toBeNull()
+    expect(validateFile({ name: 'a.exe', size: 100 })).toMatch(/formato no admitido/)
+    expect(validateFile({ name: 'a.pdf', size: 11 * 1024 * 1024 })).toMatch(/10 MB/)
+    expect(validateFile({ name: 'a.pdf', size: 0 })).toMatch(/vacío/)
+  })
+  it('sanea nombres para el storage', () => { expect(safeName('../../mi archivo ñ.pdf')).not.toMatch(/[/\\ ]/) })
+})
