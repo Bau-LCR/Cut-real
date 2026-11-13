@@ -21,26 +21,57 @@ export const useAuth = create<AuthState>((set, get) => ({
   init() {
     if (started) return
     started = true
+
     const load = async (session: Session | null) => {
-      if (!session) return set({ session: null, me: null, ready: true })
-      const { data: ens, error } = await supabase.rpc('cr_ensure_profile')
-      if (error) return set({ session, me: null, ready: true, error: 'No se pudo cargar tu perfil. ¿Corriste las migraciones SQL?' })
-      const [{ data: p }, { data: s }] = await Promise.all([
-        supabase.from('cr_profiles').select('email, display_name, avatar_url').eq('user_id', session.user.id).maybeSingle(),
-        supabase.from('cr_user_settings').select('default_model_id, web_search_default, voice, privacy_notice_ack_at').eq('user_id', session.user.id).maybeSingle(),
-      ])
-      set({
-        session, ready: true, error: null,
-        me: { userId: session.user.id, email: p?.email ?? session.user.email ?? null, display_name: p?.display_name ?? null, avatar_url: p?.avatar_url ?? null, role: ens.role, suspended: ens.suspended },
-        voice: { ...get().voice, ...(s?.voice ?? {}) }, webSearchDefault: !!s?.web_search_default, defaultModelId: s?.default_model_id ?? null, privacyAck: !!s?.privacy_notice_ack_at,
-      })
+      if (!session) {
+        set({ session: null, me: null, ready: true, error: null })
+        return
+      }
+
+      try {
+        const { data: ens, error } = await supabase.rpc('cr_ensure_profile')
+        if (error || !ens) {
+          set({ session, me: null, ready: true, error: 'No se pudo cargar tu perfil. Revisá que las migraciones SQL estén aplicadas en Supabase.' })
+          return
+        }
+
+        const [{ data: p }, { data: s }] = await Promise.all([
+          supabase.from('cr_profiles').select('email, display_name, avatar_url').eq('user_id', session.user.id).maybeSingle(),
+          supabase.from('cr_user_settings').select('default_model_id, web_search_default, voice, privacy_notice_ack_at').eq('user_id', session.user.id).maybeSingle(),
+        ])
+
+        set({
+          session, ready: true, error: null,
+          me: { userId: session.user.id, email: p?.email ?? session.user.email ?? null, display_name: p?.display_name ?? null, avatar_url: p?.avatar_url ?? null, role: ens.role, suspended: ens.suspended },
+          voice: { ...get().voice, ...(s?.voice ?? {}) }, webSearchDefault: !!s?.web_search_default, defaultModelId: s?.default_model_id ?? null, privacyAck: !!s?.privacy_notice_ack_at,
+        })
+      } catch (e) {
+        console.error('[Cut-real] Error al cargar la cuenta:', e)
+        set({ session, me: null, ready: true, error: 'No se pudo conectar con Supabase para cargar tu cuenta. Comprobá la conexión y la configuración del proyecto.' })
+      }
     }
-    // Recupera la sesión persistida al abrir la app.
-    supabase.auth.getSession().then(({ data }) => load(data.session))
-    // Importante: no hacer await de llamadas a supabase dentro del callback (evita bloqueos); se difiere.
-    supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') return
-      setTimeout(() => load(session), 0)
+
+    // Evita que una conexión lenta o una respuesta bloqueada deje la pantalla de inicio vacía.
+    const startupTimeout = window.setTimeout(() => {
+      if (!get().ready) {
+        set({ session: null, me: null, ready: true, error: 'La conexión con Supabase está tardando demasiado. Podés reintentar cuando la conexión esté disponible.' })
+      }
+    }, 12000)
+
+    supabase.auth.getSession()
+      .then(({ data, error }) => {
+        if (error) throw error
+        return load(data.session)
+      })
+      .catch((e) => {
+        console.error('[Cut-real] No se pudo recuperar la sesión:', e)
+        set({ session: null, me: null, ready: true, error: 'No se pudo iniciar la aplicación porque falló la conexión con Supabase. Revisá la configuración y volvé a intentarlo.' })
+      })
+      .finally(() => window.clearTimeout(startupTimeout))
+
+    // No hacer llamadas async a Supabase dentro del callback de auth.
+    supabase.auth.onAuthStateChange((_event, session) => {
+      window.setTimeout(() => { void load(session) }, 0)
     })
   },
 
