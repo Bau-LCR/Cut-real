@@ -1,6 +1,5 @@
 import { useAuth } from '../store/auth'
 import { isConfigured } from '../lib/supabase'
-import { PRIVACY_TEXT } from '../components/Settings'
 
 export function Login() {
   const { signInWithGoogle, error } = useAuth()
@@ -20,7 +19,7 @@ export function Login() {
           Continuar con Google
         </button>
         {error && <p role="alert" style={{ color: 'var(--danger)', marginTop: 14, fontSize: 14 }}>{error}</p>}
-        <p className="privacy"><b style={{ color: 'var(--platinum)' }}>Privacidad.</b> {PRIVACY_TEXT}</p>
+        <p className="privacy">Al continuar, iniciás sesión de forma segura con tu cuenta de Google.</p>
       </main>
     </div>
   )
