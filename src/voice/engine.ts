@@ -13,7 +13,9 @@ export interface SpeechEngine {
 export const VOICE_PROFILE = { pitch: 0.55, rateScale: 0.94, preferredNames: /diego|jorge|juan|pablo|enrique|carlos|male|masculin/i }
 
 function pickSpanishVoice(voiceURI?: string): SpeechSynthesisVoice | null {
-  const allVoices = speechSynthesis.getVoices()\n  if (voiceURI) { const selected = allVoices.find((v) => v.voiceURI === voiceURI); if (selected) return selected }\n  const voices = allVoices.filter((v) => v.lang.toLowerCase().startsWith('es'))
+  const allVoices = speechSynthesis.getVoices()
+  if (voiceURI) { const selected = allVoices.find((v) => v.voiceURI === voiceURI); if (selected) return selected }
+  const voices = allVoices.filter((v) => v.lang.toLowerCase().startsWith('es'))
   return voices.find((v) => /es-(ar|mx|us|419)/i.test(v.lang) && VOICE_PROFILE.preferredNames.test(v.name))
     ?? voices.find((v) => VOICE_PROFILE.preferredNames.test(v.name)) ?? voices.find((v) => /es-(ar|mx|419)/i.test(v.lang)) ?? voices[0] ?? null
 }
