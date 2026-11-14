@@ -226,13 +226,13 @@ function MemoryTaskPanel({ integration }: { integration: any }) {
   useEffect(() => { void refresh() }, [refresh])
   const generate = async () => {
     setBusy(true)
-    try { setKeyPair(await act<any>('integrations.memory_task_generate_identity')); toast('success', 'Par de identidad generado. Guardá la clave privada antes de cerrar esta pantalla.') }
+    try { setKeyPair(await act<any>('integrations.memory_task_generate_identity')); toast('info', 'Par de identidad generado. Guardá la clave privada antes de cerrar esta pantalla.') }
     catch (e) { toast('error', (e as Error).message) }
     finally { setBusy(false) }
   }
   const test = async () => {
     setBusy(true)
-    try { const result = await act<any>('integrations.memory_task_test'); toast('success', result.message); await refresh() }
+    try { const result = await act<any>('integrations.memory_task_test'); toast('info', result.message); await refresh() }
     catch (e) { toast('error', (e as Error).message) }
     finally { setBusy(false) }
   }
@@ -240,7 +240,7 @@ function MemoryTaskPanel({ integration }: { integration: any }) {
     setBusy(true)
     try {
       await act<any>('integrations.memory_task_send', { title, content })
-      toast('success', 'La información se guardó en Memory Task.')
+      toast('info', 'La información se guardó en Memory Task.')
       setTitle(''); setContent('')
     } catch (e) { toast('error', (e as Error).message) }
     finally { setBusy(false) }
