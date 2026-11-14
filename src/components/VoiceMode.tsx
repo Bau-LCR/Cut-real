@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { FnError } from '../lib/functions'
 import { MicSession, transcribe } from '../voice/recorder'
-import { speakAndWait, stopSpeaking } from '../store/speech'
+import { speakCallAndWait, stopSpeaking } from '../store/speech'
 import { useChat } from '../store/chat'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../store/auth'
@@ -73,7 +73,7 @@ export function VoiceMode({ ensureConv, onClose }: { ensureConv(): Promise<strin
           }
           setPhase('speaking')
           const barge = new AbortController()
-          const speaking = speakAndWait(res.content).catch(() => {})
+          const speaking = speakCallAndWait(res.content).catch(() => {})
           const interrupted = mic.waitForVoice(barge.signal).then((v) => v)
           const first = await Promise.race([interrupted.then((v) => (v ? 'barge' : 'wait')), speaking.then(() => 'done')])
           barge.abort()
