@@ -12,7 +12,7 @@ const MSG_PAGE = 40
 
 interface Gen { controller: AbortController; assistantId: string | null }
 export interface SendResult { ok: boolean; content?: string; status?: MsgStatus; error?: string }
-export interface SendOpts { webSearch?: boolean; attachments?: Attachment[] }
+export interface SendOpts { webSearch?: boolean; attachments?: Attachment[]; silent?: boolean }
 
 interface ChatState {
   models: ModelInfo[]; modelId: string | null
@@ -187,7 +187,7 @@ export const useChat = create<ChatState>((set, get) => {
     // Título automático: refrescar la conversación al terminar.
     void supabase.from('cr_conversations').select('*').eq('id', convId).maybeSingle().then(({ data }) => data && upsertConv(data as Conversation))
     // Lectura automática (si está activada y no estamos en el modo conversación por voz, que habla por su cuenta).
-    if (finalStatus === 'done' && assistantId && content && useAuth.getState().voice.auto_read && !useUi.getState().voiceOpen) void useSpeech.getState().speak(assistantId, content)
+    if (finalStatus === 'done' && assistantId && content && !o.silent && useAuth.getState().voice.auto_read && !useUi.getState().voiceOpen) void useSpeech.getState().speak(assistantId, content)
     return { ok: finalStatus !== 'error', content, status: finalStatus ?? 'done', error: finalError ?? undefined }
   }
 
@@ -314,7 +314,7 @@ export const useChat = create<ChatState>((set, get) => {
         sources: [], web_search_used: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
       }
       set((s) => ({ messages: { ...s.messages, [convId]: [...(s.messages[convId] ?? []), tmp] }, attachments: opts.attachments?.length ? { ...s.attachments, [tmp.id]: opts.attachments } : s.attachments }))
-      return run(convId, { mode: 'send', conversationId: convId, modelId: currentModel(), content: text.trim(), attachmentIds: opts.attachments?.map((a) => a.id), webSearch: !!opts.webSearch }, { optimisticId: tmp.id, attachments: opts.attachments })
+      return run(convId, { mode: 'send', conversationId: convId, modelId: currentModel(), content: text.trim(), attachmentIds: opts.attachments?.map((a) => a.id), webSearch: !!opts.webSearch }, { optimisticId: tmp.id, attachments: opts.attachments, silent: opts.silent })
     },
 
     async regenerate(convId, assistantId, webSearch = false) {
