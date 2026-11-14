@@ -20,6 +20,72 @@ const optInt = (v: unknown, name: string, min = 1, max = 10_000_000) => {
 }
 const esc = (s: string) => s.replace(/[%_\\,()]/g, (c) => `\\${c}`)
 
+function b64urlBytes(bytes: Uint8Array): string {
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/g, '')
+}
+function b64urlJson(value: unknown): string {
+  return b64urlBytes(new TextEncoder().encode(JSON.stringify(value)))
+}
+function memoryTaskConfig() {
+  const endpoint = Deno.env.get('MEMORY_TASK_API_URL') ?? ''
+  const apiKey = Deno.env.get('MEMORY_TASK_API_KEY') ?? ''
+  const appId = Deno.env.get('MEMORY_TASK_APP_ID') ?? ''
+  const privateJwkRaw = Deno.env.get('MEMORY_TASK_IDENTITY_PRIVATE_JWK') ?? ''
+  return { endpoint, apiKey, appId, privateJwkRaw, configured: !!(endpoint && apiKey && appId && privateJwkRaw) }
+}
+async function memoryTaskIdentity(appId: string, userId: string, privateJwkRaw: string): Promise<string> {
+  let jwk: JsonWebKey
+  try { jwk = JSON.parse(privateJwkRaw) as JsonWebKey } catch { throw new HttpError(500, 'integration_not_configured', 'La clave privada de identidad de Memory Task no tiene formato JSON válido.') }
+  if (jwk.kty !== 'EC' || jwk.crv !== 'P-256' || !jwk.d || !jwk.x || !jwk.y) {
+    throw new HttpError(500, 'integration_not_configured', 'La clave privada debe ser un JWK ECDSA P-256 completo.')
+  }
+  const key = await crypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign'])
+  const now = Math.floor(Date.now() / 1000)
+  const unsigned = b64urlJson({ alg: 'ES256', typ: 'JWT' }) + '.' + b64urlJson({
+    iss: appId, aud: appId, sub: userId, iat: now, exp: now + 120,
+  })
+  const signature = new Uint8Array(await crypto.subtle.sign(
+    { name: 'ECDSA', hash: 'SHA-256' }, key, new TextEncoder().encode(unsigned),
+  ))
+  if (signature.length !== 64) throw new HttpError(500, 'integration_crypto_error', 'El motor criptográfico devolvió una firma ES256 inesperada.')
+  return unsigned + '.' + b64urlBytes(signature)
+}
+async function callMemoryTask(ctx: AuthContext, action: string, data: Record<string, unknown>) {
+  const cfg = memoryTaskConfig()
+  if (!cfg.configured) throw new HttpError(409, 'integration_not_configured', 'Falta configurar la URL, la API key, el ID de aplicación o la clave privada de identidad de Memory Task en los secretos de Supabase.')
+  let endpoint: URL
+  try { endpoint = new URL(cfg.endpoint) } catch { throw new HttpError(500, 'integration_config_error', 'La URL de Memory Task no es válida.') }
+  if (endpoint.protocol !== 'https:' || !endpoint.hostname.endsWith('.supabase.co') || !endpoint.pathname.endsWith('/functions/v1/service-api')) {
+    throw new HttpError(500, 'integration_config_error', 'La URL debe ser un endpoint HTTPS de Supabase que termine en /functions/v1/service-api.')
+  }
+  const identity = await memoryTaskIdentity(cfg.appId, ctx.userId, cfg.privateJwkRaw)
+  let response: Response
+  try {
+    response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + cfg.apiKey,
+        'Content-Type': 'application/json',
+        'X-Memory-Task-Identity': identity,
+      },
+      body: JSON.stringify({ action, ...data }),
+      signal: AbortSignal.timeout(15000),
+    })
+  } catch {
+    throw new HttpError(502, 'memory_task_unreachable', 'No se pudo contactar con Memory Task. Comprobá que service-api esté desplegada y que la URL sea correcta.')
+  }
+  const raw = await response.text()
+  let result: any = {}
+  try { result = raw ? JSON.parse(raw) : {} } catch { /* respuesta no JSON */ }
+  if (!response.ok) {
+    const message = typeof result.error === 'string' ? result.error : 'Memory Task respondió con HTTP ' + response.status + '.'
+    throw new HttpError(response.status >= 500 ? 502 : response.status, 'memory_task_rejected', message.slice(0, 300))
+  }
+  return result
+}
+
 async function targetUser(ctx: AuthContext, userId: string) {
   const { data } = await ctx.db.from('cr_user_roles').select('user_id, role, suspended').eq('user_id', userId).maybeSingle()
   if (!data) throw new HttpError(404, 'not_found', 'Usuario no encontrado.')
@@ -168,6 +234,57 @@ const handlers: Record<string, Handler> = {
       ctx.db.from('cr_usage_events').select('id', { count: 'exact', head: true }).eq('api_key_id', id).gte('created_at', since),
     ])
     return { requests_24h: count ?? 0, events: events ?? [] }
+  },
+
+
+  async 'integrations.memory_task_status'(ctx) {
+    const cfg = memoryTaskConfig()
+    const { data: integration } = await ctx.db.from('cr_integrations').select('id,status')
+      .eq('slug', 'memory-task').maybeSingle()
+    return {
+      configured: cfg.configured,
+      endpointConfigured: !!cfg.endpoint,
+      apiKeyConfigured: !!cfg.apiKey,
+      appIdConfigured: !!cfg.appId,
+      identityKeyConfigured: !!cfg.privateJwkRaw,
+      enabled: integration?.status === 'enabled',
+    }
+  },
+  async 'integrations.memory_task_generate_identity'(ctx, _p, req) {
+    const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']) as CryptoKeyPair
+    const publicJwk = await crypto.subtle.exportKey('jwk', pair.publicKey)
+    const privateJwk = await crypto.subtle.exportKey('jwk', pair.privateKey)
+    await audit(ctx.db, { actorId: ctx.userId, action: 'integration.memory_task_identity_generated', targetType: 'integration', targetId: 'memory-task', ip: clientIp(req) })
+    return {
+      publicJwk: { kty: publicJwk.kty, crv: publicJwk.crv, x: publicJwk.x, y: publicJwk.y, ext: true },
+      privateJwk,
+      warning: 'Guardá la clave privada en Supabase Edge Function Secrets. No la publiques ni la compartas.',
+    }
+  },
+  async 'integrations.memory_task_test'(ctx, _p, req) {
+    const { data: integration } = await ctx.db.from('cr_integrations').select('status').eq('slug', 'memory-task').maybeSingle()
+    if (integration?.status !== 'enabled') throw new HttpError(409, 'integration_disabled', 'Primero habilitá Memory Task en Integraciones.')
+    const key = 'cutreal-connection-test-' + crypto.randomUUID()
+    await callMemoryTask(ctx, 'put', { key, category: 'custom', data: { source: 'Cut-real', type: 'connection_test', tested_at: new Date().toISOString() } })
+    await callMemoryTask(ctx, 'delete', { key })
+    await audit(ctx.db, { actorId: ctx.userId, action: 'integration.memory_task_test', targetType: 'integration', targetId: 'memory-task', ip: clientIp(req) })
+    return { ok: true, message: 'Conexión verificada. El registro de prueba fue eliminado.' }
+  },
+  async 'integrations.memory_task_send'(ctx, p, req) {
+    const { data: integration } = await ctx.db.from('cr_integrations').select('status').eq('slug', 'memory-task').maybeSingle()
+    if (integration?.status !== 'enabled') throw new HttpError(409, 'integration_disabled', 'Primero habilitá Memory Task en Integraciones.')
+    const title = text(p.title, 'El título', 1, 120)
+    const content = text(p.content, 'El contenido', 1, 20000)
+    const key = 'cutreal-admin-note-' + crypto.randomUUID()
+    const result = await callMemoryTask(ctx, 'put', {
+      key, category: 'custom',
+      data: {
+        title, content, source: 'Cut-real', type: 'admin_note',
+        created_at: new Date().toISOString(), created_by: ctx.userId,
+      },
+    })
+    await audit(ctx.db, { actorId: ctx.userId, action: 'integration.memory_task_record_sent', targetType: 'integration', targetId: 'memory-task', metadata: { record_key: key, title, bytes: new TextEncoder().encode(content).byteLength }, ip: clientIp(req) })
+    return { ok: true, key, record: result.record ?? null }
   },
 
   // ---- Integraciones y auditoría --------------------------------------------------------
