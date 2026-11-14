@@ -62,12 +62,12 @@ export function CallsPage() {
         </header>
         <section className="calls-list">
           {loading && <p className="hint">Cargando llamadas…</p>}
-          {!loading && !sessions.length && <div className="calls-empty"><h2>Todavía no hay llamadas registradas</h2><p>Cuando termines una llamada con Cut-real, vas a encontrar acá su duración y transcripción.</p><Link className="btn" to="/">Iniciar una llamada</Link></div>}
+          {!loading && !sessions.length && <div className="calls-empty"><h2>Todavía no hay llamadas registradas</h2><p>Cuando termines una llamada con Cut-real, vas a encontrar acá su duración y transcripción.</p><Link className="btn" to="/">Volver al chat</Link></div>}
           {sessions.map((session) => (
             <article className="call-card" key={session.id}>
               <button className="call-card-head" onClick={() => setExpanded((old) => old === session.id ? null : session.id)} aria-expanded={expanded === session.id}>
                 <span className="call-symbol" aria-hidden="true">◉</span>
-                <span className="call-meta"><b>{new Date(session.started_at).toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' })}</b><small>{durationLabel(session.duration_seconds)} · {session.turns.length / 2} intercambios</small></span>
+                <span className="call-meta"><b>{new Date(session.started_at).toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' })}</b><small>{durationLabel(session.duration_seconds)} · {Math.floor(session.turns.length / 2)} intercambios</small></span>
                 <span className="call-expand">{expanded === session.id ? 'Ocultar' : 'Ver transcripción'}⌄</span>
               </button>
               {expanded === session.id && <div className="call-transcript">
