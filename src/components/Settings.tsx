@@ -8,7 +8,8 @@ import { X } from './icons'
 
 export const PRIVACY_TEXT = 'Tus conversaciones se guardan en tu cuenta y solo vos podés verlas. Excepcionalmente, administradores autorizados pueden acceder a una conversación para tareas legítimas de soporte o moderación. Ese acceso exige un motivo, está limitado a administradores y queda registrado en un historial de auditoría.'
 
-interface Grant { id: string; scopes: string[]; granted_at: string; integration: string }
+interface Grant { id: string; integration_id: string; scopes: string[]; granted_at: string; integration: string }
+interface AvailableIntegration { id: string; name: string; slug: string; allowed_scopes: string[] }
 
 export function Settings() {
   const { me, voice, webSearchDefault, defaultModelId, privacyAck, updateProfile, saveSettings } = useAuth()
@@ -17,15 +18,38 @@ export function Settings() {
   const toast = useUi((s) => s.toast)
   const [name, setName] = useState(me?.display_name ?? '')
   const [grants, setGrants] = useState<Grant[]>([])
+  const [availableIntegrations, setAvailableIntegrations] = useState<AvailableIntegration[]>([])
+  const [selectedScopes, setSelectedScopes] = useState<Record<string, string[]>>({})
 
   const loadGrants = async () => {
-    const [{ data: g }, { data: i }] = await Promise.all([
+    const [{ data: g, error: grantError }, { data: i, error: integrationError }] = await Promise.all([
       supabase.from('cr_integration_grants').select('id, scopes, granted_at, integration_id').is('revoked_at', null),
-      supabase.from('cr_integrations').select('id, name'),
+      supabase.from('cr_integrations').select('id, name, slug, allowed_scopes').eq('status', 'enabled'),
     ])
-    setGrants((g ?? []).map((x: any) => ({ id: x.id, scopes: x.scopes, granted_at: x.granted_at, integration: i?.find((y: any) => y.id === x.integration_id)?.name ?? 'Integración' })))
+    if (grantError || integrationError) throw new Error('No se pudieron cargar las integraciones autorizadas.')
+    setGrants((g ?? []).map((x: any) => ({
+      id: x.id, integration_id: x.integration_id, scopes: x.scopes ?? [], granted_at: x.granted_at,
+      integration: i?.find((y: any) => y.id === x.integration_id)?.name ?? 'Integración',
+    })))
+    setAvailableIntegrations((i ?? []) as AvailableIntegration[])
+    setSelectedScopes((previous) => {
+      const next = { ...previous }
+      for (const item of i ?? []) {
+        if (!(item.id in next)) next[item.id] = (g ?? []).find((grant: any) => grant.integration_id === item.id)?.scopes ?? []
+      }
+      return next
+    })
   }
-  useEffect(() => { void loadGrants() }, [])
+  useEffect(() => { void loadGrants().catch((e) => toast('error', (e as Error).message)) }, [])
+  const authorizeIntegration = async (integrationId: string) => {
+    const scopes = selectedScopes[integrationId] ?? []
+    try {
+      const { error } = await supabase.rpc('cr_grant_my_integration', { p_integration_id: integrationId, p_scopes: scopes })
+      if (error) throw error
+      toast('info', 'Autorización guardada.')
+      await loadGrants()
+    } catch (e) { toast('error', (e as Error).message) }
+  }
   const guard = (p: Promise<unknown>) => p.catch((e) => toast('error', (e as Error).message))
 
   return (
@@ -65,10 +89,28 @@ export function Settings() {
         <button className="btn sm" onClick={() => void useSpeech.getState().speak('settings-test', 'Hola. Soy Cut-real. Esta es mi voz.')}>Probar voz</button>
 
         <h3>Integraciones autorizadas</h3>
-        {grants.length === 0 ? <p className="hint">No autorizaste ninguna aplicación externa.</p> : grants.map((g) => (
-          <div className="switch" key={g.id}><span>{g.integration}<br /><span className="hint">Permisos: {g.scopes.join(', ') || '—'}</span></span>
-            <button className="btn danger sm" onClick={() => guard(Promise.resolve(supabase.rpc('cr_revoke_my_grant', { p_grant_id: g.id })).then(loadGrants))}>Revocar</button></div>
+        <p className="hint">Elegí qué permisos concedés. Podés modificarlos o revocarlos cuando quieras. Solo se comparten datos cuando la función correspondiente está habilitada.</p>
+        {availableIntegrations.map((integration) => {
+          const active = grants.find((grant) => grant.integration_id === integration.id)
+          const selected = selectedScopes[integration.id] ?? active?.scopes ?? []
+          return <div className="panel" key={integration.id}>
+            <div className="row"><strong>{integration.name}</strong><span className="grow" /><span className={`badge ${active ? 'ok' : ''}`}>{active ? 'autorizada' : 'sin autorizar'}</span></div>
+            <div className="chk">{integration.allowed_scopes.map((scope) => <label key={scope}>
+              <input type="checkbox" checked={selected.includes(scope)} onChange={(e) => setSelectedScopes((previous) => ({
+                ...previous, [integration.id]: e.target.checked ? [...selected, scope] : selected.filter((item) => item !== scope),
+              }))} />{scope}
+            </label>)}</div>
+            <div className="row end">
+              <button className="btn primary sm" disabled={!selected.length} onClick={() => void authorizeIntegration(integration.id)}>{active ? 'Actualizar permisos' : 'Autorizar integración'}</button>
+              {active && <button className="btn danger sm" onClick={() => guard(supabase.rpc('cr_revoke_my_grant', { p_grant_id: active.id }).then(loadGrants))}>Revocar</button>}
+            </div>
+          </div>
+        })}
+        {grants.filter((grant) => !availableIntegrations.some((item) => item.id === grant.integration_id)).map((grant) => (
+          <div className="switch" key={grant.id}><span>{grant.integration} · integración deshabilitada<br /><span className="hint">Permisos: {grant.scopes.join(', ') || '—'}</span></span>
+            <button className="btn danger sm" onClick={() => guard(supabase.rpc('cr_revoke_my_grant', { p_grant_id: grant.id }).then(loadGrants))}>Revocar</button></div>
         ))}
+        {availableIntegrations.length === 0 && grants.length === 0 && <p className="hint">No hay integraciones habilitadas disponibles para autorizar.</p>}
 
         <h3>Privacidad</h3>
         <p className="hint">{PRIVACY_TEXT}</p>
