@@ -212,6 +212,91 @@ function Keys() {
 }
 
 // ---------------- Integraciones y auditoría ----------------
+function MemoryTaskPanel({ integration }: { integration: any }) {
+  const toast = useUi((s) => s.toast)
+  const [status, setStatus] = useState<any>(null)
+  const [busy, setBusy] = useState(false)
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState('')
+  const [keyPair, setKeyPair] = useState<any>(null)
+  const refresh = useCallback(async () => {
+    try { setStatus(await act<any>('integrations.memory_task_status')) }
+    catch (e) { toast('error', (e as Error).message) }
+  }, [toast])
+  useEffect(() => { void refresh() }, [refresh])
+  const generate = async () => {
+    setBusy(true)
+    try { setKeyPair(await act<any>('integrations.memory_task_generate_identity')); toast('success', 'Par de identidad generado. Guardá la clave privada antes de cerrar esta pantalla.') }
+    catch (e) { toast('error', (e as Error).message) }
+    finally { setBusy(false) }
+  }
+  const test = async () => {
+    setBusy(true)
+    try { const result = await act<any>('integrations.memory_task_test'); toast('success', result.message); await refresh() }
+    catch (e) { toast('error', (e as Error).message) }
+    finally { setBusy(false) }
+  }
+  const send = async () => {
+    setBusy(true)
+    try {
+      await act<any>('integrations.memory_task_send', { title, content })
+      toast('success', 'La información se guardó en Memory Task.')
+      setTitle(''); setContent('')
+    } catch (e) { toast('error', (e as Error).message) }
+    finally { setBusy(false) }
+  }
+  return (
+    <div className="panel">
+      <div className="row"><h3 style={{ margin: 0 }}>Conexión con Memory Task</h3><span className="grow" />
+        <span className={`badge ${status?.configured ? 'ok' : 'bad'}`}>{status?.configured ? 'credenciales configuradas' : 'configuración pendiente'}</span>
+        <button className="btn sm" onClick={() => void refresh()}>Actualizar estado</button>
+      </div>
+      <p className="hint">La comunicación se realiza desde el servidor de Cut-real. La API key y la clave privada nunca se envían al navegador.</p>
+      <div className="grid2">
+        <div><strong>Endpoint</strong><p className="hint">{status?.endpointConfigured ? 'Configurado' : 'Falta MEMORY_TASK_API_URL'}</p></div>
+        <div><strong>API key</strong><p className="hint">{status?.apiKeyConfigured ? 'Configurada' : 'Falta MEMORY_TASK_API_KEY'}</p></div>
+        <div><strong>ID de aplicación</strong><p className="hint">{status?.appIdConfigured ? 'Configurado' : 'Falta MEMORY_TASK_APP_ID'}</p></div>
+        <div><strong>Identidad ES256</strong><p className="hint">{status?.identityKeyConfigured ? 'Configurada' : 'Falta MEMORY_TASK_IDENTITY_PRIVATE_JWK'}</p></div>
+      </div>
+      <div className="panel" style={{ marginTop: 12 }}>
+        <strong>Configuración inicial (una sola vez)</strong>
+        <ol className="hint">
+          <li>En Memory Task, creá una aplicación de servicio llamada Cut-real.</li>
+          <li>Generá el par ES256 acá y registrá en Memory Task solamente la clave pública JWK.</li>
+          <li>Creá una API key de Memory Task con el permiso <code>records:write</code>.</li>
+          <li>Guardá el endpoint, la API key, el ID de aplicación y la clave privada como secretos de Edge Functions en el proyecto Supabase de Cut-real.</li>
+          <li>Volvé acá, actualizá el estado y probá la conexión.</li>
+        </ol>
+        <div className="row">
+          <button className="btn" disabled={busy} onClick={() => void generate()}>Generar par de claves ES256</button>
+          <span className="hint">No generes otro par si ya registraste uno en Memory Task.</span>
+        </div>
+        {keyPair && <div style={{ marginTop: 12 }}>
+          <label className="lbl">Clave pública JWK · registrar en Memory Task</label>
+          <pre className="secret" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{JSON.stringify(keyPair.publicJwk, null, 2)}</pre>
+          <CopyButton text={JSON.stringify(keyPair.publicJwk)} label="Copiar clave pública" />
+          <label className="lbl">Clave privada JWK · guardar solo como secreto MEMORY_TASK_IDENTITY_PRIVATE_JWK</label>
+          <pre className="secret" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{JSON.stringify(keyPair.privateJwk)}</pre>
+          <CopyButton text={JSON.stringify(keyPair.privateJwk)} label="Copiar clave privada" />
+          <p className="hint">Esta clave privada se muestra solamente en esta sesión de administración. No la pegues en Memory Task, GitHub ni en el chat.</p>
+        </div>}
+      </div>
+      <div className="row" style={{ marginTop: 12 }}>
+        <button className="btn" disabled={busy || !status?.configured || !integration || integration.status !== 'enabled'} onClick={() => void test()}>Probar conexión</button>
+      </div>
+      <div style={{ marginTop: 16 }}>
+        <strong>Enviar información a Memory Task</strong>
+        <label className="lbl">Título</label>
+        <input className="field" maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ej.: Nota de Cut-real" />
+        <label className="lbl">Texto o información</label>
+        <textarea className="field" rows={6} maxLength={20000} value={content} onChange={(e) => setContent(e.target.value)} placeholder="Escribí aquí la información que querés almacenar en Memory Task." />
+        <div className="row end"><span className="hint">{content.length}/20000 caracteres</span><button className="btn primary" disabled={busy || !status?.configured || integration?.status !== 'enabled' || !title.trim() || !content.trim()} onClick={() => void send()}>Enviar y guardar</button></div>
+        {integration?.status !== 'enabled' && <p className="hint">Habilitá primero la integración Memory Task para poder enviar información.</p>}
+      </div>
+    </div>
+  )
+}
+
 function Integrations() {
   const toast = useUi((s) => s.toast)
   const { data, err, reload } = useAdmin<any>('integrations.list')
@@ -221,11 +306,14 @@ function Integrations() {
       <Err e={err} />
       <p className="hint" style={{ marginBottom: 12 }}>{data?.active_grants ?? 0} autorizaciones de usuarios activas. Cada usuario puede revocar las suyas desde Configuración.</p>
       {data?.integrations.map((i: any) => (
-        <div className="panel" key={i.id}><div className="row"><h3 style={{ margin: 0 }}>{i.name}</h3><span className={`badge ${i.status === 'enabled' ? 'ok' : ''}`}>{i.status === 'enabled' ? 'habilitada' : 'deshabilitada'}</span><span className="grow" />
-          <button className="btn sm" onClick={() => save(i, { status: i.status === 'enabled' ? 'disabled' : 'enabled' })}>{i.status === 'enabled' ? 'Deshabilitar' : 'Habilitar'}</button></div>
-          <label className="lbl">Permisos que esta integración puede solicitar</label>
-          <div className="chk">{SCOPES.map((s) => <label key={s}><input type="checkbox" checked={i.allowed_scopes.includes(s)} onChange={(e) => save(i, { allowed_scopes: e.target.checked ? [...i.allowed_scopes, s] : i.allowed_scopes.filter((x: string) => x !== s) })} />{s}</label>)}</div>
-          <p className="hint" style={{ marginTop: 10 }}>Ver docs/MEMORY_TASK.md para completar la conexión.</p></div>))}
+        <div key={i.id}>
+          <div className="panel"><div className="row"><h3 style={{ margin: 0 }}>{i.name}</h3><span className={`badge ${i.status === 'enabled' ? 'ok' : ''}`}>{i.status === 'enabled' ? 'habilitada' : 'deshabilitada'}</span><span className="grow" />
+            <button className="btn sm" onClick={() => save(i, { status: i.status === 'enabled' ? 'disabled' : 'enabled' })}>{i.status === 'enabled' ? 'Deshabilitar' : 'Habilitar'}</button></div>
+            <label className="lbl">Permisos que esta integración puede solicitar</label>
+            <div className="chk">{SCOPES.map((s) => <label key={s}><input type="checkbox" checked={i.allowed_scopes.includes(s)} onChange={(e) => save(i, { allowed_scopes: e.target.checked ? [...i.allowed_scopes, s] : i.allowed_scopes.filter((x: string) => x !== s) })} />{s}</label>)}</div>
+          </div>
+          {i.slug === 'memory-task' && <MemoryTaskPanel integration={i} />}
+        </div>))}
     </>
   )
 }
