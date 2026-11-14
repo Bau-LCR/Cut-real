@@ -241,6 +241,8 @@ const handlers: Record<string, Handler> = {
     const cfg = memoryTaskConfig()
     const { data: integration } = await ctx.db.from('cr_integrations').select('id,status')
       .eq('slug', 'memory-task').maybeSingle()
+    const { data: grant } = integration?.id ? await ctx.db.from('cr_integration_grants').select('scopes')
+      .eq('integration_id', integration.id).eq('user_id', ctx.userId).is('revoked_at', null).maybeSingle() : { data: null }
     return {
       configured: cfg.configured,
       endpointConfigured: !!cfg.endpoint,
@@ -248,6 +250,7 @@ const handlers: Record<string, Handler> = {
       appIdConfigured: !!cfg.appId,
       identityKeyConfigured: !!cfg.privateJwkRaw,
       enabled: integration?.status === 'enabled',
+      authorized: !!grant?.scopes?.includes('conversations:write'),
     }
   },
   async 'integrations.memory_task_generate_identity'(ctx, _p, req) {
@@ -271,8 +274,13 @@ const handlers: Record<string, Handler> = {
     return { ok: true, message: 'Conexión verificada. El registro de prueba fue eliminado.' }
   },
   async 'integrations.memory_task_send'(ctx, p, req) {
-    const { data: integration } = await ctx.db.from('cr_integrations').select('status').eq('slug', 'memory-task').maybeSingle()
+    const { data: integration } = await ctx.db.from('cr_integrations').select('id,status').eq('slug', 'memory-task').maybeSingle()
     if (integration?.status !== 'enabled') throw new HttpError(409, 'integration_disabled', 'Primero habilitá Memory Task en Integraciones.')
+    const { data: grant } = await ctx.db.from('cr_integration_grants').select('scopes')
+      .eq('integration_id', integration.id).eq('user_id', ctx.userId).is('revoked_at', null).maybeSingle()
+    if (!grant?.scopes?.includes('conversations:write')) {
+      throw new HttpError(403, 'integration_not_authorized', 'Primero autorizá Memory Task desde Configuración → Integraciones autorizadas y concedé conversations:write.')
+    }
     const title = text(p.title, 'El título', 1, 120)
     const content = text(p.content, 'El contenido', 1, 20000)
     const key = 'cutreal-admin-note-' + crypto.randomUUID()
