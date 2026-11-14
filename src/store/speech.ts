@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { makeEngine, type SpeechEngine } from '../voice/engine'
+import { BrowserEngine, makeEngine, type SpeechEngine } from '../voice/engine'
 import { markdownToSpeech } from '../voice/speechText'
 import { useAuth } from './auth'
 import { useUi } from './ui'
@@ -7,6 +7,7 @@ import { useUi } from './ui'
 interface SpeechState { activeId: string | null; paused: boolean; speak(id: string, markdown: string): Promise<void>; pause(): void; resume(): void; stop(): void }
 let engine: SpeechEngine | null = null
 let engineKind = ''
+let callEngine: BrowserEngine | null = null
 const get = () => {
   const kind = useAuth.getState().voice.engine
   if (!engine || engineKind !== kind) { engine?.stop(); engine = makeEngine(kind); engineKind = kind }
@@ -38,4 +39,11 @@ export async function speakAndWait(markdown: string) {
   const text = markdownToSpeech(markdown)
   if (text) await get().speak(text, useAuth.getState().voice.rate, useAuth.getState().voice.voice_uri)
 }
-export const stopSpeaking = () => engine?.stop()
+/** En llamada usamos la voz natural del navegador y respetamos la voz elegida en Configuración. */
+export async function speakCallAndWait(markdown: string) {
+  const text = markdownToSpeech(markdown)
+  if (!text) return
+  callEngine ??= new BrowserEngine()
+  await callEngine.speak(text, useAuth.getState().voice.rate, useAuth.getState().voice.voice_uri)
+}
+export const stopSpeaking = () => { engine?.stop(); callEngine?.stop() }
