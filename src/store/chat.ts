@@ -28,7 +28,7 @@ interface ChatState {
   loadConversations(more?: boolean): Promise<void>
   openConversation(id: string): Promise<void>
   loadOlder(id: string): Promise<void>
-  createConversation(): Promise<string>
+  createConversation(ephemeral?: boolean): Promise<string>
   rename(id: string, title: string): Promise<void>
   pin(id: string, pinned: boolean): Promise<void>
   remove(id: string): Promise<void>
