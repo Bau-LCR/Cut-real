@@ -33,7 +33,7 @@ export class BrowserEngine implements SpeechEngine {
         const u = new SpeechSynthesisUtterance(chunks[i++])
         const v = pickSpanishVoice(voiceURI)
         if (v) { u.voice = v; u.lang = v.lang } else u.lang = 'es-AR'
-        u.pitch = VOICE_PROFILE.pitch
+        u.pitch = voiceURI ? 1 : VOICE_PROFILE.pitch
         u.rate = Math.min(2, Math.max(0.5, rate * VOICE_PROFILE.rateScale))
         u.onend = next
         u.onerror = () => resolve()
