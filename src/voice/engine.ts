@@ -10,7 +10,7 @@ export interface SpeechEngine {
 }
 
 // ---- Identidad de voz: grave, mecánica, clara. Original (no imita ninguna voz protegida). ----
-export const VOICE_PROFILE = { pitch: 0.55, rateScale: 0.94, preferredNames: /diego|jorge|juan|pablo|enrique|carlos|male|masculin/i }
+export const VOICE_PROFILE = { pitch: 1, rateScale: 1, preferredNames: /diego|jorge|juan|pablo|enrique|carlos|male|masculin|andres|antonio|miguel/i }
 
 function pickSpanishVoice(voiceURI?: string): SpeechSynthesisVoice | null {
   const allVoices = speechSynthesis.getVoices()
@@ -65,18 +65,7 @@ export class RemoteEngine implements SpeechEngine {
     if (my !== this.token) return
     const src = ctx.createBufferSource(); src.buffer = buf
     src.playbackRate.value = Math.min(2, Math.max(0.5, rate * 0.92)); this.src = src
-    const low = ctx.createBiquadFilter(); low.type = 'lowshelf'; low.frequency.value = 180; low.gain.value = 7
-    const shaper = ctx.createWaveShaper(); shaper.curve = softClip(1.8); shaper.oversample = '2x'
-    const ring = ctx.createGain(); ring.gain.value = 0.82                      // modulación de anillo ≈ 55 Hz (mezcla baja)
-    const osc = ctx.createOscillator(); osc.frequency.value = 55
-    const depth = ctx.createGain(); depth.gain.value = 0.18
-    osc.connect(depth).connect(ring.gain); osc.start()
-    const delay = ctx.createDelay(0.05); delay.delayTime.value = 0.012          // resonancia metálica corta
-    const fb = ctx.createGain(); fb.gain.value = 0.22; delay.connect(fb).connect(delay)
-    const out = ctx.createGain(); out.gain.value = 0.9
-    src.connect(low).connect(shaper).connect(ring)
-    ring.connect(out); ring.connect(delay); delay.connect(out); out.connect(ctx.destination)
-    return new Promise((resolve) => { src.onended = () => { osc.stop(); resolve() }; src.start() })
+    // Reproducimos el audio original del proveedor sin efectos artificiales.\n    const out = ctx.createGain(); out.gain.value = 1\n    src.connect(out).connect(ctx.destination)\n    return new Promise((resolve) => { src.onended = () => resolve(); src.start() })
   }
   pause() { void this.ctx?.suspend() }
   resume() { void this.ctx?.resume() }
