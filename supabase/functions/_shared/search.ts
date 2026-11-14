@@ -10,7 +10,7 @@ export function shouldSearchWeb(message: string): boolean {
   const q = message.trim()
   if (!q || q.length < 8) return false
   if (EXPLICIT_SEARCH.test(q)) return true
-  if (FRESH_INFO.test(q) && !STABLE_QUESTION.test(q)) return true
+  if (VERIFY_INTENT.test(q) || FRESH_INFO.test(q)) return true
   return false
 }
 
