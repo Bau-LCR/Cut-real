@@ -127,7 +127,7 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
           <button className="icon-btn" title="Adjuntar archivos" aria-label="Adjuntar archivos" onClick={() => fileRef.current?.click()}><Paperclip /></button>
           <button className={`icon-btn${web ? ' on' : ''}`} title={web ? 'Búsqueda web activada' : 'Activar búsqueda web'} aria-pressed={web} aria-label="Búsqueda web" onClick={() => void toggleWebSearch()}><Globe /></button>
           <button className={`icon-btn${rec === 'recording' ? ' on' : ''}`} title={rec === 'recording' ? 'Detener grabación' : 'Dictar por voz'} aria-label="Dictar por voz" disabled={rec === 'transcribing'} onClick={toggleRecording}><Mic /></button>
-          {rec === 'recording' && <span className="rec"><i />Grabando…</span>}
+          {rec === 'recording' && <span className="rec"><span className="waveform" aria-hidden="true">{Array.from({ length: 9 }, (_, i) => <i key={i} />)}</span>Grabando…</span>}
           {rec === 'transcribing' && <span className="rec" style={{ color: 'var(--muted)' }}>Transcribiendo…</span>}
           <span className="grow" />
           <button className="icon-btn" title="Conversación por voz" aria-label="Conversación por voz" onClick={onVoice}><Waves /></button>
