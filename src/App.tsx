@@ -6,6 +6,7 @@ import { Login } from './pages/Login'
 import { ChatPage } from './pages/ChatPage'
 import { LandingPage } from './pages/LandingPage'
 import { StudioPage } from './pages/StudioPage'
+import { CallsPage } from './pages/CallsPage'
 import { useAuth } from './store/auth'
 
 const Admin = lazy(() => import('./pages/Admin'))
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="/login" element={!ready ? <Splash /> : ready && session ? <Navigate to="/" replace /> : <Login />} />
         <Route path="/admin" element={<Guard admin><Suspense fallback={<Splash />}><Admin /></Suspense></Guard>} />
         <Route path="/studio" element={<Guard><StudioPage /></Guard>} />
+        <Route path="/calls" element={<Guard><CallsPage /></Guard>} />
         <Route path="/c/:id" element={<Guard><ChatPage /></Guard>} />
         <Route path="/" element={!ready ? <Splash /> : session ? <Guard><ChatPage /></Guard> : <LandingPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
