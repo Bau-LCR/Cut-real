@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { Sidebar } from '../components/Sidebar'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../store/auth'
-import { useChat } from '../store/chat'
 import { useUi } from '../store/ui'
 
 type CodeFiles = { 'index.html': string; 'style.css': string; 'script.js': string }
@@ -25,7 +24,6 @@ function previewDocument(files: CodeFiles) {
 export function StudioPage() {
   const userId = useAuth((s) => s.me?.userId)
   const toast = useUi((s) => s.toast)
-  const modelId = useChat((s) => s.modelId)
   const [projects, setProjects] = useState<Project[]>([])
   const [active, setActive] = useState<Project | null>(null)
   const [file, setFile] = useState<keyof CodeFiles>('index.html')
