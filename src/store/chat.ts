@@ -116,7 +116,7 @@ export const useChat = create<ChatState>((set, get) => {
   }
 
   // ---------- generación (una por conversación, totalmente independientes) ----------
-  async function run(convId: string, body: Record<string, unknown>, o: { optimisticId?: string; attachments?: Attachment[] } = {}): Promise<SendResult> {
+  async function run(convId: string, body: Record<string, unknown>, o: { optimisticId?: string; attachments?: Attachment[]; silent?: boolean } = {}): Promise<SendResult> {
     const controller = new AbortController()
     setGen(convId, { controller, assistantId: null })
     setError(convId, null)
