@@ -19,12 +19,12 @@ export const useSpeech = create<SpeechState>((set, getState) => ({
     const text = markdownToSpeech(markdown)
     if (!text) return
     set({ activeId: id, paused: false })
-    try { await get().speak(text, useAuth.getState().voice.rate) }
+    try { await get().speak(text, useAuth.getState().voice.rate, useAuth.getState().voice.voice_uri) }
     catch (e) {
       useUi.getState().toast('error', (e as Error).message)
       // Si el motor remoto falla (no configurado), se vuelve al motor del navegador sin cambiar la configuración guardada.
       if (useAuth.getState().voice.engine === 'remote') {
-        try { engine = makeEngine('browser'); engineKind = 'remote'; await engine.speak(text, useAuth.getState().voice.rate) } catch { /* sin voz disponible */ }
+        try { engine = makeEngine('browser'); engineKind = 'remote'; await engine.speak(text, useAuth.getState().voice.rate, useAuth.getState().voice.voice_uri) } catch { /* sin voz disponible */ }
       }
     } finally { if (getState().activeId === id) set({ activeId: null, paused: false }) }
   },
