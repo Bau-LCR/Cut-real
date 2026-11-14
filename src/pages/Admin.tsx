@@ -252,7 +252,7 @@ export default function Admin() {
   const Active = TABS.find((t) => t[0] === tab)![2]
   return (
     <div className="admin">
-      <div className="admin-head"><button className="icon-btn" onClick={() => nav('/')} aria-label="Volver al chat"><Back /></button><img src={`${import.meta.env.BASE_URL}brand/Logo_Original.png`} alt="" width={28} height={28} /><h1 style={{ fontSize: 17 }}>Administración</h1></div>
+      <div className="admin-head"><button className="icon-btn" onClick={() => nav('/app')} aria-label="Volver al chat"><Back /></button><img src={`${import.meta.env.BASE_URL}brand/Logo_Original.png`} alt="" width={28} height={28} /><h1 style={{ fontSize: 17 }}>Administración</h1></div>
       <div className="tabs" role="tablist">{TABS.map(([k, label]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{label}</button>)}</div>
       <div className="admin-body"><Active /></div>
     </div>
