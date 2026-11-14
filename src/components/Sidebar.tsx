@@ -70,6 +70,7 @@ export function Sidebar({ activeId }: { activeId?: string }) {
         <div className="side-actions">
           <button className="btn" onClick={() => { nav('/'); close() }}><Plus className="sm" />Nueva conversación</button>
           <button className="btn" onClick={() => { nav('/studio'); close() }}><span className="studio-nav-icon" aria-hidden="true">{'</>'}</span>Programación</button>
+          <button className="btn" onClick={() => { nav('/calls'); close() }}><span className="studio-nav-icon" aria-hidden="true">◷</span>Registro de llamadas</button>
           <div className="side-search">
             <Search className="sm" />
             <input className="field" placeholder="Buscar conversaciones" aria-label="Buscar conversaciones" value={q} onChange={(e) => setQ(e.target.value)} />
