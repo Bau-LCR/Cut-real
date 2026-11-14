@@ -57,19 +57,24 @@ export function VoiceMode({ ensureConv, onClose }: { ensureConv(): Promise<strin
         }
         if (c.dead) break
         if (text.trim().length < 2) continue
+        const me = useAuth.getState().me
+        if (callSessionId && me) {
+          const { error: userLogError } = await supabase.from('cr_call_turns').insert({
+            session_id: callSessionId, user_id: me.userId, seq: turnSeq++, role: 'user', content: text.trim(),
+          })
+          if (userLogError) setErr('No se pudo guardar tu intervención en el historial de llamadas.')
+        }
         setPhase('thinking')
         try {
           const id = await ensureConv()
           const res = await useChat.getState().send(id, text, { silent: true, ephemeral: true })
           if (!res.ok) { setErr(res.error ?? 'No se pudo obtener la respuesta.'); setPhase('error'); await sleep(2800); continue }
           if (c.dead || !res.content) continue
-          const me = useAuth.getState().me
           if (callSessionId && me) {
-            const { error: logError } = await supabase.from('cr_call_turns').insert([
-              { session_id: callSessionId, user_id: me.userId, seq: turnSeq++, role: 'user', content: text.trim() },
-              { session_id: callSessionId, user_id: me.userId, seq: turnSeq++, role: 'assistant', content: res.content.trim() },
-            ])
-            if (logError) setErr('La llamada sigue activa, pero no se pudo guardar un turno en el historial.')
+            const { error: assistantLogError } = await supabase.from('cr_call_turns').insert({
+              session_id: callSessionId, user_id: me.userId, seq: turnSeq++, role: 'assistant', content: res.content.trim(),
+            })
+            if (assistantLogError) setErr('No se pudo guardar la respuesta en el historial de llamadas.')
           }
           setPhase('speaking')
           const barge = new AbortController()
