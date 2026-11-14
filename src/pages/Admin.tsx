@@ -257,6 +257,7 @@ function MemoryTaskPanel({ integration }: { integration: any }) {
         <div><strong>API key</strong><p className="hint">{status?.apiKeyConfigured ? 'Configurada' : 'Falta MEMORY_TASK_API_KEY'}</p></div>
         <div><strong>ID de aplicación</strong><p className="hint">{status?.appIdConfigured ? 'Configurado' : 'Falta MEMORY_TASK_APP_ID'}</p></div>
         <div><strong>Identidad ES256</strong><p className="hint">{status?.identityKeyConfigured ? 'Configurada' : 'Falta MEMORY_TASK_IDENTITY_PRIVATE_JWK'}</p></div>
+        <div><strong>Autorización de esta cuenta</strong><p className="hint">{status?.authorized ? 'conversations:write concedido' : 'Falta autorizar desde Configuración'}</p></div>
       </div>
       <div className="panel" style={{ marginTop: 12 }}>
         <strong>Configuración inicial (una sola vez)</strong>
@@ -290,8 +291,9 @@ function MemoryTaskPanel({ integration }: { integration: any }) {
         <input className="field" maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ej.: Nota de Cut-real" />
         <label className="lbl">Texto o información</label>
         <textarea className="field" rows={6} maxLength={20000} value={content} onChange={(e) => setContent(e.target.value)} placeholder="Escribí aquí la información que querés almacenar en Memory Task." />
-        <div className="row end"><span className="hint">{content.length}/20000 caracteres</span><button className="btn primary" disabled={busy || !status?.configured || integration?.status !== 'enabled' || !title.trim() || !content.trim()} onClick={() => void send()}>Enviar y guardar</button></div>
+        <div className="row end"><span className="hint">{content.length}/20000 caracteres</span><button className="btn primary" disabled={busy || !status?.configured || !status?.authorized || integration?.status !== 'enabled' || !title.trim() || !content.trim()} onClick={() => void send()}>Enviar y guardar</button></div>
         {integration?.status !== 'enabled' && <p className="hint">Habilitá primero la integración Memory Task para poder enviar información.</p>}
+        {integration?.status === 'enabled' && status?.configured && !status?.authorized && <p className="hint">Para enviar datos, autorizá Memory Task desde Configuración → Integraciones autorizadas y marcá el permiso conversations:write.</p>}
       </div>
     </div>
   )
