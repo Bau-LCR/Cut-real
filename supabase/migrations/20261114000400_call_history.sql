@@ -14,12 +14,13 @@ create table if not exists public.cr_call_turns (
   id uuid primary key default gen_random_uuid(),
   session_id uuid not null references public.cr_call_sessions(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
+  seq integer not null check (seq >= 0),
   role text not null check (role in ('user', 'assistant')),
   content text not null check (char_length(content) between 1 and 200000),
   created_at timestamptz not null default now()
 );
-create index if not exists cr_call_turns_session_created_idx
-  on public.cr_call_turns (session_id, created_at asc);
+create unique index if not exists cr_call_turns_session_seq_idx
+  on public.cr_call_turns (session_id, seq);
 
 alter table public.cr_call_sessions enable row level security;
 alter table public.cr_call_turns enable row level security;
