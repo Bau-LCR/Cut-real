@@ -21,3 +21,6 @@ verify_jwt = true
 # La API pública se autentica con claves crk_... propias, no con JWT de Supabase.
 [functions.api]
 verify_jwt = false
+
+[functions.generate-document]
+verify_jwt = true
