@@ -36,6 +36,6 @@ export const useSpeech = create<SpeechState>((set, getState) => ({
 /** Habla y espera hasta terminar (modo conversación por voz). */
 export async function speakAndWait(markdown: string) {
   const text = markdownToSpeech(markdown)
-  if (text) await get().speak(text, useAuth.getState().voice.rate)
+  if (text) await get().speak(text, useAuth.getState().voice.rate, useAuth.getState().voice.voice_uri)
 }
 export const stopSpeaking = () => engine?.stop()
