@@ -45,7 +45,6 @@ const recovering = new Set<string>()
 const bySeq = (a: Message, b: Message) => (a.seq ?? Number.MAX_SAFE_INTEGER) - (b.seq ?? Number.MAX_SAFE_INTEGER)
 const byRecent = (a: Conversation, b: Conversation) => +new Date(b.last_message_at) - +new Date(a.last_message_at)
 let channel: ReturnType<typeof supabase.channel> | null = null
-const ephemeralConversations = new Set<string>()
 
 export const useChat = create<ChatState>((set, get) => {
   // ---------- utilidades de estado ----------
@@ -278,8 +277,7 @@ export const useChat = create<ChatState>((set, get) => {
       const { data, error } = await supabase.from('cr_conversations').insert({ user_id: me.userId, model_id: currentModel(), is_ephemeral: ephemeral }).select().single()
       if (error || !data) throw new Error('No se pudo crear la conversación.')
       set((s) => ({ messages: { ...s.messages, [data.id]: [] }, olderHasMore: { ...s.olderHasMore, [data.id]: false } }))
-      if (ephemeral) ephemeralConversations.add(data.id as string)
-      else upsertConv(data as Conversation)
+      if (!ephemeral) upsertConv(data as Conversation)
       return data.id as string
     },
 
@@ -296,7 +294,6 @@ export const useChat = create<ChatState>((set, get) => {
     },
 
     async remove(id) {
-      ephemeralConversations.delete(id)
       get().gens[id]?.controller.abort()
       const { error } = await supabase.from('cr_conversations').delete().eq('id', id)
       if (error) return useUi.getState().toast('error', 'No se pudo eliminar la conversación.')
