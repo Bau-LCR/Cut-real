@@ -40,10 +40,10 @@ describe('markdown y voz', () => {
   it('normaliza etiquetas HTML y tablas impresas por el modelo', () => {
     const source = '<p>Resumen<br>de la guerra</p><ul><li>Aliados</li><li>Eje</li></ul><table><tr><th>País</th><th>Bloque</th></tr><tr><td>Francia</td><td>Aliados</td></tr></table>'
     const normalized = normalizeHtmlArtifacts(source)
-    expect(normalized).toContain('Resumen\\nde la guerra')
+    expect(normalized).toContain('Resumen\nde la guerra')
     expect(normalized).toContain('- Aliados')
     expect(normalized).toContain('| País | Bloque |')
-    expect(normalized).not.toMatch(/<\\/?(?:p|br|ul|li|table|tr|td|th)>/i)
+    expect(normalized).not.toMatch(/<\/?(?:p|br|ul|li|table|tr|td|th)>/i)
   })
   it('la voz no pronuncia etiquetas HTML escapadas ni emojis', () => {
     const spoken = markdownToSpeech('Hola &lt;br&gt; mundo 😀 <ul><li>uno</li></ul>')
