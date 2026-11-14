@@ -24,6 +24,7 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
   const [items, setItems] = useState<Item[]>([])
   const [web, setWeb] = useState(webDefault)
   const [rec, setRec] = useState<'idle' | 'recording' | 'transcribing'>('idle')
+  const [micLevel, setMicLevel] = useState(0)
   const taRef = useRef<HTMLTextAreaElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const micRef = useRef<{ mic: MicSession; stop: () => void; done: Promise<Blob | null> } | null>(null)
@@ -88,11 +89,11 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
     if (!MicSession.supported) return toast('error', 'Tu navegador no permite grabar audio.')
     const mic = new MicSession()
     try { await mic.open() } catch (e) { return toast('error', (e as Error).message || micErrorMessage(e)) }
-    const r = mic.record({ vad: false })
+    const r = mic.record({ vad: false, onLevel: (level) => setMicLevel(Math.min(1, level * 7)) })
     micRef.current = { mic, ...r }
     setRec('recording')
     const blob = await r.done
-    mic.close(); micRef.current = null
+    mic.close(); micRef.current = null; setMicLevel(0)
     if (!blob || blob.size < 1200) { setRec('idle'); return toast('info', 'No se escuchó nada. Probá de nuevo.') }
     setRec('transcribing')
     try {
@@ -127,7 +128,7 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
           <button className="icon-btn" title="Adjuntar archivos" aria-label="Adjuntar archivos" onClick={() => fileRef.current?.click()}><Paperclip /></button>
           <button className={`icon-btn${web ? ' on' : ''}`} title={web ? 'Búsqueda web activada' : 'Activar búsqueda web'} aria-pressed={web} aria-label="Búsqueda web" onClick={() => void toggleWebSearch()}><Globe /></button>
           <button className={`icon-btn${rec === 'recording' ? ' on' : ''}`} title={rec === 'recording' ? 'Detener grabación' : 'Dictar por voz'} aria-label="Dictar por voz" disabled={rec === 'transcribing'} onClick={toggleRecording}><Mic /></button>
-          {rec === 'recording' && <span className="rec"><span className="waveform" aria-hidden="true">{Array.from({ length: 9 }, (_, i) => <i key={i} />)}</span>Grabando…</span>}
+          {rec === 'recording' && <span className="rec"><span className="waveform reactive" aria-hidden="true">{Array.from({ length: 9 }, (_, i) => <i key={i} style={{ height: `${Math.max(3, Math.round((0.12 + micLevel * (0.35 + ((i * 7) % 9) / 9)) * 22))}px` }} />)}</span>Grabando…</span>}
           {rec === 'transcribing' && <span className="rec" style={{ color: 'var(--muted)' }}>Transcribiendo…</span>}
           <span className="grow" />
           <button className="icon-btn" title="Conversación por voz" aria-label="Conversación por voz" onClick={onVoice}><Waves /></button>
