@@ -287,3 +287,23 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
 .autosave-status { color:var(--faint);font-size:11px;white-space:nowrap; }
 .waveform.reactive i { animation:none;transition:height .07s linear; }
 @media(max-width:620px){.autosave-status{width:100%;text-align:right}.workspace-actions{flex-wrap:wrap}.landing-nav nav .landing-anchor{display:none}}
+
+
+/* Registro de llamadas: separado del historial de chat */
+.calls-page { min-width:0;min-height:100dvh;overflow:auto;background:var(--carbon); }
+.calls-header { max-width:1040px;margin:0 auto;padding:34px 28px 25px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:20px; }
+.calls-header h1 { margin:8px 0;font-size:clamp(25px,4vw,34px);letter-spacing:-.035em; }
+.calls-header p { color:var(--muted);font-size:14px;line-height:1.6; }
+.calls-list { max-width:1040px;margin:0 auto;padding:22px 28px 60px;display:grid;gap:10px; }
+.calls-empty { text-align:center;padding:70px 20px;border:1px dashed var(--line-strong);border-radius:14px; }
+.calls-empty h2 { font-size:20px; }.calls-empty p { color:var(--muted);margin:10px auto 20px;max-width:420px;line-height:1.65; }
+.call-card { border:1px solid var(--line);border-radius:12px;background:var(--graphite);overflow:hidden; }
+.call-card-head { display:flex;align-items:center;gap:13px;width:100%;padding:16px;text-align:left;background:transparent;cursor:pointer; }
+.call-symbol { width:36px;height:36px;display:grid;place-items:center;border-radius:50%;background:var(--raised);color:var(--platinum);font-size:17px; }
+.call-meta { flex:1;min-width:0;display:grid;gap:4px; }.call-meta b { font-size:14px;font-weight:600; }.call-meta small { color:var(--muted);font-size:12px; }
+.call-expand { color:var(--platinum);font-size:12px;white-space:nowrap; }
+.call-transcript { border-top:1px solid var(--line);padding:16px;display:grid;gap:14px; }
+.call-turn { max-width:88%;padding:12px 14px;border-radius:11px;background:var(--raised); }.call-turn.user { justify-self:end;border-bottom-right-radius:3px; }.call-turn.assistant { justify-self:start;border-bottom-left-radius:3px; }
+.call-turn b { display:block;margin-bottom:6px;font-size:11px;color:var(--platinum); }.call-turn p { white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.65;color:var(--text); }
+.call-hangup { min-width:190px;background:#8d343a!important;border-color:#a84b52!important;color:white!important; }
+@media(max-width:620px){.calls-header{padding:22px 16px;align-items:flex-start;flex-direction:column}.calls-list{padding:16px 12px 40px}.call-card-head{padding:13px}.call-expand{font-size:11px}.call-turn{max-width:96%}}
