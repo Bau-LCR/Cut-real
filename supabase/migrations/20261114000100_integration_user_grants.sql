@@ -38,7 +38,7 @@ begin
 
   if exists (
     select 1 from unnest(v_scopes) as requested(scope)
-    where not (requested.scope = any(coalesce(v_allowed, '{}'::text[])))
+    where requested.scope is null or not (requested.scope = any(coalesce(v_allowed, '{}'::text[])))
   ) then
     raise exception 'La integración no permite uno o más permisos seleccionados.' using errcode = '42501';
   end if;
