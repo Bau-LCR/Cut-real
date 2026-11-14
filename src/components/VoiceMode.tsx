@@ -15,7 +15,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 export function VoiceMode({ ensureConv, onClose }: { ensureConv(): Promise<string>; onClose(): void }) {
   const [phase, setPhase] = useState<Phase>('starting')
   const [err, setErr] = useState<string | null>(null)
-  const [lvl, setLvl] = useState(0)
+  const [voiceLevel, setVoiceLevelState] = useState(0)
   const ctl = useRef({ dead: false, abort: new AbortController(), stopRec: () => {}, fatal: false })
 
   useEffect(() => {
@@ -42,7 +42,7 @@ export function VoiceMode({ ensureConv, onClose }: { ensureConv(): Promise<strin
       catch (e) { c.fatal = true; setErr((e as Error).message); setPhase('error'); return }
       while (!c.dead) {
         setPhase('listening'); setErr(null)
-        const rec = mic.record({ vad: true, silenceMs: 1300, onLevel: (l) => setLvl(Math.min(1, l * 6)), signal: c.abort.signal })
+        const rec = mic.record({ vad: true, silenceMs: 1300, signal: c.abort.signal })
         c.stopRec = rec.stop
         const blob = await rec.done
         if (c.dead) break
@@ -78,7 +78,7 @@ export function VoiceMode({ ensureConv, onClose }: { ensureConv(): Promise<strin
           }
           setPhase('speaking')
           const barge = new AbortController()
-          const speaking = speakCallAndWait(res.content).catch(() => {})
+          const speaking = speakCallAndWait(res.content, (level) => { if (!c.dead) setVoiceLevelState(level) }).catch(() => {})
           const interrupted = mic.waitForVoice(barge.signal).then((v) => v)
           const first = await Promise.race([interrupted.then((v) => (v ? 'barge' : 'wait')), speaking.then(() => 'done')])
           barge.abort()
@@ -98,7 +98,7 @@ export function VoiceMode({ ensureConv, onClose }: { ensureConv(): Promise<strin
     <div className="voice" role="dialog" aria-modal="true" aria-label="Conversación por voz">
       <header><span>Conversación por voz</span><button className="icon-btn" onClick={onClose} aria-label="Cerrar modo voz"><X /></button></header>
       <div className="stage">
-        <div className={`orb ${phase === 'thinking' || phase === 'transcribing' ? 'thinking' : phase}`} style={{ ['--lvl' as string]: phase === 'listening' ? lvl : 0 }} aria-hidden="true" />
+        <div className={`orb ${phase === 'thinking' || phase === 'transcribing' ? 'thinking' : phase}`} style={{ ['--voice-level' as string]: phase === 'speaking' ? voiceLevel : 0 }} aria-hidden="true"><span className="orb-ring" /><span className="orb-halo" /><span className="orb-core" /><span className="orb-highlight" /></div>
         <div className="state" role="status">{LABEL[phase]}</div>
         {err && <div className="notice error" role="alert" style={{ maxWidth: 440 }}><div className="grow">{err}</div></div>}
       </div>
