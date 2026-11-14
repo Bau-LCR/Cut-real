@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useCallback } from 'react'
 
 const features = [
   { n: '01', title: 'Conversaciones inteligentes', text: 'Trabajá con distintos modelos de IA, mantené el contexto y retomá tus conversaciones cuando quieras.' },
@@ -10,18 +11,19 @@ const features = [
 ]
 
 export function LandingPage() {
+  const scrollTo = useCallback((id: string) => { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, [])
   return (
     <main className="landing">
       <header className="landing-nav">
         <Link to="/" className="landing-brand"><img src={`${import.meta.env.BASE_URL}brand/Logo_Original.png`} alt="" /> <span>Cut-real <b>2</b></span></Link>
-        <nav><a href="#funciones">Funciones</a><a href="#como-funciona">Cómo funciona</a><Link className="btn landing-login" to="/login">Iniciar sesión</Link></nav>
+        <nav><button type="button" className="landing-anchor" onClick={() => scrollTo("funciones")}>Funciones</button><button type="button" className="landing-anchor" onClick={() => scrollTo("como-funciona")}>Cómo funciona</button><Link className="btn landing-login" to="/login">Iniciar sesión</Link></nav>
       </header>
 
       <section className="landing-hero">
         <div className="landing-kicker"><span /> TU ESPACIO DE INTELIGENCIA ARTIFICIAL</div>
         <h1>Ideas que avanzan.<br /><em>Proyectos que toman forma.</em></h1>
         <p>Estudiá, investigá, programá y creá desde un mismo lugar. Cut-real reúne herramientas de inteligencia artificial en un espacio simple, flexible y pensado para trabajar.</p>
-        <div className="landing-actions"><Link className="btn primary" to="/login">Comenzar con Cut-real <span aria-hidden="true">→</span></Link><a href="#funciones" className="landing-secondary">Conocé sus funciones ↓</a></div>
+        <div className="landing-actions"><Link className="btn primary" to="/login">Comenzar con Cut-real <span aria-hidden="true">→</span></Link><button type="button" className="landing-secondary" onClick={() => scrollTo("funciones")}>Conocé sus funciones ↓</button></div>
         <div className="landing-preview" aria-label="Vista conceptual de Cut-real">
           <div className="preview-sidebar"><div className="preview-logo">◉ <b>Cut-real</b></div><div className="preview-new">＋ Nueva conversación</div><small>RECIENTES</small><div className="preview-line active">Planificación de proyecto</div><div className="preview-line">Ideas para estudiar</div><div className="preview-line">Revisión de código</div><div className="preview-user"><i /> Mi espacio</div></div>
           <div className="preview-main"><div className="preview-top"><span>Planificación de proyecto</span><small>MODELO IA　⌄</small></div><div className="preview-chat"><div className="preview-user-msg">Quiero organizar una idea y convertirla en un proyecto.</div><div className="preview-answer"><b>Vamos a darle forma.</b><p>Podemos dividir el trabajo en etapas, definir objetivos y crear los archivos necesarios para empezar.</p><div className="preview-pills"><span>Investigación</span><span>Planificación</span><span>Desarrollo</span></div></div><div className="preview-input">Escribí tu mensaje… <span>↑</span></div></div></div>
