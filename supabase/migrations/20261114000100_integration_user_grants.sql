@@ -28,9 +28,9 @@ begin
     raise exception 'La integración no existe o está deshabilitada.' using errcode = '22023';
   end if;
 
-  select coalesce(array_agg(distinct scope), '{}'::text[])
+  select coalesce(array_agg(distinct requested.scope), '{}'::text[])
     into v_scopes
-    from unnest(coalesce(p_scopes, '{}'::text[])) as scope;
+    from unnest(coalesce(p_scopes, '{}'::text[])) as requested(scope);
 
   if cardinality(v_scopes) = 0 then
     raise exception 'Seleccioná al menos un permiso.' using errcode = '22023';
