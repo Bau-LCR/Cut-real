@@ -3,7 +3,7 @@ import { callFnBlob, FnError } from '../lib/functions'
 import { splitSentences } from './speechText'
 
 export interface SpeechEngine {
-  speak(text: string, rate: number, voiceURI?: string): Promise<void> // se resuelve al terminar o al detener
+  speak(text: string, rate: number, voiceURI?: string, onActivity?: (level: number) => void): Promise<void> // se resuelve al terminar o al detener
   pause(): void
   resume(): void
   stop(): void
@@ -37,8 +37,10 @@ export class BrowserEngine implements SpeechEngine {
         if (v) { u.voice = v; u.lang = v.lang } else u.lang = 'es-AR'
         u.pitch = voiceURI ? 1 : VOICE_PROFILE.pitch
         u.rate = Math.min(2, Math.max(0.5, rate * VOICE_PROFILE.rateScale))
-        u.onend = next
-        u.onerror = () => resolve()
+        u.onstart = () => onActivity?.(0.42)
+        u.onboundary = (event) => { if (event.name === 'word') onActivity?.(0.55 + ((event.charIndex % 5) * 0.09)) }
+        u.onend = () => { onActivity?.(0.12); next() }
+        u.onerror = () => { onActivity?.(0); resolve() }
         speechSynthesis.speak(u)
       }
       next()
