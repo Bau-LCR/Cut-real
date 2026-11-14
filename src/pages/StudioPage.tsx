@@ -12,7 +12,7 @@ const FILES = ['index.html', 'style.css', 'script.js'] as const
 
 function previewDocument(files: CodeFiles) {
   const style = '<style>\n' + files['style.css'] + '\n</style>'
-  const script = '<script>\n' + files['script.js'].replace(/<\\/script/gi, '<\\\\/script') + '\n<\\/script>'
+  const script = '<script>\n' + files['script.js'].replace(/<\/script/gi, '<\\/script') + '\n</script>'
   let html = files['index.html'] || '<!doctype html><html><head></head><body></body></html>'
   if (/<\\/head>/i.test(html)) html = html.replace(/<\\/head>/i, style + '</head>')
   else html = style + html
