@@ -35,6 +35,7 @@ export function StudioPage() {
   const [prompt, setPrompt] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [savedAt, setSavedAt] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [showPreview, setShowPreview] = useState(true)
   const preview = useMemo(() => previewDocument(draft), [draft])
@@ -52,9 +53,31 @@ export function StudioPage() {
 
   useEffect(() => { void useChat.getState().init(); void loadProjects() }, [userId])
 
+  // Debounce: guarda tras una pausa breve, sin escribir en la base por cada tecla.
+  useEffect(() => {
+    if (!active || loading) return
+    const projectId = active.id
+    const projectName = active.name.trim() || 'Mi proyecto'
+    const files = draft
+    const timer = window.setTimeout(async () => {
+      setSaving(true)
+      const { error } = await supabase.from('cr_code_projects')
+        .update({ name: projectName, files, updated_at: new Date().toISOString() })
+        .eq('id', projectId)
+      setSaving(false)
+      if (error) { toast('error', 'No se pudo guardar automáticamente. Revisá tu conexión.'); return }
+      setSavedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+      setProjects(old => old.map(p => p.id === projectId ? { ...p, name: projectName, files } : p))
+    }, 850)
+    return () => window.clearTimeout(timer)
+  }, [active?.id, active?.name, draft, loading, toast])
+
   async function createProject() {
     if (!userId) return
-    const { data, error } = await supabase.from('cr_code_projects').insert({ user_id: userId, name: 'Mi proyecto', files: EMPTY }).select('id, name, files, updated_at').single()
+    const proposed = window.prompt('Nombre del proyecto', 'Mi proyecto')
+    if (proposed === null) return
+    const name = proposed.trim().slice(0, 100) || 'Mi proyecto'
+    const { data, error } = await supabase.from('cr_code_projects').insert({ user_id: userId, name, files: EMPTY }).select('id, name, files, updated_at').single()
     if (error || !data) return toast('error', 'No se pudo crear el proyecto.')
     const p = data as Project
     setProjects((old) => [p, ...old]); setActive(p); setDraft(EMPTY); setFile('index.html')
@@ -83,12 +106,12 @@ export function StudioPage() {
         prompt.trim(),
         'Respondé con exactamente tres bloques de código, en este orden: primero HTML para index.html, segundo CSS para style.css y tercero JavaScript para script.js. No omitas archivos; si uno no necesita código, devolvé un bloque vacío. No agregues explicaciones fuera de los bloques. El HTML debe enlazar style.css y script.js correctamente.'
       ].join('\n\n')
-      const result = await chat.send(conversationId, request, {})
+      const result = await chat.send(conversationId, request, { silent: true })
       if (!result.ok || !result.content) throw new Error(result.error || 'El modelo no devolvió código.')
       const blocks = [...result.content.matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map((m) => m[1].trim())
       if (blocks.length < 3) throw new Error('La respuesta no incluyó los tres archivos esperados. Podés pedirlo de nuevo con más detalle.')
       setDraft({ 'index.html': blocks[0], 'style.css': blocks[1], 'script.js': blocks[2] })
-      toast('info', 'Código generado. Revisalo y guardá el proyecto para conservarlo.')
+      toast('info', 'Código generado. Se guardará automáticamente.')
     } catch (e) { toast('error', (e as Error).message) }
     finally { setGenerating(false) }
   }
@@ -113,7 +136,7 @@ export function StudioPage() {
           </aside>
           <section className="studio-workspace">
             {!active ? <div className="studio-empty"><h2>Tu próximo proyecto empieza acá.</h2><p>Creá un proyecto para trabajar con HTML, CSS y JavaScript en archivos vinculados.</p><button className="btn primary" onClick={() => void createProject()}>Crear proyecto</button></div> : <>
-              <div className="workspace-toolbar"><input className="field project-name" value={active.name} onChange={(e) => setActive({ ...active, name: e.target.value })} aria-label="Nombre del proyecto" /><div className="workspace-actions"><button className="btn sm" onClick={() => void saveProject()} disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</button><button className="btn danger sm" onClick={() => void deleteProject()}>Eliminar</button></div></div>
+              <div className="workspace-toolbar"><input className="field project-name" value={active.name} onChange={(e) => setActive({ ...active, name: e.target.value })} aria-label="Nombre del proyecto" /><div className="workspace-actions"><span className="autosave-status">{saving ? 'Guardando…' : savedAt ? 'Guardado automáticamente' : 'Guardado automático activo'}</span><button className="btn sm" onClick={() => void saveProject()} disabled={saving}>Guardar ahora</button><button className="btn danger sm" onClick={() => void deleteProject()}>Eliminar</button></div></div>
               <div className="codegen"><div><b>Generar con Cut-real</b><p>Describí qué querés construir y se generarán los tres archivos conectados.</p></div><textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Ej.: una página de presentación para mi emprendimiento, con menú, tarjetas y formulario…" rows={2} /><button className="btn primary sm" onClick={() => void generateCode()} disabled={!prompt.trim() || generating || !modelId}>{generating ? 'Generando…' : !modelId ? 'Cargando modelo…' : 'Generar código'}</button></div>
               <div className={`studio-panels${showPreview ? '' : ' no-preview'}`}>
                 <section className="editor-panel"><div className="file-tabs">{FILES.map((name) => <button key={name} className={file === name ? 'active' : ''} onClick={() => setFile(name)}>{name}</button>)}</div><textarea className="code-editor" spellCheck={false} aria-label={`Código de ${file}`} value={draft[file]} onChange={(e) => setDraft((old) => ({ ...old, [file]: e.target.value }))} /><div className="editor-footer"><span>HTML · CSS · JavaScript</span><button className="btn ghost sm" onClick={() => setShowPreview((v) => !v)}>{showPreview ? 'Ocultar vista previa' : 'Mostrar vista previa'}</button></div></section>
