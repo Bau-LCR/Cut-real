@@ -20,6 +20,7 @@ export function Settings() {
   const [grants, setGrants] = useState<Grant[]>([])
   const [availableIntegrations, setAvailableIntegrations] = useState<AvailableIntegration[]>([])
   const [selectedScopes, setSelectedScopes] = useState<Record<string, string[]>>({})
+  const [browserVoices, setBrowserVoices] = useState<SpeechSynthesisVoice[]>([])
 
   const loadGrants = async () => {
     const [{ data: g, error: grantError }, { data: i, error: integrationError }] = await Promise.all([
@@ -41,6 +42,13 @@ export function Settings() {
     })
   }
   useEffect(() => { void loadGrants().catch((e) => toast('error', (e as Error).message)) }, [])
+  useEffect(() => {
+    if (typeof speechSynthesis === 'undefined') return
+    const loadVoices = () => setBrowserVoices(speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith('es')))
+    loadVoices()
+    speechSynthesis.addEventListener('voiceschanged', loadVoices)
+    return () => speechSynthesis.removeEventListener('voiceschanged', loadVoices)
+  }, [])
   const authorizeIntegration = async (integrationId: string) => {
     const scopes = selectedScopes[integrationId] ?? []
     try {
@@ -86,7 +94,15 @@ export function Settings() {
         </div>
         <label className="switch"><span>Leer las respuestas automáticamente</span>
           <input type="checkbox" checked={voice.auto_read} onChange={(e) => guard(saveSettings({ voice: { ...voice, auto_read: e.target.checked } }))} /></label>
-        <button className="btn sm" onClick={() => void useSpeech.getState().speak('settings-test', 'Hola. Soy Cut-real. Esta es mi voz.')}>Probar voz</button>
+        {voice.engine === 'browser' && <div>
+          <label className="lbl" htmlFor="voice-name">Voz en español</label>
+          <select id="voice-name" className="field" value={voice.voice_uri ?? ''} onChange={(e) => guard(saveSettings({ voice: { ...voice, voice_uri: e.target.value } }))}>
+            <option value="">Automática (recomendada)</option>
+            {browserVoices.map((v) => <option key={v.voiceURI} value={v.voiceURI}>{v.name} · {v.lang}</option>)}
+          </select>
+          <p className="hint">Las voces disponibles dependen del navegador y del sistema operativo. Podés elegir una y probarla.</p>
+        </div>}
+                <button className="btn sm" onClick={() => void useSpeech.getState().speak('settings-test', 'Hola. Soy Cut-real. Esta es mi voz.')}>Probar voz</button>
 
         <h3>Integraciones autorizadas</h3>
         <p className="hint">Elegí qué permisos concedés. Podés modificarlos o revocarlos cuando quieras. Solo se comparten datos cuando la función correspondiente está habilitada.</p>
