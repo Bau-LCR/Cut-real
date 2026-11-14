@@ -18,6 +18,7 @@ interface Props {
 export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }: Props) {
   const me = useAuth((s) => s.me)!
   const webDefault = useAuth((s) => s.webSearchDefault)
+  const saveSettings = useAuth((s) => s.saveSettings)
   const toast = useUi((s) => s.toast)
   const [text, setText] = useState('')
   const [items, setItems] = useState<Item[]>([])
@@ -60,6 +61,17 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
     if (i.attachment) {
       await supabase.from('cr_attachments').delete().eq('id', i.attachment.id)
       await supabase.storage.from('cr-attachments').remove([i.attachment.storage_path])
+    }
+  }
+
+  async function toggleWebSearch() {
+    const next = !web
+    setWeb(next)
+    try {
+      await saveSettings({ web_search_default: next })
+    } catch {
+      setWeb(!next)
+      toast('error', 'No se pudo guardar tu preferencia de búsqueda web.')
     }
   }
 
@@ -113,7 +125,7 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
         <div className="tools">
           <input ref={fileRef} type="file" accept={ACCEPT} multiple hidden onChange={(e) => addFiles(e.target.files)} />
           <button className="icon-btn" title="Adjuntar archivos" aria-label="Adjuntar archivos" onClick={() => fileRef.current?.click()}><Paperclip /></button>
-          <button className={`icon-btn${web ? ' on' : ''}`} title={web ? 'Búsqueda web activada' : 'Activar búsqueda web'} aria-pressed={web} aria-label="Búsqueda web" onClick={() => setWeb(!web)}><Globe /></button>
+          <button className={`icon-btn${web ? ' on' : ''}`} title={web ? 'Búsqueda web activada' : 'Activar búsqueda web'} aria-pressed={web} aria-label="Búsqueda web" onClick={() => void toggleWebSearch()}><Globe /></button>
           <button className={`icon-btn${rec === 'recording' ? ' on' : ''}`} title={rec === 'recording' ? 'Detener grabación' : 'Dictar por voz'} aria-label="Dictar por voz" disabled={rec === 'transcribing'} onClick={toggleRecording}><Mic /></button>
           {rec === 'recording' && <span className="rec"><i />Grabando…</span>}
           {rec === 'transcribing' && <span className="rec" style={{ color: 'var(--muted)' }}>Transcribiendo…</span>}
