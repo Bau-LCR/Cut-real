@@ -50,7 +50,7 @@ export function Settings() {
       await loadGrants()
     } catch (e) { toast('error', (e as Error).message) }
   }
-  const guard = (p: Promise<unknown>) => p.catch((e) => toast('error', (e as Error).message))
+  const guard = (p: PromiseLike<unknown>) => Promise.resolve(p).catch((e) => toast('error', (e as Error).message))
 
   return (
     <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && setSettings(false)}>
