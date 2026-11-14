@@ -1,9 +1,14 @@
+import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../store/auth'
 import { isConfigured } from '../lib/supabase'
 import { PRIVACY_TEXT } from '../components/Settings'
+import { TERMS_VERSION } from './Terms'
 
 export function Login() {
-  const { signInWithGoogle, error } = useAuth()
+  const { signInWithGoogle, error, session } = useAuth()
+  const accepted = localStorage.getItem('cutreal_terms_accepted') === TERMS_VERSION
+  if (!accepted) return <Navigate to="/terms" replace />
+  if (session) return <Navigate to="/app" replace />
   return (
     <div className="center-screen">
       <main className="login">
@@ -21,6 +26,7 @@ export function Login() {
         </button>
         {error && <p role="alert" style={{ color: 'var(--danger)', marginTop: 14, fontSize: 14 }}>{error}</p>}
         <p className="privacy"><b style={{ color: 'var(--platinum)' }}>Privacidad.</b> {PRIVACY_TEXT}</p>
+        <p className="privacy"><Link to="/terms">Revisar términos y condiciones</Link></p>
       </main>
     </div>
   )
