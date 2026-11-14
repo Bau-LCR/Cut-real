@@ -276,3 +276,14 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
 .studio-nav-icon { font:12px var(--mono);color:var(--platinum);width:15px;text-align:center; }
 @media(max-width:900px){.studio-layout{grid-template-columns:170px minmax(0,1fr)}.studio-workspace{padding:12px}.codegen{grid-template-columns:1fr auto}.codegen>div{grid-column:1/-1}.studio-panels{grid-template-columns:1fr}.preview-panel{min-height:350px}}
 @media(max-width:620px){.studio-top{padding:10px 14px}.studio-layout{grid-template-columns:1fr;grid-template-rows:auto 1fr}.project-rail{max-height:115px;border-right:0;border-bottom:1px solid var(--line)}.project-rail-head{margin-bottom:5px}.project-choice{display:inline-block;width:auto;max-width:150px;margin-right:4px}.workspace-toolbar{flex-wrap:wrap}.project-name{max-width:none;flex:1}.codegen{grid-template-columns:1fr}.codegen>div{grid-column:auto}.codegen button{justify-self:start}.studio-panels{min-height:700px}}
+
+
+/* Navegación de secciones: botones reales compatibles con HashRouter */
+.landing-nav nav .landing-anchor { padding:5px 0;border:0;background:transparent;color:var(--muted);font:inherit;font-size:14px;cursor:pointer; }
+.landing-nav nav .landing-anchor:hover { color:var(--text); }
+.landing-secondary { padding:0;border:0;background:transparent;cursor:pointer;font:inherit;font-size:14px;color:var(--muted); }
+.landing-secondary:hover { color:var(--text); }
+.landing-section,.landing-workflow { scroll-margin-top:20px; }
+.autosave-status { color:var(--faint);font-size:11px;white-space:nowrap; }
+.waveform.reactive i { animation:none;transition:height .07s linear; }
+@media(max-width:620px){.autosave-status{width:100%;text-align:right}.workspace-actions{flex-wrap:wrap}.landing-nav nav .landing-anchor{display:none}}
