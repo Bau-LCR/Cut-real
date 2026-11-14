@@ -98,9 +98,11 @@ export function StudioPage() {
   async function generateCode() {
     if (!active || !prompt.trim() || generating) return
     setGenerating(true)
+    const chat = useChat.getState()
+    let temporaryConversationId: string | null = null
     try {
-      const chat = useChat.getState()
-      const conversationId = await chat.createConversation()
+      temporaryConversationId = await chat.createConversation()
+      const conversationId = temporaryConversationId
       const request = [
         'Actuá como un desarrollador frontend senior. Generá una solución completa y funcional para el siguiente pedido.',
         prompt.trim(),
@@ -113,7 +115,10 @@ export function StudioPage() {
       setDraft({ 'index.html': blocks[0], 'style.css': blocks[1], 'script.js': blocks[2] })
       toast('info', 'Código generado. Se guardará automáticamente.')
     } catch (e) { toast('error', (e as Error).message) }
-    finally { setGenerating(false) }
+    finally {
+      if (temporaryConversationId) await chat.remove(temporaryConversationId)
+      setGenerating(false)
+    }
   }
 
   async function deleteProject() {
