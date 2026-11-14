@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
-import { normalizeMath } from '../lib/markdown'
+import { normalizeHtmlArtifacts, normalizeMath } from '../lib/markdown'
 import { Check, Copy } from './icons'
 
 export function CopyButton({ text, label = 'Copiar' }: { text: string; label?: string }) {
@@ -40,7 +40,7 @@ export const Markdown = memo(function Markdown({ text, streaming = false }: { te
   return (
     <div className={`md${streaming ? ' cursor' : ''}`}>
       <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[[rehypeKatex, { throwOnError: false, strict: false }]]} components={components}>
-        {normalizeMath(text)}
+        {normalizeHtmlArtifacts(normalizeMath(text))}
       </ReactMarkdown>
     </div>
   )
