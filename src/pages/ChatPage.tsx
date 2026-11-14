@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChatView } from '../components/ChatView'
 import { PrivacyGate, Settings } from '../components/Settings'
@@ -14,22 +14,30 @@ export function ChatPage() {
   const { settingsOpen, voiceOpen, setVoice } = useUi()
   const privacyAck = useAuth((s) => s.privacyAck)
   const userId = useAuth((s) => s.me?.userId)
+  const ephemeralCallId = useRef<string | null>(null)
 
   useEffect(() => { if (userId) void useChat.getState().init(); return () => useChat.getState().reset() }, [userId])
 
   const ensureConv = useCallback(async () => {
-    if (id) return id
-    const c = await useChat.getState().createConversation()
-    nav(`/c/${c}`, { replace: true })
+    if (ephemeralCallId.current) return ephemeralCallId.current
+    const c = await useChat.getState().createConversation(true)
+    ephemeralCallId.current = c
     return c
-  }, [id, nav])
+  }, [])
+
+  const closeVoice = useCallback(() => {
+    const callId = ephemeralCallId.current
+    ephemeralCallId.current = null
+    if (callId) void useChat.getState().remove(callId)
+    setVoice(false)
+  }, [setVoice])
 
   return (
     <div className="app">
       <Sidebar activeId={id} />
       <ChatView key={id ?? 'new'} convId={id} />
       {settingsOpen && <Settings />}
-      {voiceOpen && <VoiceMode ensureConv={ensureConv} onClose={() => setVoice(false)} />}
+      {voiceOpen && <VoiceMode ensureConv={ensureConv} onClose={closeVoice} />}
       {!privacyAck && <PrivacyGate />}
     </div>
   )
