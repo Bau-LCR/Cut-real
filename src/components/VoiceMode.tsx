@@ -20,6 +20,7 @@ export function VoiceMode({ ensureConv, onClose }: { ensureConv(): Promise<strin
 
   useEffect(() => {
     const c = ctl.current
+    c.dead = false; c.abort = new AbortController(); c.stopRec = () => {}; c.fatal = false
     const mic = new MicSession()
     let callSessionId: string | null = null
     let turnSeq = 0
