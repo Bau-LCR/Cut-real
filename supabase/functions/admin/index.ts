@@ -23,7 +23,7 @@ const esc = (s: string) => s.replace(/[%_\\,()]/g, (c) => `\\${c}`)
 function b64urlBytes(bytes: Uint8Array): string {
   let binary = ''
   for (const byte of bytes) binary += String.fromCharCode(byte)
-  return btoa(binary).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/g, '')
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
 }
 function b64urlJson(value: unknown): string {
   return b64urlBytes(new TextEncoder().encode(JSON.stringify(value)))
