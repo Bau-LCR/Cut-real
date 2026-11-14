@@ -3,7 +3,7 @@ import { callFnBlob, FnError } from '../lib/functions'
 import { splitSentences } from './speechText'
 
 export interface SpeechEngine {
-  speak(text: string, rate: number): Promise<void> // se resuelve al terminar o al detener
+  speak(text: string, rate: number, voiceURI?: string): Promise<void> // se resuelve al terminar o al detener
   pause(): void
   resume(): void
   stop(): void
@@ -12,8 +12,8 @@ export interface SpeechEngine {
 // ---- Identidad de voz: grave, mecánica, clara. Original (no imita ninguna voz protegida). ----
 export const VOICE_PROFILE = { pitch: 0.55, rateScale: 0.94, preferredNames: /diego|jorge|juan|pablo|enrique|carlos|male|masculin/i }
 
-function pickSpanishVoice(): SpeechSynthesisVoice | null {
-  const voices = speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith('es'))
+function pickSpanishVoice(voiceURI?: string): SpeechSynthesisVoice | null {
+  const allVoices = speechSynthesis.getVoices()\n  if (voiceURI) { const selected = allVoices.find((v) => v.voiceURI === voiceURI); if (selected) return selected }\n  const voices = allVoices.filter((v) => v.lang.toLowerCase().startsWith('es'))
   return voices.find((v) => /es-(ar|mx|us|419)/i.test(v.lang) && VOICE_PROFILE.preferredNames.test(v.name))
     ?? voices.find((v) => VOICE_PROFILE.preferredNames.test(v.name)) ?? voices.find((v) => /es-(ar|mx|419)/i.test(v.lang)) ?? voices[0] ?? null
 }
@@ -21,7 +21,7 @@ function pickSpanishVoice(): SpeechSynthesisVoice | null {
 export class BrowserEngine implements SpeechEngine {
   private token = 0
   static supported = typeof window !== 'undefined' && 'speechSynthesis' in window
-  speak(text: string, rate: number): Promise<void> {
+  speak(text: string, rate: number, voiceURI?: string): Promise<void> {
     if (!BrowserEngine.supported) return Promise.reject(new FnError('tts_unsupported', 'Tu navegador no soporta lectura en voz alta.'))
     this.stop()
     const my = ++this.token
@@ -31,7 +31,7 @@ export class BrowserEngine implements SpeechEngine {
       const next = () => {
         if (my !== this.token || i >= chunks.length) return resolve()
         const u = new SpeechSynthesisUtterance(chunks[i++])
-        const v = pickSpanishVoice()
+        const v = pickSpanishVoice(voiceURI)
         if (v) { u.voice = v; u.lang = v.lang } else u.lang = 'es-AR'
         u.pitch = VOICE_PROFILE.pitch
         u.rate = Math.min(2, Math.max(0.5, rate * VOICE_PROFILE.rateScale))
