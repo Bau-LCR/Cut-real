@@ -14,9 +14,11 @@ function previewDocument(files: CodeFiles) {
   const style = '<style>\n' + files['style.css'] + '\n</style>'
   const script = '<script>\n' + files['script.js'].replace(/<\/script/gi, '<\\/script') + '\n</script>'
   let html = files['index.html'] || '<!doctype html><html><head></head><body></body></html>'
-  if (/<\\/head>/i.test(html)) html = html.replace(/<\\/head>/i, style + '</head>')
+  const headClose = new RegExp('</head>', 'i')
+  if (headClose.test(html)) html = html.replace(headClose, style + '</head>')
   else html = style + html
-  if (/<\\/body>/i.test(html)) html = html.replace(/<\\/body>/i, script + '</body>')
+  const bodyClose = new RegExp('</body>', 'i')
+  if (bodyClose.test(html)) html = html.replace(bodyClose, script + '</body>')
   else html += script
   return html
 }
