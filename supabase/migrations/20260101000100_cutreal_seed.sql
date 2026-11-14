@@ -9,8 +9,8 @@ on conflict (slug) do nothing;
 insert into public.cr_models (provider_id, model_key, display_name, enabled, supports_vision, context_window, max_output_tokens, sort_order)
 select p.id, v.model_key, v.display_name, v.enabled, v.vision, v.ctx, v.max_out, v.ord
 from (values
-  ('groq',   'llama-3.3-70b-versatile', 'Llama 3.3 70B',           true,  false, 131072, 8192, 10),
-  ('groq',   'llama-3.1-8b-instant',    'Llama 3.1 8B (rápido)',   true,  false, 131072, 8192, 20),
+  ('groq',   'llama-3.3-70b-versatile', 'Llama 3.3 70B',           false,  false, 131072, 8192, 10),
+  ('groq',   'llama-3.1-8b-instant',    'Llama 3.1 8B (rápido)',   false,  false, 131072, 8192, 20),
   ('groq',   'openai/gpt-oss-120b',     'GPT-OSS 120B',            true,  false, 131072, 8192, 30),
   ('groq',   'openai/gpt-oss-20b',      'GPT-OSS 20B',             true,  false, 131072, 8192, 40),
   -- Gemini queda deshabilitado hasta configurar GEMINI_API_KEY y habilitarlo desde el panel.
