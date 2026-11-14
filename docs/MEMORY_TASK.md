@@ -1,22 +1,78 @@
-# Integración futura con Memory Task
+# Integración de Cut-real con Memory Task
 
-**Estado:** preparada, no conectada. Cut-real 2 **no accede** a Memory Task, no modifica su proyecto y no asume nada de su estructura.
+**Estado del código:** el puente servidor-a-servidor está implementado. La conexión real queda activa después de configurar los secretos y desplegar las funciones de Memory Task y Cut-real.
 
-## Qué ya existe en Cut-real 2
-- **Aislamiento:** todas las tablas y funciones llevan prefijo `cr_` y tienen RLS propia. Nada de Memory Task se toca, y nada de Cut-real es legible desde las tablas de Memory Task.
-- **Identidad compartida (opcional):** si ambas apps usan el *mismo* proyecto de Supabase y el mismo cliente de Google OAuth, comparten `auth.users`: la misma persona tiene el mismo `user_id` en ambas. Cut-real no crea triggers sobre `auth.users` (el perfil se crea al primer acceso con `cr_ensure_profile`), así que no interfiere con la otra app.
-- **Catálogo de integraciones:** `cr_integrations` (con `memory-task` registrada y **deshabilitada**, permisos máximos permitidos y configuración sin secretos).
-- **Autorizaciones por usuario:** `cr_integration_grants` (usuario, integración, scopes, fechas). Cada usuario ve y **revoca** las suyas en *Configuración → Integraciones autorizadas*. El administrador habilita o deshabilita la integración y acota sus scopes en *Panel → Integraciones*. Todo queda auditado.
-- **Acceso app-a-app:** claves `crk_…` con scopes (`models:read`, `chat:write`, `identity:read`, `conversations:read`, `conversations:write`), límites y revocación (`docs/API.md`).
+## Qué hace
 
-## Qué NO existe todavía
-Los endpoints que intercambian datos de usuario (`identity:read`, `conversations:*`) **no están implementados**: sus scopes están reservados. Se definen cuando conozcamos qué datos necesita compartir cada lado.
+- La integración se habilita desde **Administración → Integraciones → Memory Task**.
+- Solo un administrador autenticado puede generar la identidad, probar la conexión o enviar información.
+- Cut-real firma una identidad ES256 de corta duración con el ID del usuario autenticado.
+- El backend de Cut-real envía el contenido a la API de servicio de Memory Task.
+- Las notas se guardan como registros de categoría `custom`, con título, contenido, fecha y usuario de origen.
+- Las claves API y privadas se guardan como secretos del servidor; no se escriben en el frontend ni en el repositorio.
 
-## Pasos cuando quieras conectarla
-1. Decidí: ¿mismo proyecto de Supabase o separados?
-   - **Mismo proyecto:** agregá la URL de Memory Task en *Authentication → URL Configuration → Redirect URLs* y usá el mismo cliente de Google. Las políticas RLS de cada app deben seguir filtrando por `auth.uid()` y por sus propias tablas; no concedas `grant` cruzados.
-   - **Proyectos separados:** la identidad no se comparte; la conexión es solo por API con claves y autorización del usuario.
-2. Pasame (a mí o a quien continúe): qué datos de Memory Task querés leer/escribir desde Cut-real y viceversa, y sus nombres reales de tablas/API.
-3. Se agregan los endpoints en `supabase/functions/api/` verificando **dos** cosas: scope de la clave **y** una autorización activa del usuario en `cr_integration_grants`.
-4. Creá una clave en el panel para Memory Task con solo los scopes necesarios y habilitá la integración.
-5. Probá revocando una autorización desde Configuración: el acceso debe cortarse.
+La conexión actual permite enviar notas desde el panel administrativo. **No sincroniza automáticamente todas las conversaciones ni adjunta archivos todavía.**
+
+## 1. Activar el backend de Memory Task
+
+El repositorio de Memory Task tiene la consola de cuenta de servicio, las migraciones y las funciones `service-console` y `service-api`. El frontend por sí solo no activa estas funciones.
+
+En una terminal abierta dentro del repositorio `memory-task`:
+
+```powershell
+npx supabase login
+npx supabase link --project-ref evrbaaeccuwaxclnpknk
+npx supabase migration list --linked
+npx supabase db push
+npx supabase functions deploy service-console
+npx supabase functions deploy service-api --no-verify-jwt
+```
+
+El ID de proyecto anterior es el que figura actualmente en `memory-task/supabase/config.toml`. Verificá que coincida con el proyecto que muestra tu panel de Supabase antes de ejecutar comandos.
+
+La función `service-api` debe aceptar su propia autenticación `mt_live_...`; por eso tiene `verify_jwt = false` en `supabase/config.toml`. No desactives la verificación JWT de `service-console` ni de las funciones administrativas.
+
+## 2. Crear la aplicación de servicio en Memory Task
+
+1. Iniciá sesión en Memory Task con la cuenta propietaria.
+2. Abrí **Cuenta de servicio** y creá una aplicación llamada `Cut-real`.
+3. Copiá el ID UUID de esa aplicación.
+4. En Cut-real, abrí **Administración → Integraciones → Memory Task** y generá un par de claves ES256.
+5. Copiá la **clave pública JWK** y pegala en Memory Task, dentro de la configuración de identidad de la aplicación. No pegues allí la clave privada.
+6. Creá una API key para esa aplicación con el permiso mínimo `records:write`. Copiala en el momento: Memory Task no vuelve a mostrarla.
+
+## 3. Guardar secretos en el proyecto Supabase de Cut-real
+
+El proyecto de Cut-real es independiente del de Memory Task. En el panel de Supabase de Cut-real, abrí **Edge Functions → Secrets** y agregá:
+
+| Secreto | Valor |
+|---|---|
+| `MEMORY_TASK_API_URL` | `https://evrbaaeccuwaxclnpknk.supabase.co/functions/v1/service-api` (verificá el Project URL real de Memory Task) |
+| `MEMORY_TASK_API_KEY` | La clave `mt_live_...` creada en Memory Task |
+| `MEMORY_TASK_APP_ID` | El UUID de la aplicación Cut-real creada en Memory Task |
+| `MEMORY_TASK_IDENTITY_PRIVATE_JWK` | El JSON completo de la clave privada generado en Cut-real |
+
+También se puede usar la CLI desde la carpeta local de Cut-real:
+
+```powershell
+npx supabase secrets set --project-ref vdgfrrdseqimbelgzsek MEMORY_TASK_API_URL="https://evrbaaeccuwaxclnpknk.supabase.co/functions/v1/service-api" MEMORY_TASK_API_KEY="PEGAR_LOCALMENTE_LA_CLAVE_MT" MEMORY_TASK_APP_ID="UUID_DE_LA_APP" MEMORY_TASK_IDENTITY_PRIVATE_JWK='{"kty":"EC","crv":"P-256","x":"...","y":"...","d":"..."}'
+npx supabase functions deploy admin --project-ref vdgfrrdseqimbelgzsek
+```
+
+Reemplazá los valores de ejemplo directamente en tu terminal o en el panel de secretos. **No pegues las claves en el chat, GitHub, archivos del frontend ni capturas de pantalla.**
+
+## 4. Probar y enviar información
+
+1. En Cut-real, entrá al panel de administración y habilitá Memory Task.
+2. Tocá **Actualizar estado**. Los cuatro elementos deben figurar configurados.
+3. Tocá **Probar conexión**. Se crea y elimina un registro temporal para comprobar autenticación y permiso de escritura.
+4. Escribí un título y contenido y elegí **Enviar y guardar**.
+5. En Memory Task, abrí el explorador de la aplicación Cut-real. El registro debe aparecer bajo el usuario externo cuyo ID es el UUID de tu cuenta de Cut-real.
+
+## Permisos y límites
+
+- La API key de Memory Task necesita `records:write`; la prueba usa escritura y eliminación.
+- Cada registro admite hasta 256 KiB. El panel limita el texto a 20.000 caracteres.
+- El identificador externo se firma en el backend de Cut-real; no se acepta un ID de usuario libre enviado por el navegador.
+- Si `service-api` no está desplegada o las migraciones no se aplicaron, la prueba fallará aunque los secretos estén completos.
+- La conexión es de escritura manual desde el panel administrativo. No hay sincronización automática de chats ni carga de archivos en esta primera versión.
