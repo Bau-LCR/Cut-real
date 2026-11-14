@@ -4,6 +4,7 @@ import { Sidebar } from '../components/Sidebar'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../store/auth'
 import { useUi } from '../store/ui'
+import { useChat } from '../store/chat'
 
 type CodeFiles = { 'index.html': string; 'style.css': string; 'script.js': string }
 interface Project { id: string; name: string; files: CodeFiles; updated_at: string }
@@ -26,6 +27,7 @@ function previewDocument(files: CodeFiles) {
 export function StudioPage() {
   const userId = useAuth((s) => s.me?.userId)
   const toast = useUi((s) => s.toast)
+  const modelId = useChat((s) => s.modelId)
   const [projects, setProjects] = useState<Project[]>([])
   const [active, setActive] = useState<Project | null>(null)
   const [file, setFile] = useState<keyof CodeFiles>('index.html')
@@ -112,7 +114,7 @@ export function StudioPage() {
           <section className="studio-workspace">
             {!active ? <div className="studio-empty"><h2>Tu próximo proyecto empieza acá.</h2><p>Creá un proyecto para trabajar con HTML, CSS y JavaScript en archivos vinculados.</p><button className="btn primary" onClick={() => void createProject()}>Crear proyecto</button></div> : <>
               <div className="workspace-toolbar"><input className="field project-name" value={active.name} onChange={(e) => setActive({ ...active, name: e.target.value })} aria-label="Nombre del proyecto" /><div className="workspace-actions"><button className="btn sm" onClick={() => void saveProject()} disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</button><button className="btn danger sm" onClick={() => void deleteProject()}>Eliminar</button></div></div>
-              <div className="codegen"><div><b>Generar con Cut-real</b><p>Describí qué querés construir y se generarán los tres archivos conectados.</p></div><textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Ej.: una página de presentación para mi emprendimiento, con menú, tarjetas y formulario…" rows={2} /><button className="btn primary sm" onClick={() => void generateCode()} disabled={!prompt.trim() || generating}>{generating ? 'Generando…' : 'Generar código'}</button></div>
+              <div className="codegen"><div><b>Generar con Cut-real</b><p>Describí qué querés construir y se generarán los tres archivos conectados.</p></div><textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Ej.: una página de presentación para mi emprendimiento, con menú, tarjetas y formulario…" rows={2} /><button className="btn primary sm" onClick={() => void generateCode()} disabled={!prompt.trim() || generating || !modelId}>{generating ? 'Generando…' : !modelId ? 'Cargando modelo…' : 'Generar código'}</button></div>
               <div className={`studio-panels${showPreview ? '' : ' no-preview'}`}>
                 <section className="editor-panel"><div className="file-tabs">{FILES.map((name) => <button key={name} className={file === name ? 'active' : ''} onClick={() => setFile(name)}>{name}</button>)}</div><textarea className="code-editor" spellCheck={false} aria-label={`Código de ${file}`} value={draft[file]} onChange={(e) => setDraft((old) => ({ ...old, [file]: e.target.value }))} /><div className="editor-footer"><span>HTML · CSS · JavaScript</span><button className="btn ghost sm" onClick={() => setShowPreview((v) => !v)}>{showPreview ? 'Ocultar vista previa' : 'Mostrar vista previa'}</button></div></section>
                 {showPreview && <section className="preview-panel"><div className="preview-panel-head"><b>Vista previa en vivo</b><span>Sandbox aislado</span></div><iframe title="Vista previa del proyecto" sandbox="allow-scripts" srcDoc={preview} /></section>}
