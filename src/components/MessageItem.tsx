@@ -6,7 +6,30 @@ import { useAuth } from '../store/auth'
 import { useChat } from '../store/chat'
 import { useSpeech } from '../store/speech'
 import { CopyButton, Markdown } from './Markdown'
+import { callFnBlob } from '../lib/functions'
 import { Edit, File, Pause, Play, Refresh, Stop, Volume } from './icons'
+
+const DOCUMENT_RE = /\[\[CUTREAL_DOCUMENT:(pdf|docx)\|([^\]\r\n]{1,160})\]\]\s*([\s\S]*?)\s*\[\[\/CUTREAL_DOCUMENT\]\]/i
+
+function DocumentDownload({ format, title, content }: { format: 'pdf' | 'docx'; title: string; content: string }) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  async function download() {
+    if (loading) return
+    setLoading(true); setError('')
+    try {
+      const blob = await callFnBlob('generate-document', { format, title, content })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = title.replace(/[^\p{L}\p{N}._-]+/gu, '_').slice(0, 70) + '.' + format
+      document.body.appendChild(a); a.click(); a.remove()
+      window.setTimeout(() => URL.revokeObjectURL(url), 1500)
+    } catch (e) { setError((e as Error).message || 'No se pudo generar el documento.') }
+    finally { setLoading(false) }
+  }
+  return <div className="generated-document"><div><b>{title}</b><small>Documento {format.toUpperCase()} · listo para generar</small>{error && <small className="document-error">{error}</small>}</div><button className="btn primary sm" onClick={() => void download()} disabled={loading}>{loading ? 'Preparando…' : 'Descargar ' + format.toUpperCase()}</button></div>
+}
 
 const RATES = [1, 1.25, 1.5, 0.75]
 
@@ -79,7 +102,11 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, busy, modelN
       <img className="mark" src={`${import.meta.env.BASE_URL}brand/Logo_Original.png`} alt="" />
       <div className="body">
         {generating && !msg.content ? <div className="typing" role="status" aria-label="La IA está respondiendo"><i /><i /><i /></div> : null}
-        {msg.content ? <Markdown text={msg.content} streaming={generating} /> : null}
+        {msg.content ? (() => {
+          const artifact = !generating ? DOCUMENT_RE.exec(msg.content) : null
+          const visible = artifact ? msg.content.replace(artifact[0], '').trim() : msg.content
+          return <>{visible && <Markdown text={visible} streaming={generating} />}{artifact && <DocumentDownload format={artifact[1].toLowerCase() as 'pdf' | 'docx'} title={artifact[2].trim()} content={artifact[3].trim()} />}</>
+        })() : null}
         {msg.sources?.length ? (
           <div className="sources" aria-label="Fuentes">
             {msg.sources.map((s, i) => <a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer"><b>[{i + 1}] {s.title}</b><small>{s.url}</small></a>)}
