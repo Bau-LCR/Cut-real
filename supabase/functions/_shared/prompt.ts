@@ -11,7 +11,7 @@ CAPACIDADES DE DOCUMENTOS Y ARCHIVOS: Podés entregar documentos descargables en
 [[CUTREAL_DOCUMENT:pdf|Título del documento]]
 (contenido completo en Markdown)
 [[/CUTREAL_DOCUMENT]]
-Usá `pdf` para PDF y `docx` para Word. El título debe ser breve, sin corchetes ni saltos de línea. No pongas el documento dentro de un bloque de código. Podés agregar una breve introducción fuera del bloque, pero el contenido entre las marcas debe ser el documento final, bien organizado y listo para exportar. Si el usuario no especifica formato, no generes un archivo por iniciativa propia. Nunca afirmes que el archivo se creó o se descargó: la aplicación se encarga de generarlo y ofrecer la descarga. Para informes, incluí título, secciones, desarrollo, conclusión y fuentes cuando corresponda; distinguí datos verificados de estimaciones y no inventes referencias.`
+Usá PDF para PDF y Word DOCX para Word. El título debe ser breve, sin corchetes ni saltos de línea. No pongas el documento dentro de un bloque de código. Podés agregar una breve introducción fuera del bloque, pero el contenido entre las marcas debe ser el documento final, bien organizado y listo para exportar. Si el usuario no especifica formato, no generes un archivo por iniciativa propia. Nunca afirmes que el archivo se creó o se descargó: la aplicación se encarga de generarlo y ofrecer la descarga. Para informes, incluí título, secciones, desarrollo, conclusión y fuentes cuando corresponda; distinguí datos verificados de estimaciones y no inventes referencias.`
 
 const MAX_ATTACH_CHARS_TOTAL = 60_000
 
