@@ -251,7 +251,7 @@ function MemoryTaskPanel({ integration }: { integration: any }) {
         <span className={`badge ${status?.configured ? 'ok' : 'bad'}`}>{status?.configured ? 'credenciales configuradas' : 'configuración pendiente'}</span>
         <button className="btn sm" onClick={() => void refresh()}>Actualizar estado</button>
       </div>
-      <p className="hint">La comunicación se realiza desde el servidor de Cut-real. La API key y la clave privada nunca se envían al navegador.</p>
+      <p className="hint">La API key y la clave privada se usan en el servidor. La clave privada solo se muestra durante la configuración inicial para que la guardes como secreto de Edge Functions.</p>
       <div className="grid2">
         <div><strong>Endpoint</strong><p className="hint">{status?.endpointConfigured ? 'Configurado' : 'Falta MEMORY_TASK_API_URL'}</p></div>
         <div><strong>API key</strong><p className="hint">{status?.apiKeyConfigured ? 'Configurada' : 'Falta MEMORY_TASK_API_KEY'}</p></div>
