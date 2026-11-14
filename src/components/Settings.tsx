@@ -97,10 +97,10 @@ export function Settings() {
         {voice.engine === 'browser' && <div>
           <label className="lbl" htmlFor="voice-name">Voz en español</label>
           <select id="voice-name" className="field" value={voice.voice_uri ?? ''} onChange={(e) => guard(saveSettings({ voice: { ...voice, voice_uri: e.target.value } }))}>
-            <option value="">Automática (recomendada)</option>
+            <option value="">Automática (voz masculina si está disponible)</option>
             {browserVoices.map((v) => <option key={v.voiceURI} value={v.voiceURI}>{v.name} · {v.lang}</option>)}
           </select>
-          <p className="hint">Las voces disponibles dependen del navegador y del sistema operativo. Podés elegir una y probarla.</p>
+          <p className="hint">Las voces disponibles dependen del navegador y del sistema operativo. La opción automática prioriza voces masculinas en español cuando están disponibles.</p>
         </div>}
                 <button className="btn sm" onClick={() => void useSpeech.getState().speak('settings-test', 'Hola. Soy Cut-real. Esta es mi voz.')}>Probar voz</button>
 
