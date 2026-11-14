@@ -3,6 +3,8 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Toasts } from './components/Toasts'
 import { isConfigured } from './lib/supabase'
 import { Login } from './pages/Login'
+import { Landing } from './pages/Landing'
+import { Terms } from './pages/Terms'
 import { ChatPage } from './pages/ChatPage'
 import { useAuth } from './store/auth'
 
@@ -22,10 +24,10 @@ const Splash = () => (
 function Guard({ children, admin = false }: { children: JSX.Element; admin?: boolean }) {
   const { ready, session, me, error } = useAuth()
   if (!ready) return <Splash />
-  if (!session) return <Navigate to="/login" replace />
+  if (!session) return <Navigate to="/terms" replace />
   if (error && !me) return <div className="center-screen"><div className="login"><h1>No se pudo cargar tu cuenta</h1><p>{error}</p><button className="btn" onClick={() => void useAuth.getState().signOut()}>Cerrar sesión</button></div></div>
   if (me?.suspended) return <div className="center-screen"><div className="login"><h1>Cuenta suspendida</h1><p>Contactá a un administrador para restaurar el acceso.</p><button className="btn" onClick={() => void useAuth.getState().signOut()}>Cerrar sesión</button></div></div>
-  if (admin && me?.role !== 'admin' && me?.role !== 'owner') return <Navigate to="/" replace />
+  if (admin && me?.role !== 'admin' && me?.role !== 'owner') return <Navigate to="/app" replace />
   return children
 }
 
@@ -39,10 +41,12 @@ export default function App() {
   return (
     <HashRouter>
       <Routes>
-        <Route path="/login" element={!ready ? <Splash /> : ready && session ? <Navigate to="/" replace /> : <Login />} />
+        <Route path="/" element={<Landing />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/login" element={!ready ? <Splash /> : ready && session ? <Navigate to="/app" replace /> : <Login />} />
         <Route path="/admin" element={<Guard admin><Suspense fallback={<Splash />}><Admin /></Suspense></Guard>} />
         <Route path="/c/:id" element={<Guard><ChatPage /></Guard>} />
-        <Route path="/" element={<Guard><ChatPage /></Guard>} />
+        <Route path="/app" element={<Guard><ChatPage /></Guard>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toasts />
