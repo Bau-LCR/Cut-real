@@ -33,6 +33,10 @@ export function VoiceMode({ ensureConv, onClose }: { ensureConv(): Promise<strin
         const { data, error } = await supabase.from('cr_call_sessions').insert({ user_id: me.userId }).select('id').single()
         if (error || !data) throw new Error('No se pudo crear el registro de esta llamada.')
         callSessionId = data.id
+        if (c.dead) {
+          await supabase.from('cr_call_sessions').update({ ended_at: new Date().toISOString(), duration_seconds: Math.max(0, Math.round((Date.now() - startedAt) / 1000)) }).eq('id', callSessionId)
+          return
+        }
       }
       catch (e) { c.fatal = true; setErr((e as Error).message); setPhase('error'); return }
       while (!c.dead) {
