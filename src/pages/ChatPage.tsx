@@ -16,7 +16,15 @@ export function ChatPage() {
   const userId = useAuth((s) => s.me?.userId)
   const ephemeralCallId = useRef<string | null>(null)
 
-  useEffect(() => { if (userId) void useChat.getState().init(); return () => useChat.getState().reset() }, [userId])
+  useEffect(() => {
+    if (userId) void useChat.getState().init()
+    return () => {
+      const callId = ephemeralCallId.current
+      ephemeralCallId.current = null
+      if (callId) void useChat.getState().remove(callId)
+      useChat.getState().reset()
+    }
+  }, [userId])
 
   const ensureConv = useCallback(async () => {
     if (ephemeralCallId.current) return ephemeralCallId.current
