@@ -16,7 +16,7 @@ interface AuthState {
 let started = false
 export const useAuth = create<AuthState>((set, get) => ({
   session: null, me: null, ready: false, error: null,
-  voice: { rate: 1, auto_read: false, engine: 'browser' }, webSearchDefault: false, defaultModelId: null, privacyAck: false,
+  voice: { rate: 1, auto_read: false, engine: 'browser', voice_uri: '' }, webSearchDefault: false, defaultModelId: null, privacyAck: false,
 
   init() {
     if (started) return
