@@ -101,14 +101,14 @@ export function StudioPage() {
     const chat = useChat.getState()
     let temporaryConversationId: string | null = null
     try {
-      temporaryConversationId = await chat.createConversation()
+      temporaryConversationId = await chat.createConversation(true)
       const conversationId = temporaryConversationId
       const request = [
         'Actuá como un desarrollador frontend senior. Generá una solución completa y funcional para el siguiente pedido.',
         prompt.trim(),
         'Respondé con exactamente tres bloques de código, en este orden: primero HTML para index.html, segundo CSS para style.css y tercero JavaScript para script.js. No omitas archivos; si uno no necesita código, devolvé un bloque vacío. No agregues explicaciones fuera de los bloques. El HTML debe enlazar style.css y script.js correctamente.'
       ].join('\n\n')
-      const result = await chat.send(conversationId, request, { silent: true })
+      const result = await chat.send(conversationId, request, { silent: true, ephemeral: true })
       if (!result.ok || !result.content) throw new Error(result.error || 'El modelo no devolvió código.')
       const blocks = [...result.content.matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map((m) => m[1].trim())
       if (blocks.length < 3) throw new Error('La respuesta no incluyó los tres archivos esperados. Podés pedirlo de nuevo con más detalle.')
