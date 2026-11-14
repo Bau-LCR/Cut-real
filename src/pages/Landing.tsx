@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
+import { useAuth } from '../store/auth'
 
 const features = [
   ['Conversar y aprender', 'Explicaciones, ideas, redacción, traducción y ayuda para estudiar.'],
@@ -10,6 +11,8 @@ const features = [
 ]
 
 export function Landing() {
+  const session = useAuth((s) => s.session)
+  if (session) return <Navigate to="/app" replace />
   return <main className="landing">
     <header className="landing-nav">
       <Link to="/" className="landing-brand"><img src={`${import.meta.env.BASE_URL}brand/Logo_Original.png`} alt="" /> <span>Cut-real <b>2</b></span></Link>
