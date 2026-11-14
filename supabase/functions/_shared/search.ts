@@ -1,20 +1,18 @@
 // Búsqueda web real. Se activa SOLO si hay un proveedor configurado en secretos; nunca se simula.
 export interface SearchResult { title: string; url: string; snippet: string }
 
-// Detección local y gratuita: evita una segunda llamada al modelo para decidir si buscar.
+// Detección local y gratuita: no requiere una segunda llamada al modelo.
 const EXPLICIT_SEARCH = /\b(busca|buscá|buscar|investiga|investigá|investigar|consulta en internet|googlea|googleá|fuentes actuales|verifica en la web|verificá en la web|comprueba en internet|comprobá en internet)\b/i
+const VERIFY_INTENT = /\b(es cierto|es verdad|confirmame|confirmá|confirma|verifica|verificá|comprueba|comprobá|se mantiene|sigue vigente|todavía funciona|aún funciona|tengo dudas|no estoy seguro)\b/i
 const FRESH_INFO = /\b(actual|actuales|actualmente|hoy|ahora|últim[oa]s?|reciente|recientemente|esta semana|este mes|este año|202[5-9]|precio|cotización|tipo de cambio|versión más nueva|lanzamiento|noticias|resultados de hoy|en vivo|vigente|disponibilidad)\b/i
-const STABLE_QUESTION = /\bqué es|que es|cómo funciona|como funciona|explicame|explícame|definición|definicion|significa\b/i
 
 export function shouldSearchWeb(message: string): boolean {
   const q = message.trim()
   if (!q || q.length < 8) return false
-  if (EXPLICIT_SEARCH.test(q)) return true
-  if (VERIFY_INTENT.test(q) || FRESH_INFO.test(q)) return true
-  return false
+  return EXPLICIT_SEARCH.test(q) || VERIFY_INTENT.test(q) || FRESH_INFO.test(q)
 }
 
-// Caché efímera por instancia de Edge Function: reduce consultas repetidas cercanas.
+// Caché efímera por instancia de Edge Function: reutiliza búsquedas iguales durante cinco minutos.
 const cache = new Map<string, { expires: number; results: SearchResult[] }>()
 const CACHE_TTL_MS = 5 * 60 * 1000
 
