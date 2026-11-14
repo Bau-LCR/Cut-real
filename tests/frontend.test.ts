@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readSSE } from '../src/lib/sse'
 import { groupConversations, relativeTime, formatBytes } from '../src/lib/format'
-import { normalizeMath } from '../src/lib/markdown'
+import { normalizeHtmlArtifacts, normalizeMath } from '../src/lib/markdown'
 import { markdownToSpeech, splitSentences } from '../src/voice/speechText'
 import { validateFile, safeName } from '../src/lib/files'
 
@@ -36,6 +36,20 @@ describe('markdown y voz', () => {
   it('la lectura en voz alta no incluye símbolos ni código', () => {
     const t = markdownToSpeech('## Título\n\n**Hola** [enlace](http://x.y)\n\n```js\nconsole.log(1)\n```\n\n- item')
     expect(t).not.toMatch(/[#*`\[\]]|console|http/); expect(t).toContain('Hola enlace'); expect(t).toContain('bloque de código omitido')
+  })
+  it('normaliza etiquetas HTML y tablas impresas por el modelo', () => {
+    const source = '<p>Resumen<br>de la guerra</p><ul><li>Aliados</li><li>Eje</li></ul><table><tr><th>País</th><th>Bloque</th></tr><tr><td>Francia</td><td>Aliados</td></tr></table>'
+    const normalized = normalizeHtmlArtifacts(source)
+    expect(normalized).toContain('Resumen\\nde la guerra')
+    expect(normalized).toContain('- Aliados')
+    expect(normalized).toContain('| País | Bloque |')
+    expect(normalized).not.toMatch(/<\\/?(?:p|br|ul|li|table|tr|td|th)>/i)
+  })
+  it('la voz no pronuncia etiquetas HTML escapadas ni emojis', () => {
+    const spoken = markdownToSpeech('Hola &lt;br&gt; mundo 😀 <ul><li>uno</li></ul>')
+    expect(spoken).not.toMatch(/[<>]|br|ul|li|😀/)
+    expect(spoken).toContain('Hola')
+    expect(spoken).toContain('mundo')
   })
   it('splitSentences respeta el máximo', () => {
     const parts = splitSentences('Una frase. '.repeat(60), 100)
