@@ -23,7 +23,7 @@ function pickSpanishVoice(voiceURI?: string): SpeechSynthesisVoice | null {
 export class BrowserEngine implements SpeechEngine {
   private token = 0
   static supported = typeof window !== 'undefined' && 'speechSynthesis' in window
-  speak(text: string, rate: number, voiceURI?: string): Promise<void> {
+  speak(text: string, rate: number, voiceURI?: string, onActivity?: (level: number) => void): Promise<void> {
     if (!BrowserEngine.supported) return Promise.reject(new FnError('tts_unsupported', 'Tu navegador no soporta lectura en voz alta.'))
     this.stop()
     const my = ++this.token
