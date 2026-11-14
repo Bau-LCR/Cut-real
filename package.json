@@ -12,7 +12,7 @@
     "assets": "node scripts/make-brand-assets.mjs",
     "check:secrets": "node scripts/check-secrets.mjs",
     "db:push": "npx supabase db push",
-    "fn:deploy": "npx supabase functions deploy chat admin api transcribe tts",
+    "fn:deploy": "npx supabase functions deploy chat admin api transcribe tts generate-document",
     "secrets:set": "npx supabase secrets set --env-file supabase/functions/.env",
     "verify": "npm run typecheck && npm test && npm run build && npm run check:secrets"
   },
