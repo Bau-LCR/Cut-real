@@ -40,10 +40,10 @@ export async function speakAndWait(markdown: string) {
   if (text) await get().speak(text, useAuth.getState().voice.rate, useAuth.getState().voice.voice_uri)
 }
 /** En llamada usamos la voz natural del navegador y respetamos la voz elegida en Configuración. */
-export async function speakCallAndWait(markdown: string) {
+export async function speakCallAndWait(markdown: string, onActivity?: (level: number) => void) {
   const text = markdownToSpeech(markdown)
   if (!text) return
   callEngine ??= new BrowserEngine()
-  await callEngine.speak(text, useAuth.getState().voice.rate, useAuth.getState().voice.voice_uri)
+  await callEngine.speak(text, useAuth.getState().voice.rate, useAuth.getState().voice.voice_uri, onActivity)
 }
 export const stopSpeaking = () => { engine?.stop(); callEngine?.stop() }
