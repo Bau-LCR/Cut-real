@@ -22,6 +22,7 @@ Deno.serve(async (req) => {
     out.append('file', file, file.name || 'audio.webm')
     out.append('model', Deno.env.get('STT_MODEL') ?? 'whisper-large-v3-turbo')
     out.append('language', /^[a-z]{2}$/.test(lang) ? lang : 'es')
+    out.append('prompt', 'Transcripción en español latinoamericano, preferentemente español rioplatense de Argentina. Respetá nombres propios, puntuación y frases completas. Nombres y términos frecuentes: Cut-real, Cut-real 2, programación, HTML, CSS, JavaScript, Supabase, Groq, Tavily. No traduzcas nombres propios ni inventes palabras.')
     out.append('response_format', 'json')
     const t0 = Date.now()
     const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: out })
