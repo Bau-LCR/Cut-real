@@ -5,7 +5,7 @@ import { corsHeaders, errorResponse, HttpError, json } from '../_shared/cors.ts'
 import { authenticate, logUsage, rateLimit, type AuthContext } from '../_shared/supabase.ts'
 import { checkProviderLimits, loadModel, ProviderError, streamFromProvider, type ChatMessage, type ChatPart, type ModelRow } from '../_shared/providers.ts'
 import { renderUserContent, searchContext, SYSTEM_PROMPT, titleFrom, trimHistory, type AttachmentCtx } from '../_shared/prompt.ts'
-import { searchProvider, webSearch, type SearchResult } from '../_shared/search.ts'
+import { searchProvider, shouldSearchWeb, webSearch, type SearchResult } from '../_shared/search.ts'
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined
 
@@ -60,8 +60,6 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
   const modelId = b.modelId ?? conv.model_id
   if (!modelId) throw new HttpError(400, 'model_required', 'Elegí un modelo.')
   const { model, provider, apiKey } = await loadModel(db, modelId)
-  if (b.webSearch && !searchProvider())
-    throw new HttpError(400, 'search_not_configured', 'La búsqueda web todavía no está configurada en el servidor.')
 
   await db.rpc('cr_sweep_stale_generations')
   const { count: active } = await db.from('cr_messages').select('id', { count: 'exact', head: true }).eq('conversation_id', conv.id).eq('status', 'generating')
@@ -100,9 +98,11 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
   if (!lastUser) throw new HttpError(400, 'empty', 'No hay un mensaje de usuario al que responder.')
 
   // --- 2. Mensaje del asistente (se actualiza mientras se genera) -------------
+  const requestedSearch = b.webSearch || shouldSearchWeb(String((lastUser as any).content ?? ''))
+  const useWebSearch = requestedSearch && !!searchProvider()
   const nowIso = new Date().toISOString()
   const { data: asst, error: asstErr } = await db.from('cr_messages').insert({
-    conversation_id: conv.id, user_id: userId, role: 'assistant', content: '', status: 'generating', model_id: model.id, web_search_used: !!b.webSearch,
+    conversation_id: conv.id, user_id: userId, role: 'assistant', content: '', status: 'generating', model_id: model.id, web_search_used: useWebSearch,
   }).select('id, seq, created_at').single()
   if (asstErr || !asst) throw new HttpError(500, 'internal', 'No se pudo iniciar la generación.')
   const convPatch: Record<string, unknown> = { last_message_at: nowIso, updated_at: nowIso, model_id: model.id }
@@ -133,7 +133,7 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
     send({ type: 'meta', userMessage, assistantMessageId: asst.id, assistantSeq: asst.seq, assistantCreatedAt: asst.created_at })
     try {
       let extraSystem = ''
-      if (b.webSearch) {
+      if (useWebSearch) {
         send({ type: 'status', status: 'searching' })
         try {
           sources = await webSearch((lastUser as any).content, abort.signal)
@@ -146,6 +146,8 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
           send({ type: 'notice', message: 'La búsqueda web falló; la respuesta no incluye fuentes.' })
           await logUsage(db, { userId, conversationId: conv.id, kind: 'search', status: 'error', errorCode: String((e as Error).message).slice(0, 60) })
         }
+      } else if (requestedSearch && !searchProvider()) {
+        send({ type: 'notice', message: 'La búsqueda web se solicitó, pero todavía no está configurada. La respuesta no incluye fuentes.' })
       }
       const messages = await buildMessages(ctx, conv.id, history as any[], model, extraSystem)
       send({ type: 'status', status: 'generating' })
