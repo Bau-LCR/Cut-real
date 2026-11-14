@@ -1,7 +1,7 @@
 /** Convierte Markdown en texto para leer en voz alta (sin símbolos ni código). */
 export function markdownToSpeech(md: string): string {
   return md
-    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/```[\s\S]*?```/g, ' bloque de código omitido ')
     .replace(/`[^`]+`/g, ' ')
     .replace(/<!--[\s\S]*?-->/g, ' ')
     .replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/&nbsp;/gi, ' ')
