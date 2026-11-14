@@ -5,7 +5,8 @@
 ## Qué hace
 
 - La integración se habilita desde **Administración → Integraciones → Memory Task**.
-- Solo un administrador autenticado puede generar la identidad, probar la conexión o enviar información.
+- El usuario también debe autorizarla desde **Configuración → Integraciones autorizadas**, concediendo `conversations:write`.
+- Solo un administrador autenticado puede generar la identidad, probar la conexión o enviar información; el envío requiere además la autorización personal activa.
 - Cut-real firma una identidad ES256 de corta duración con el ID del usuario autenticado.
 - El backend de Cut-real envía el contenido a la API de servicio de Memory Task.
 - Las notas se guardan como registros de categoría `custom`, con título, contenido, fecha y usuario de origen.
@@ -13,7 +14,15 @@
 
 La conexión actual permite enviar notas desde el panel administrativo. **No sincroniza automáticamente todas las conversaciones ni adjunta archivos todavía.**
 
-## 1. Activar el backend de Memory Task
+## 1. Aplicar la actualización de Cut-real
+
+En el proyecto Supabase de Cut-real, aplicá la migración nueva `20261114000100_integration_user_grants.sql` para habilitar las autorizaciones desde Configuración. Podés usar `npx supabase db push --project-ref vdgfrrdseqimbelgzsek` desde la carpeta del repositorio o ejecutar ese archivo en SQL Editor. Después desplegá la función administrativa actualizada:
+
+```powershell
+npx supabase functions deploy admin --project-ref vdgfrrdseqimbelgzsek
+```
+
+## 2. Activar el backend de Memory Task
 
 El repositorio de Memory Task tiene la consola de cuenta de servicio, las migraciones y las funciones `service-console` y `service-api`. El frontend por sí solo no activa estas funciones.
 
@@ -32,7 +41,7 @@ El ID de proyecto anterior es el que figura actualmente en `memory-task/supabase
 
 La función `service-api` debe aceptar su propia autenticación `mt_live_...`; por eso tiene `verify_jwt = false` en `supabase/config.toml`. No desactives la verificación JWT de `service-console` ni de las funciones administrativas.
 
-## 2. Crear la aplicación de servicio en Memory Task
+## 3. Crear la aplicación de servicio en Memory Task
 
 1. Iniciá sesión en Memory Task con la cuenta propietaria.
 2. Abrí **Cuenta de servicio** y creá una aplicación llamada `Cut-real`.
@@ -41,7 +50,7 @@ La función `service-api` debe aceptar su propia autenticación `mt_live_...`; p
 5. Copiá la **clave pública JWK** y pegala en Memory Task, dentro de la configuración de identidad de la aplicación. No pegues allí la clave privada.
 6. Creá una API key para esa aplicación con el permiso mínimo `records:write`. Copiala en el momento: Memory Task no vuelve a mostrarla.
 
-## 3. Guardar secretos en el proyecto Supabase de Cut-real
+## 4. Guardar secretos en el proyecto Supabase de Cut-real
 
 El proyecto de Cut-real es independiente del de Memory Task. En el panel de Supabase de Cut-real, abrí **Edge Functions → Secrets** y agregá:
 
@@ -61,13 +70,14 @@ npx supabase functions deploy admin --project-ref vdgfrrdseqimbelgzsek
 
 Reemplazá los valores de ejemplo directamente en tu terminal o en el panel de secretos. **No pegues las claves en el chat, GitHub, archivos del frontend ni capturas de pantalla.**
 
-## 4. Probar y enviar información
+## 5. Autorizar y enviar información
 
 1. En Cut-real, entrá al panel de administración y habilitá Memory Task.
-2. Tocá **Actualizar estado**. Los cuatro elementos deben figurar configurados.
-3. Tocá **Probar conexión**. Se crea y elimina un registro temporal para comprobar autenticación y permiso de escritura.
-4. Escribí un título y contenido y elegí **Enviar y guardar**.
-5. En Memory Task, abrí el explorador de la aplicación Cut-real. El registro debe aparecer bajo el usuario externo cuyo ID es el UUID de tu cuenta de Cut-real.
+2. Abrí **Configuración → Integraciones autorizadas**, seleccioná Memory Task y concedé `conversations:write`.
+3. Volvé a Administración → Integraciones y tocá **Actualizar estado**. Los cuatro secretos y la autorización deben figurar activos.
+4. Tocá **Probar conexión**. Se crea y elimina un registro temporal para comprobar autenticación y permiso de escritura.
+5. Escribí un título y contenido y elegí **Enviar y guardar**.
+6. En Memory Task, abrí el explorador de la aplicación Cut-real. El registro debe aparecer bajo el usuario externo cuyo ID es el UUID de tu cuenta de Cut-real.
 
 ## Permisos y límites
 
