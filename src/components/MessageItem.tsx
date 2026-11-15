@@ -65,7 +65,7 @@ function Chips({ list }: { list: Attachment[] }) {
     <div className="chips">
       {list.map((a) => (
         <div className="attachment-chip-wrap" key={a.id}>
-          <button className={\`chip \${a.status !== 'processed' ? 'warn' : ''}\`} onClick={() => openAttachment(a)} title="Abrir archivo">
+          <button className={'chip ' + (a.status !== 'processed' ? 'warn' : '')} onClick={() => openAttachment(a)} title="Abrir archivo">
             <File className="sm" /><span className="n">{a.file_name}</span>
             <small>{formatBytes(a.size_bytes)}{a.status === 'processed' ? ' · leído' : a.mime_type.startsWith('image/') ? ' · imagen' : ' · sin analizar'}</small>
           </button>
