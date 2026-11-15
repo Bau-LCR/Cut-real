@@ -6,8 +6,9 @@ const features = [
   { n: '02', title: 'Búsqueda web con fuentes', text: 'Activá la búsqueda en internet para consultar información reciente y abrir directamente las páginas de origen.' },
   { n: '03', title: 'Documentos y archivos', text: 'Adjuntá PDF, Word, texto, tablas, datos e imágenes para que Cut-real pueda leerlos y ayudarte a interpretarlos.' },
   { n: '04', title: 'Voz y transcripción', text: 'Dictá tus mensajes, convertí audio en texto y escuchá respuestas con las opciones de voz disponibles.' },
-  { n: '05', title: 'Programación asistida', text: 'Un espacio de trabajo para organizar proyectos, escribir código y comprobar resultados en una vista previa.' },
-  { n: '06', title: 'Privacidad y control', text: 'Configurá tus preferencias, administrá integraciones autorizadas y conservá el control de tu cuenta.' },
+  { n: '05', title: 'Proyectos guiados', text: 'Convertí ideas en investigaciones, presentaciones, documentos, diseños, gráficos, aplicaciones y videojuegos con un flujo que te hace las preguntas necesarias.' },
+  { n: '06', title: 'Programación asistida', text: 'Un espacio de trabajo para escribir código, preservar cada proyecto y comprobar resultados en una vista previa aislada.' },
+  { n: '07', title: 'Privacidad y control', text: 'Configurá tus preferencias, administrá integraciones autorizadas y conservá el control de tu cuenta.' },
 ]
 
 export function LandingPage() {
@@ -44,7 +45,7 @@ export function LandingPage() {
       </section>
 
       <section className="landing-callout"><div><div className="section-eyebrow">TU PRÓXIMO PASO EMPIEZA ACÁ</div><h2>Todo listo para empezar.</h2><p>Ingresá a tu espacio y convertí una idea en algo concreto.</p></div><Link className="btn primary" to="/login">Entrar a Cut-real <span aria-hidden="true">→</span></Link></section>
-      <footer className="landing-footer"><span>© {new Date().getFullYear()} Cut-real 2</span><span>Inteligencia artificial para aprender, crear y desarrollar.</span></footer>
+      <footer className="landing-footer"><span>© {new Date().getFullYear()} Cut-real</span><span>Inteligencia artificial para aprender, crear y desarrollar.</span><Link to="/legal">Términos de uso y privacidad</Link></footer>
     </main>
   )
 }
