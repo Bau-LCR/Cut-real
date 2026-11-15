@@ -3,22 +3,22 @@
 ## Qué hace cada parte
 | Función | Motor | Qué necesita |
 |---|---|---|
-| **Dictado** (micrófono del compositor) | `transcribe` → Whisper (`whisper-large-v3-turbo`) en Groq | `GROQ_API_KEY` en secretos; permiso de micrófono del navegador |
-| **Leer respuestas** (pausar, reanudar, detener, velocidad) | Navegador (`speechSynthesis`) por defecto | Nada. Hay voces en español según tu sistema |
-| **Leer con proveedor externo** | `tts` → API OpenAI-compatible `/audio/speech` | `TTS_BASE_URL`, `TTS_API_KEY`, `TTS_MODEL`, `TTS_VOICE` |
-| **Modo conversación por voz** | Los tres anteriores en bucle | Lo mismo que dictado + un motor de lectura |
+| **Dictado** | Groq Whisper `whisper-large-v3-turbo` mediante la función `transcribe` | `GROQ_API_KEY` en secretos y permiso de micrófono |
+| **Leer respuestas** | `speechSynthesis` del navegador por defecto | Nada; las voces dependen del navegador y del sistema |
+| **Lectura con voz externa** | Función `tts` → proveedor OpenAI-compatible `/audio/speech` | `TTS_BASE_URL`, `TTS_API_KEY`, `TTS_MODEL`, `TTS_VOICE` |
+| **Modo conversación por voz** | Dictado + chat + motor de lectura | Lo anterior y HTTPS (o localhost) |
 
-El dictado **no envía solo**: el texto transcripto queda en el cuadro para que lo revises. El micrófono requiere HTTPS (o `localhost`).
+El dictado no envía automáticamente: el texto reconocido queda en el cuadro para que lo revises. El permiso de micrófono lo controla el navegador.
+
+## Selección de voz
+En Configuración → Voz se puede elegir el motor, la velocidad y una voz en español instalada en el navegador. La selección automática prioriza voces en español latino/argentino y nombres de voz masculinos cuando están disponibles; el catálogo depende del dispositivo.
+
+El motor externo utiliza la voz configurada en el proveedor. De forma predeterminada, la función solicita el modelo `tts-1` y la voz `onyx`, pero el administrador puede cambiarlos mediante secretos. No hay efectos de audio artificiales aplicados después de generar la voz.
+
+**Importante:** la calidad y naturalidad del motor externo no puede garantizarse sin probar el proveedor real. Si no está configurado o falla, Cut-real informa el problema y recurre a la voz del navegador cuando es posible.
 
 ## Modo conversación por voz
-Escuchar → silencio de 1,3 s = fin de turno → transcribir → responder → hablar. Si hablás mientras la IA habla, se interrumpe y vuelve a escucharte (usa cancelación de eco del navegador; con parlantes fuertes puede dispararse solo, mejor con auriculares). Hay botones "Enviar ahora" e "Interrumpir". Los errores (permiso, red, límites) se muestran y el bucle reintenta; los de configuración (sin `GROQ_API_KEY`) lo detienen con un mensaje claro.
-
-## Identidad de voz (inspirada en un robot de combate, original)
-Es una **identidad propia**, no un clon de ninguna voz protegida:
-- **Navegador:** `pitch` grave (0,55), ritmo algo más lento, preferencia por voces masculinas en español rioplatense/latino. El resultado depende de las voces instaladas en tu sistema.
-- **Proveedor externo:** además se procesa el audio en el navegador con una cadena sutil (realce de graves, saturación suave, modulación metálica a 55 Hz con mezcla baja y una resonancia corta de 12 ms). Los parámetros están en `src/voice/engine.ts` (`RemoteEngine`) y se ajustan a gusto.
-
-**Importante:** el sonido final no pudo evaluarse en este entorno (no hay audio). Probalo y ajustá `VOICE_PROFILE` y la cadena de efectos; para una voz más "mecánica" y consistente conviene un proveedor TTS con voz grave.
+Escuchar → detectar silencio → transcribir → responder → hablar. La detección de silencio, cancelación de eco y funcionamiento manos libres dependen del navegador, micrófono y dispositivo. Para reducir falsos inicios, probá con auriculares.
 
 ## Cambiar de motor
-Configuración → Voz → *Motor de voz*. Si el motor externo falla o no está configurado, la app avisa y lee con el del navegador. Para sumar otro motor implementá `SpeechEngine` (`speak/pause/resume/stop`) en `src/voice/engine.ts` y registralo en `makeEngine()`. Para otro servicio de transcripción, reemplazá la llamada en `supabase/functions/transcribe/index.ts`.
+Configuración → Voz → Motor de voz. Para habilitar voz externa, el responsable del servidor debe configurar los cuatro secretos TTS en Supabase y desplegar la función `tts`. Nunca coloques claves TTS en el frontend, repositorio ni navegador.
