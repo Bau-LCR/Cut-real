@@ -69,6 +69,7 @@ export function Sidebar({ activeId }: { activeId?: string }) {
         <div className="brand"><img src={`${import.meta.env.BASE_URL}brand/Logo_Original.png`} alt="" />Cut-real <b>2</b></div>
         <div className="side-actions">
           <button className="btn" onClick={() => { nav('/'); close() }}><Plus className="sm" />Nueva conversación</button>
+          <button className="btn" onClick={() => { nav('/projects'); close() }}><span className="studio-nav-icon" aria-hidden="true">✦</span>Proyectos</button>
           <button className="btn" onClick={() => { nav('/studio'); close() }}><span className="studio-nav-icon" aria-hidden="true">{'</>'}</span>Programación</button>
           <button className="btn" onClick={() => { nav('/calls'); close() }}><span className="studio-nav-icon" aria-hidden="true">◷</span>Registro de llamadas</button>
           <div className="side-search">
