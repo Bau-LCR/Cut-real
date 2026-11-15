@@ -27,8 +27,8 @@ interface Body {
 
 function shouldAutoImageSearch(content: unknown): boolean {
   if (typeof content !== 'string') return false
-  const normalized = content.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase()
-  return /\\b(busca|buscame|buscar|encontra|encontrame|mostrame|mostra|muestrame)\\b.{0,80}\\b(imagen|imagenes|foto|fotos|fotografia|fotografias)\\b|\\b(imagenes|fotos|fotografias)\\b.{0,60}\\b(internet|web|online)\\b/i.test(normalized)
+  const normalized = content.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  return /\b(busca|buscame|buscar|encontra|encontrame|mostrame|mostra|muestrame)\b.{0,80}\b(imagen|imagenes|foto|fotos|fotografia|fotografias)\b|\b(imagenes|fotos|fotografias)\b.{0,60}\b(internet|web|online)\b/i.test(normalized)
 }
 
 function isTargetedAbuse(content: string): boolean {
@@ -253,7 +253,7 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
         if (status === 'done' && !full && !imageResults.length) { status = 'error'; errCode = 'empty_response'; errMsg = 'El modelo no devolvió contenido. Probá de nuevo o elegí otro modelo.' }
         if (status === 'done' && imageResults.length) {
           if (!full) full = 'Encontré estas imágenes relacionadas con tu búsqueda:'
-          const markdown = imageResults.map((image) => { const alt = image.description.replace(/[\[\]\r\n]/g, ' ').slice(0, 120); return '![' + alt + '](<' + image.url + '>)\n[Ver imagen original](<' + image.url + '>)' }).join('\n\n')
+          const markdown = imageResults.map((image) => { const alt = image.description.replace(/[\[\]\r\n]/g, ' ').slice(0, 120); return '![' + alt + '](<' + image.url + '>)\n[Ver imagen y su página de origen](<' + image.pageUrl + '>)' }).join('\n\n')
           const imageBlock = '\n\n### Imágenes encontradas\n\n' + markdown
           full += imageBlock
           send({ type: 'delta', text: imageBlock })
