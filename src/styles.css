@@ -329,3 +329,19 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
 .generated-document small { color:var(--muted); font-size:12px; }
 .generated-document .document-error { color:var(--danger); }
 @media(max-width:560px){.generated-document{align-items:stretch;flex-direction:column}.generated-document .btn{width:100%;min-height:42px}}
+
+
+/* Programación: controles de autonomía y reinicio de la vista previa */
+.workspace-actions{flex-wrap:wrap;align-items:center}
+.autonomy-limit{width:auto;min-height:30px;padding:3px 26px 3px 8px;font-size:12px}
+.preview-actions{display:flex;align-items:center;gap:10px}
+@media(max-width:620px){.workspace-actions{width:100%;margin-left:0}.workspace-actions .autosave-status{width:100%}.autonomy-limit{flex:1}.preview-actions{gap:6px}.preview-panel-head{gap:8px;flex-wrap:wrap}}
+
+/* Orbe de llamada: esfera azul compacta, circular y sin movimiento al escuchar */
+.orb-core{border-radius:50%!important;width:58%;height:58%;background:radial-gradient(circle at 34% 27%,#fff 0%,#e5fbff 7%,#a5edff 17%,#54c9ff 31%,#277df4 53%,#1551cb 73%,#0b236e 100%)!important;box-shadow:0 0 14px rgba(86,190,255,.82),0 0 36px rgba(24,105,255,.7),inset -10px -13px 22px rgba(0,18,100,.48),inset 7px 8px 17px rgba(255,255,255,.38)!important;transform:scale(calc(1 + var(--voice-level)*.16))!important;transition:transform .09s ease-out,filter .09s ease-out!important}
+.orb-halo{width:70%;height:70%;background:radial-gradient(circle,rgba(45,125,255,.36),rgba(0,55,180,.16) 58%,transparent 74%)!important;filter:blur(7px)!important}
+.orb-highlight{width:23%;height:29%;left:29%;top:22%;border-radius:50%;background:radial-gradient(ellipse,rgba(255,255,255,.96),rgba(200,247,255,.45) 48%,transparent 76%)!important;filter:blur(4px)!important}
+.orb.listening .orb-core,.orb.listening .orb-halo,.orb.listening .orb-highlight{animation:none!important;transform:none}
+.orb.speaking .orb-core{filter:brightness(calc(1 + var(--voice-level)*.24))!important}
+.orb.speaking .orb-halo{animation:orb-speaking .58s ease-in-out infinite alternate!important}
+.orb.thinking .orb-halo{animation:orb-thinking 2.1s ease-in-out infinite!important}
