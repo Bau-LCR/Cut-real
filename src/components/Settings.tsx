@@ -84,7 +84,7 @@ export function Settings() {
         <h3>Voz</h3>
         <div className="grid2">
           <div><label className="lbl" htmlFor="eng">Motor de voz</label>
-            <select id="eng" className="field" value={voice.engine} onChange={(e) => guard(saveSettings({ voice: { ...voice, engine: e.target.value as 'browser' | 'remote' } }))}>
+            <select id="eng" className="field" value={voice.engine} onChange={(e) => { const engine = e.target.value as 'browser' | 'remote'; guard(saveSettings({ voice: { ...voice, engine, voice_uri: engine === 'remote' ? 'Kore' : '' } })) }}>
               <option value="browser">Navegador (sin costo)</option><option value="remote">Proveedor externo (si el servidor lo tiene)</option>
             </select></div>
           <div><label className="lbl" htmlFor="rate">Velocidad de lectura</label>
