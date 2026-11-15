@@ -29,3 +29,25 @@ export async function webSearch(query: string, signal?: AbortSignal): Promise<Se
   const j = await r.json()
   return (j.web?.results ?? []).slice(0, 5).map((x: any) => ({ title: String(x.title), url: String(x.url), snippet: String(x.description ?? '').replace(/<[^>]+>/g, '').slice(0, 600) }))
 }
+
+export interface SearchImageResult { url: string; description: string }
+
+export async function imageSearch(query: string, signal?: AbortSignal): Promise<SearchImageResult[]> {
+  const apiKey = Deno.env.get('TAVILY_API_KEY')
+  if (!apiKey) throw new Error('image_search_not_configured')
+  const response = await fetch('https://api.tavily.com/search', {
+    method: 'POST', signal,
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + apiKey },
+    body: JSON.stringify({
+      query: query.slice(0, 400), max_results: 5, search_depth: 'basic',
+      include_images: true, include_image_descriptions: true,
+    }),
+  })
+  if (!response.ok) throw new Error('image_search_http_' + response.status)
+  const payload = await response.json()
+  return (Array.isArray(payload.images) ? payload.images : []).slice(0, 8).flatMap((item: any) => {
+    const url = typeof item?.url === 'string' ? item.url : ''
+    if (!/^https?:\\/\\//i.test(url)) return []
+    return [{ url, description: String(item.description ?? 'Imagen encontrada en la web').slice(0, 240) }]
+  })
+}
