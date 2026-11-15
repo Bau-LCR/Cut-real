@@ -2,7 +2,7 @@
 // Una generación por conversación, independientes entre sí. El mensaje del asistente se guarda en la base
 // mientras se genera: si el navegador se desconecta, la respuesta sigue y se recupera por Realtime/recarga.
 import { corsHeaders, errorResponse, HttpError, json } from '../_shared/cors.ts'
-import { authenticate, logUsage, rateLimit, type AuthContext } from '../_shared/supabase.ts'
+import { authenticate, audit, logUsage, rateLimit, type AuthContext } from '../_shared/supabase.ts'
 import { checkProviderLimits, loadModel, ProviderError, streamFromProvider, type ChatMessage, type ChatPart, type ModelRow } from '../_shared/providers.ts'
 import { renderUserContent, searchContext, SYSTEM_PROMPT, titleFrom, trimHistory, type AttachmentCtx } from '../_shared/prompt.ts'
 import { searchProvider, webSearch, type SearchResult } from '../_shared/search.ts'
@@ -21,6 +21,30 @@ interface Body {
   messageId?: string
   attachmentIds?: string[]
   webSearch?: boolean
+}
+
+function isTargetedAbuse(content: string): boolean {
+  const text = content.toLocaleLowerCase('es').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
+  const insult = '(?:idiota|imbecil|inutil|estupido|estupida|basura|mierda|pedazo de mierda|forro|forra|pelotudo|pelotuda|hdp|hijo de puta|la concha de tu madre)'
+  const directed = new RegExp('(?:\\\\b(?:sos|eres|you are|you\\\\x27re)\\\\s+(?:un|una)?\\\\s*' + insult + '\\\\b|\\\\b(?:ia|modelo|chatbot|asistente|qudreal|cut.?real)\\\\b.{0,45}\\\\b' + insult + '\\\\b|\\\\b' + insult + '\\\\b.{0,35}\\\\b(?:ia|modelo|chatbot|asistente|qudreal|cut.?real)\\\\b)', 'i')
+  return directed.test(text)
+}
+
+async function moderateIncoming(ctx: AuthContext, content: string | undefined) {
+  if (!content || !isTargetedAbuse(content)) return
+  const { db, userId } = ctx
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const { count } = await db.from('cr_audit_logs').select('id', { count: 'exact', head: true })
+    .eq('actor_id', userId).eq('action', 'moderation.targeted_abuse').gte('created_at', since)
+  await audit(db, { actorId: userId, action: 'moderation.targeted_abuse', targetType: 'user', targetId: userId,
+    reason: 'Mensaje dirigido con insultos al asistente', metadata: { window: '24h' } })
+  if ((count ?? 0) >= 1) {
+    const reason = 'Suspensión automática: reiteración de insultos dirigidos al asistente.'
+    await db.from('cr_user_roles').update({ suspended: true, suspended_reason: reason, suspended_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('user_id', userId)
+    await audit(db, { actorId: null, actorKind: 'system', action: 'user.suspend', targetType: 'user', targetId: userId, reason })
+    throw new HttpError(403, 'suspended', 'Tu cuenta fue suspendida automáticamente por reiterar insultos dirigidos al asistente. Un administrador puede revisar y restaurar el acceso.')
+  }
+  throw new HttpError(422, 'moderation_warning', 'Este mensaje no se envió porque contiene insultos dirigidos al asistente. Si volvés a reiterar esta conducta, la cuenta podrá ser suspendida y requerirá revisión administrativa.')
 }
 
 function readBody(raw: any): Body {
@@ -42,6 +66,7 @@ Deno.serve(async (req) => {
     if (req.method !== 'POST') throw new HttpError(405, 'method_not_allowed', 'Método no permitido.')
     const ctx = await authenticate(req)
     const body = readBody(await req.json().catch(() => null))
+    if (body.mode === 'send' || body.mode === 'edit') await moderateIncoming(ctx, body.content)
     if (body.mode === 'cancel') {
       const { count } = await ctx.db.from('cr_messages').update({ status: 'cancelled' }, { count: 'exact' })
         .eq('conversation_id', body.conversationId).eq('user_id', ctx.userId).eq('status', 'generating')
