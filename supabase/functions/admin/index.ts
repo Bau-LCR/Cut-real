@@ -77,7 +77,7 @@ async function memoryTaskIdentity(appId: string, userId: string, privateJwkRaw: 
 }
 async function callMemoryTask(ctx: AuthContext, action: string, data: Record<string, unknown>) {
   const cfg = await memoryTaskConfig(ctx)
-  if (!cfg.configured) throw new HttpError(409, 'integration_not_configured', 'Falta configurar la URL, la API key, el ID de aplicación o la clave privada de identidad de Memory Task en los secretos de Supabase.')
+  if (!cfg.configured) throw new HttpError(409, 'integration_not_configured', 'La conexión con Memory Task todavía no está completada. Generá un código temporal y vinculá la cuenta desde Memory Task.')
   let endpoint: URL
   try { endpoint = new URL(cfg.endpoint) } catch { throw new HttpError(500, 'integration_config_error', 'La URL de Memory Task no es válida.') }
   if (endpoint.protocol !== 'https:' || !endpoint.hostname.endsWith('.supabase.co') || !endpoint.pathname.endsWith('/functions/v1/service-api')) {
