@@ -320,7 +320,7 @@ async function generateOriginalImages(ctx: AuthContext, conversationId: string, 
     const part = payload?.candidates?.[0]?.content?.parts?.find((p: any) => p?.inlineData?.data)
     if (!part?.inlineData?.data) throw new Error('Gemini returned no image data')
     const mimeType = String(part.inlineData.mimeType ?? 'image/png').toLowerCase()
-    if (!['image/png','image/jpeg','image/webp'].includes(mimeType)) throw new Error('Unsupported generated image type')
+    if (!['image/png','image/jpeg'].includes(mimeType)) throw new Error('Gemini returned an image format that Word/PDF cannot embed')
     const bytes = Uint8Array.from(atob(part.inlineData.data), (c) => c.charCodeAt(0))
     if (!bytes.length || bytes.length > 12 * 1024 * 1024) throw new Error('Generated image exceeded size limit')
     const id = crypto.randomUUID()
