@@ -1,5 +1,5 @@
 import { memo, useEffect, useState } from 'react'
-import ReactMarkdown, { type Components } from 'react-markdown'
+import ReactMarkdown, { defaultUrlTransform, type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
@@ -94,7 +94,7 @@ const components: Components = {
 export const Markdown = memo(function Markdown({ text, streaming = false }: { text: string; streaming?: boolean }) {
   return (
     <div className={`md${streaming ? ' cursor' : ''}`}>
-      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[[rehypeKatex, { throwOnError: false, strict: false }]]} components={components}>
+      <ReactMarkdown urlTransform={(url) => url.startsWith('cutreal-image:') ? url : defaultUrlTransform(url)} remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[[rehypeKatex, { throwOnError: false, strict: false }]]} components={components}>
         {normalizeHtmlArtifacts(normalizeMath(text))}
       </ReactMarkdown>
     </div>
