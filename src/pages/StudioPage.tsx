@@ -10,6 +10,27 @@ type CodeFiles = { 'index.html': string; 'style.css': string; 'script.js': strin
 interface Project { id: string; name: string; files: CodeFiles; updated_at: string }
 const EMPTY: CodeFiles = { 'index.html': '<!doctype html>\n<html lang="es">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>Mi proyecto</title>\n</head>\n<body>\n  <h1>Hola, mundo</h1>\n  <p>Tu proyecto empieza acá.</p>\n</body>\n</html>', 'style.css': 'body { font-family: system-ui, sans-serif; padding: 2rem; }\nh1 { color: #3159a8; }', 'script.js': "console.log('Proyecto listo');" }
 const FILES = ['index.html', 'style.css', 'script.js'] as const
+function parseGeneratedFiles(content: string): CodeFiles | null {
+  const result: Partial<CodeFiles> = {}
+  const headings = [...content.matchAll(/(?:^|\n)\s*(?:#{1,4}\s*)?(?:\*\*)?(index\.html|style\.css|script\.js)(?:\*\*)?\s*:?[ \t]*\n/gi)]
+  if (headings.length >= 2) headings.forEach((match, index) => {
+    const name = match[1].toLowerCase() as keyof CodeFiles
+    const start = (match.index ?? 0) + match[0].length
+    const end = index + 1 < headings.length ? (headings[index + 1].index ?? content.length) : content.length
+    const section = content.slice(start, end).trim()
+    const fence = section.match(/\x60\x60\x60[^\n]*\n([\s\S]*?)\x60\x60\x60/)
+    result[name] = (fence?.[1] ?? section).trim()
+  })
+  const fences = [...content.matchAll(/\x60\x60\x60([^\n]*)\n([\s\S]*?)\x60\x60\x60/g)]
+  for (const fence of fences) {
+    const label = (fence[1] + content.slice(Math.max(0, (fence.index ?? 0) - 100), fence.index ?? 0)).toLowerCase()
+    const name = /index\.html|html/.test(label) ? 'index.html' : /style\.css|css/.test(label) ? 'style.css' : /script\.js|javascript|\bjs\b/.test(label) ? 'script.js' : null
+    if (name && result[name] == null) result[name] = fence[2].trim()
+  }
+  if (['index.html', 'style.css', 'script.js'].every((name) => result[name as keyof CodeFiles] != null)) return { 'index.html': result['index.html']!, 'style.css': result['style.css']!, 'script.js': result['script.js']!' }
+  if (fences.length === 3) return { 'index.html': fences[0][2].trim(), 'style.css': fences[1][2].trim(), 'script.js': fences[2][2].trim() }
+  return null
+}
 
 function previewDocument(files: CodeFiles) {
   const style = '<style>\n' + files['style.css'] + '\n</style>'
@@ -116,13 +137,13 @@ export function StudioPage() {
       const request = [
         'Actuá como un desarrollador frontend senior. Generá una solución completa y funcional para el siguiente pedido.',
         prompt.trim(),
-        'Respondé con exactamente tres bloques de código, en este orden: primero HTML para index.html, segundo CSS para style.css y tercero JavaScript para script.js. No omitas archivos; si uno no necesita código, devolvé un bloque vacío. No agregues explicaciones fuera de los bloques. El HTML debe enlazar style.css y script.js correctamente.'
+        'Devolvé los tres archivos completos, cada uno bajo un encabezado exacto y separado: index.html, style.css y script.js. Debajo de cada encabezado incluí un bloque de código con el lenguaje correcto (html, css, javascript). No omitas archivos; si uno no necesita código, devolvé un bloque vacío. No mezcles los tres archivos en un único bloque ni agregues explicaciones. El HTML debe enlazar style.css y script.js correctamente.'
       ].join('\n\n')
       const result = await chat.send(conversationId, request, { silent: true, ephemeral: true })
       if (!result.ok || !result.content) throw new Error(result.error || 'El modelo no devolvió código.')
-      const blocks = [...result.content.matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map((m) => m[1].trim())
-      if (blocks.length < 3) throw new Error('La respuesta no incluyó los tres archivos esperados. Podés pedirlo de nuevo con más detalle.')
-      setDraft({ 'index.html': blocks[0], 'style.css': blocks[1], 'script.js': blocks[2] })
+      const files = parseGeneratedFiles(result.content)
+      if (!files) throw new Error('La respuesta llegó, pero no pude separar index.html, style.css y script.js. Probá indicando que entregue cada archivo bajo su propio encabezado.')
+      setDraft(files)
       toast('info', 'Código generado. Se guardará automáticamente.')
     } catch (e) { toast('error', (e as Error).message) }
     finally {
@@ -153,16 +174,15 @@ export function StudioPage() {
           'Analizá el proyecto completo y elegí UNA sola mejora pequeña, concreta, útil y coherente. Puede ser corregir un error evidente, mejorar accesibilidad, responsive, usabilidad, rendimiento o un detalle visual.',
           'No cambies la identidad ni el objetivo del producto. No agregues dependencias, servicios externos, pagos, autenticación, analítica, telemetría ni llamadas de red. No introduzcas funciones destructivas. Conservá las características existentes.',
           'Si no encontrás una mejora segura y claramente beneficiosa, devolvé los archivos sin cambios.',
-          'Devolvé exactamente tres bloques de código en orden: HTML, CSS, JavaScript. Sin explicaciones fuera de los bloques.',
+          'Devolvé los tres archivos completos bajo encabezados exactos: index.html, style.css y script.js; cada uno en su propio bloque de código (html, css, javascript). No los mezcles.',
           'ARCHIVO index.html:\n' + current['index.html'],
           'ARCHIVO style.css:\n' + current['style.css'],
           'ARCHIVO script.js:\n' + current['script.js'],
         ].join('\n\n')
         const result = await chat.send(temporaryConversationId, request, { silent: true, ephemeral: true })
         if (!result.ok || !result.content) throw new Error(result.error || 'La IA no devolvió una mejora.')
-        const blocks = [...result.content.matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map((m) => m[1].trim())
-        if (blocks.length < 3) throw new Error('La respuesta autónoma no incluyó los tres archivos.')
-        const next: CodeFiles = { 'index.html': blocks[0], 'style.css': blocks[1], 'script.js': blocks[2] }
+        const next = parseGeneratedFiles(result.content)
+        if (!next) throw new Error('La respuesta autónoma no incluyó los tres archivos separados.')
         if (stopped || activeRef.current?.id !== projectId) return
         const unchanged = FILES.every((name) => next[name] === current[name])
         if (!unchanged) {
