@@ -50,7 +50,7 @@ export async function imageSearch(query: string, signal?: AbortSignal): Promise<
       const results = (Array.isArray(payload.results) ? payload.results : []).slice(0, 8).flatMap((item: any) => {
         const url = typeof item?.properties?.url === 'string' ? item.properties.url : item?.thumbnail?.src
         const pageUrl = typeof item?.url === 'string' ? item.url : ''
-        if (typeof url !== 'string' || !/^https?:\\/\\//i.test(url)) return []
+        if (typeof url !== 'string' || !(url.startsWith('https://') || url.startsWith('http://'))) return []
         const description = [item.title, item.source].filter((value) => typeof value === 'string' && value.trim()).join(' · ') || 'Imagen encontrada en Internet'
         return [{ url, pageUrl, description: description.slice(0, 240) }]
       })
@@ -74,7 +74,7 @@ export async function imageSearch(query: string, signal?: AbortSignal): Promise<
     const payload = await response.json()
     return (Array.isArray(payload.images) ? payload.images : []).slice(0, 8).flatMap((item: any) => {
       const url = typeof item?.url === 'string' ? item.url : ''
-      if (!/^https?:\\/\\//i.test(url)) return []
+      if (!(url.startsWith('https://') || url.startsWith('http://'))) return []
       const pageUrl = typeof item?.page_url === 'string' ? item.page_url : ''
       return [{ url, pageUrl, description: String(item.description ?? 'Imagen encontrada en Internet').slice(0, 240) }]
     })
