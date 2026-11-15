@@ -235,14 +235,18 @@ function MemoryTaskPanel({ integration }: { integration: any }) {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [keyPair, setKeyPair] = useState<any>(null)
+  const [endpoint, setEndpoint] = useState('')
+  const [appId, setAppId] = useState('')
+  const [apiKey, setApiKey] = useState('')
   const refresh = useCallback(async () => {
     try { setStatus(await act<any>('integrations.memory_task_status')) }
     catch (e) { toast('error', (e as Error).message) }
   }, [toast])
   useEffect(() => { void refresh() }, [refresh])
   const generate = async () => {
+    if (keyPair && !confirm('Ya hay un par generado en esta sesión. ¿Querés reemplazarlo? La clave privada anterior dejará de estar disponible.')) return
     setBusy(true)
-    try { setKeyPair(await act<any>('integrations.memory_task_generate_identity')); toast('info', 'Par de identidad generado. Guardá la clave privada antes de cerrar esta pantalla.') }
+    try { setKeyPair(await act<any>('integrations.memory_task_generate_identity')); toast('info', 'Par de identidad generado. Guardá la clave privada en el archivo de secretos.') }
     catch (e) { toast('error', (e as Error).message) }
     finally { setBusy(false) }
   }
@@ -251,6 +255,36 @@ function MemoryTaskPanel({ integration }: { integration: any }) {
     try { const result = await act<any>('integrations.memory_task_test'); toast('info', result.message); await refresh() }
     catch (e) { toast('error', (e as Error).message) }
     finally { setBusy(false) }
+  }
+  const downloadSecrets = () => {
+    if (!endpoint.trim() || !appId.trim() || !apiKey.trim() || !keyPair?.privateJwk) {
+      toast('error', 'Completá URL, ID, API key y generá o recuperá el par de identidad.')
+      return
+    }
+    let parsed: URL
+    try { parsed = new URL(endpoint.trim()) } catch { toast('error', 'La URL de Memory Task no es válida.'); return }
+    if (parsed.protocol !== 'https:' || !parsed.pathname.endsWith('/functions/v1/service-api')) {
+      toast('error', 'Usá la URL HTTPS completa que termina en /functions/v1/service-api.')
+      return
+    }
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(appId.trim())) {
+      toast('error', 'El ID de aplicación debe ser un UUID.')
+      return
+    }
+    const privateJwk = JSON.stringify(keyPair.privateJwk)
+    const env = [
+      'MEMORY_TASK_API_URL=' + endpoint.trim(),
+      'MEMORY_TASK_API_KEY=' + apiKey.trim(),
+      'MEMORY_TASK_APP_ID=' + appId.trim(),
+      "MEMORY_TASK_IDENTITY_PRIVATE_JWK='" + privateJwk + "'",
+      '',
+    ].join('\n')
+    const blob = new Blob([env], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = 'memory-task-secrets.env'; a.click()
+    URL.revokeObjectURL(url)
+    toast('info', 'Archivo generado. Guardalo dentro del repositorio de Cut-real y ejecutá el comando indicado abajo.')
   }
   const send = async () => {
     setBusy(true)
@@ -261,45 +295,62 @@ function MemoryTaskPanel({ integration }: { integration: any }) {
     } catch (e) { toast('error', (e as Error).message) }
     finally { setBusy(false) }
   }
+  const publicJwkText = keyPair ? JSON.stringify(keyPair.publicJwk, null, 2) : ''
   return (
     <div className="panel">
       <div className="row"><h3 style={{ margin: 0 }}>Conexión con Memory Task</h3><span className="grow" />
-        <span className={`badge ${status?.configured ? 'ok' : 'bad'}`}>{status?.configured ? 'credenciales configuradas' : 'configuración pendiente'}</span>
+        <span className={`badge ${status?.configured ? 'ok' : 'bad'}`}>{status?.configured ? 'servidor configurado' : 'falta configuración'}</span>
         <button className="btn sm" onClick={() => void refresh()}>Actualizar estado</button>
       </div>
-      <p className="hint">La API key y la clave privada se usan en el servidor. La clave privada solo se muestra durante la configuración inicial para que la guardes como secreto de Edge Functions.</p>
+      <p className="hint">Esta sección conecta Cut-real con la cuenta de servicio de Memory Task. Las credenciales se usan exclusivamente en el servidor de Cut-real.</p>
       <div className="grid2">
-        <div><strong>Endpoint</strong><p className="hint">{status?.endpointConfigured ? 'Configurado' : 'Falta MEMORY_TASK_API_URL'}</p></div>
-        <div><strong>API key</strong><p className="hint">{status?.apiKeyConfigured ? 'Configurada' : 'Falta MEMORY_TASK_API_KEY'}</p></div>
-        <div><strong>ID de aplicación</strong><p className="hint">{status?.appIdConfigured ? 'Configurado' : 'Falta MEMORY_TASK_APP_ID'}</p></div>
-        <div><strong>Identidad ES256</strong><p className="hint">{status?.identityKeyConfigured ? 'Configurada' : 'Falta MEMORY_TASK_IDENTITY_PRIVATE_JWK'}</p></div>
-        <div><strong>Autorización de esta cuenta</strong><p className="hint">{status?.authorized ? 'conversations:write concedido' : 'Falta autorizar desde Configuración'}</p></div>
+        <div><strong>URL de API</strong><p className="hint">{status?.endpointConfigured ? 'Configurada en el servidor' : 'Pendiente'}</p></div>
+        <div><strong>API key</strong><p className="hint">{status?.apiKeyConfigured ? 'Configurada en el servidor' : 'Pendiente'}</p></div>
+        <div><strong>ID de aplicación</strong><p className="hint">{status?.appIdConfigured ? 'Configurado en el servidor' : 'Pendiente'}</p></div>
+        <div><strong>Identidad ES256</strong><p className="hint">{status?.identityKeyConfigured ? 'Configurada en el servidor' : 'Pendiente'}</p></div>
+        <div><strong>Integración</strong><p className="hint">{integration?.status === 'enabled' ? 'Habilitada' : 'Deshabilitada: habilitala en esta pantalla'}</p></div>
+        <div><strong>Autorización personal</strong><p className="hint">{status?.authorized ? 'Concedida para esta cuenta' : 'No concedida (necesaria para enviar notas desde aquí)'}</p></div>
       </div>
       <div className="panel" style={{ marginTop: 12 }}>
-        <strong>Configuración inicial (una sola vez)</strong>
+        <strong>Vinculación guiada</strong>
         <ol className="hint">
-          <li>En Memory Task, creá una aplicación de servicio llamada Cut-real.</li>
-          <li>Generá el par ES256 acá y registrá en Memory Task solamente la clave pública JWK.</li>
-          <li>Creá una API key de Memory Task con el permiso <code>records:write</code>.</li>
-          <li>Guardá el endpoint, la API key, el ID de aplicación y la clave privada como secretos de Edge Functions en el proyecto Supabase de Cut-real.</li>
-          <li>Volvé acá, actualizá el estado y probá la conexión.</li>
+          <li>En Memory Task → Cuenta de servicio → Conectar Cut-real, elegí la aplicación Cut-real.</li>
+          <li>Si necesitás una identidad nueva, generá un par ES256 abajo y pegá <b>solo la clave pública</b> en Memory Task. Si ya registraste otra clave pública, este par nuevo la reemplaza para esa aplicación.</li>
+          <li>En Memory Task generá una clave API con permisos de lectura y escritura de registros. Copiá la URL, el ID de aplicación y la clave API.</li>
+          <li>Completá esos tres datos aquí y descargá el archivo de secretos. La clave privada se incorpora automáticamente.</li>
+          <li>Guardá el archivo en la carpeta raíz del repositorio de Cut-real y ejecutá el comando que aparece debajo.</li>
+          <li>Volvé aquí, actualizá el estado y probá la conexión.</li>
         </ol>
-        <div className="row">
-          <button className="btn" disabled={busy} onClick={() => void generate()}>Generar par de claves ES256</button>
-          <span className="hint">No generes otro par si ya registraste uno en Memory Task.</span>
+        <div className="row" style={{ marginTop: 10 }}>
+          <button className="btn" disabled={busy} onClick={() => void generate()}>Generar par ES256</button>
+          <span className="hint">No generes un par nuevo si ya tenés el privado correspondiente a la identidad registrada.</span>
         </div>
         {keyPair && <div style={{ marginTop: 12 }}>
-          <label className="lbl">Clave pública JWK · registrar en Memory Task</label>
-          <pre className="secret" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{JSON.stringify(keyPair.publicJwk, null, 2)}</pre>
+          <label className="lbl">Clave pública JWK · pegar en Memory Task</label>
+          <pre className="secret" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{publicJwkText}</pre>
           <CopyButton text={JSON.stringify(keyPair.publicJwk)} label="Copiar clave pública" />
-          <label className="lbl">Clave privada JWK · guardar solo como secreto MEMORY_TASK_IDENTITY_PRIVATE_JWK</label>
-          <pre className="secret" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{JSON.stringify(keyPair.privateJwk)}</pre>
-          <CopyButton text={JSON.stringify(keyPair.privateJwk)} label="Copiar clave privada" />
-          <p className="hint">Esta clave privada se muestra solamente en esta sesión de administración. No la pegues en Memory Task, GitHub ni en el chat.</p>
+          <p className="hint">La clave privada no se pega en Memory Task. Se incorpora al archivo local de secretos de Cut-real.</p>
         </div>}
+        <div style={{ marginTop: 14 }}>
+          <label className="lbl">URL de API de Memory Task</label>
+          <input className="field" value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="https://TU_PROYECTO.supabase.co/functions/v1/service-api" autoComplete="off" />
+          <label className="lbl">ID de aplicación (App ID)</label>
+          <input className="field" value={appId} onChange={(e) => setAppId(e.target.value)} placeholder="UUID de la aplicación Cut-real en Memory Task" autoComplete="off" />
+          <label className="lbl">Clave API de Memory Task</label>
+          <input className="field" type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="mt_live_…" autoComplete="new-password" />
+          <div className="row" style={{ marginTop: 12 }}>
+            <button className="btn primary" disabled={!keyPair?.privateJwk || !endpoint.trim() || !appId.trim() || !apiKey.trim()} onClick={downloadSecrets}>Descargar archivo de secretos</button>
+          </div>
+          <p className="hint">El archivo contiene credenciales privadas. No lo subas a GitHub ni lo envíes por chat. Después de desplegar los secretos, borrá el archivo local.</p>
+          <div className="notice" style={{ marginTop: 10 }}>
+            <b>Comando (desde la carpeta raíz de Cut-real):</b>
+            <code style={{ display: 'block', overflowWrap: 'anywhere', marginTop: 6 }}>npx supabase secrets set --env-file memory-task-secrets.env</code>
+          </div>
+        </div>
       </div>
       <div className="row" style={{ marginTop: 12 }}>
-        <button className="btn" disabled={busy || !status?.configured || !integration || integration.status !== 'enabled'} onClick={() => void test()}>Probar conexión</button>
+        <button className="btn" disabled={busy || !status?.configured || integration?.status !== 'enabled'} onClick={() => void test()}>Probar conexión</button>
+        <span className="hint">La prueba guarda y elimina un registro temporal en Memory Task.</span>
       </div>
       <div style={{ marginTop: 16 }}>
         <strong>Enviar información a Memory Task</strong>
@@ -308,8 +359,8 @@ function MemoryTaskPanel({ integration }: { integration: any }) {
         <label className="lbl">Texto o información</label>
         <textarea className="field" rows={6} maxLength={20000} value={content} onChange={(e) => setContent(e.target.value)} placeholder="Escribí aquí la información que querés almacenar en Memory Task." />
         <div className="row end"><span className="hint">{content.length}/20000 caracteres</span><button className="btn primary" disabled={busy || !status?.configured || !status?.authorized || integration?.status !== 'enabled' || !title.trim() || !content.trim()} onClick={() => void send()}>Enviar y guardar</button></div>
-        {integration?.status !== 'enabled' && <p className="hint">Habilitá primero la integración Memory Task para poder enviar información.</p>}
-        {integration?.status === 'enabled' && status?.configured && !status?.authorized && <p className="hint">Para enviar datos, autorizá Memory Task desde Configuración → Integraciones autorizadas y marcá el permiso conversations:write.</p>}
+        {integration?.status !== 'enabled' && <p className="hint">Habilitá primero la integración Memory Task en la lista de integraciones.</p>}
+        {integration?.status === 'enabled' && status?.configured && !status?.authorized && <p className="hint">Para enviar notas desde esta pantalla, autorizá Memory Task desde Configuración → Integraciones autorizadas y marcá conversations:write.</p>}
       </div>
     </div>
   )
