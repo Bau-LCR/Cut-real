@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Sidebar } from '../components/Sidebar'
 import { supabase } from '../lib/supabase'
@@ -38,7 +38,16 @@ export function StudioPage() {
   const [savedAt, setSavedAt] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [showPreview, setShowPreview] = useState(true)
+  const [previewRun, setPreviewRun] = useState(0)
+  const [autonomy, setAutonomy] = useState(false)
+  const [autonomyBusy, setAutonomyBusy] = useState(false)
+  const [autonomyCycles, setAutonomyCycles] = useState(0)
+  const [autonomyLimit, setAutonomyLimit] = useState(30)
+  const draftRef = useRef(draft)
+  const activeRef = useRef(active)
   const preview = useMemo(() => previewDocument(draft), [draft])
+  useEffect(() => { draftRef.current = draft }, [draft])
+  useEffect(() => { activeRef.current = active }, [active])
 
   async function loadProjects() {
     if (!userId) return
@@ -121,6 +130,68 @@ export function StudioPage() {
     }
   }
 
+  // Modo autonomía: una mejora por ciclo, con pausa entre llamadas y límite explícito.
+  useEffect(() => {
+    if (!autonomy || !active?.id || !modelId) return
+    let stopped = false
+    let timer: number | undefined
+    let failures = 0
+    const projectId = active.id
+    const wait = (ms: number) => new Promise<void>((resolve) => { timer = window.setTimeout(resolve, ms) })
+    const runCycle = async () => {
+      if (stopped || activeRef.current?.id !== projectId) return
+      if (autonomyCycles >= autonomyLimit) { setAutonomy(false); toast('info', 'Modo autonomía finalizado: alcanzaste el límite de ciclos.'); return }
+      setAutonomyBusy(true)
+      const chat = useChat.getState()
+      let temporaryConversationId: string | null = null
+      try {
+        temporaryConversationId = await chat.createConversation(true)
+        const current = draftRef.current
+        const request = [
+          'Sos un desarrollador senior trabajando de forma autónoma en un proyecto frontend existente.',
+          'Analizá el proyecto completo y elegí UNA sola mejora pequeña, concreta, útil y coherente. Puede ser corregir un error evidente, mejorar accesibilidad, responsive, usabilidad, rendimiento o un detalle visual.',
+          'No cambies la identidad ni el objetivo del producto. No agregues dependencias, servicios externos, pagos, autenticación, analítica, telemetría ni llamadas de red. No introduzcas funciones destructivas. Conservá las características existentes.',
+          'Si no encontrás una mejora segura y claramente beneficiosa, devolvé los archivos sin cambios.',
+          'Devolvé exactamente tres bloques de código en orden: HTML, CSS, JavaScript. Sin explicaciones fuera de los bloques.',
+          'ARCHIVO index.html:\n' + current['index.html'],
+          'ARCHIVO style.css:\n' + current['style.css'],
+          'ARCHIVO script.js:\n' + current['script.js'],
+        ].join('\n\n')
+        const result = await chat.send(temporaryConversationId, request, { silent: true, ephemeral: true })
+        if (!result.ok || !result.content) throw new Error(result.error || 'La IA no devolvió una mejora.')
+        const blocks = [...result.content.matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map((m) => m[1].trim())
+        if (blocks.length < 3) throw new Error('La respuesta autónoma no incluyó los tres archivos.')
+        const next: CodeFiles = { 'index.html': blocks[0], 'style.css': blocks[1], 'script.js': blocks[2] }
+        if (stopped || activeRef.current?.id !== projectId) return
+        const unchanged = FILES.every((name) => next[name] === current[name])
+        if (!unchanged) {
+          const { error } = await supabase.from('cr_code_projects').update({ files: next, updated_at: new Date().toISOString() }).eq('id', projectId)
+          if (error) throw new Error('No se pudo guardar la mejora automática.')
+          draftRef.current = next
+          setDraft(next)
+          setProjects(old => old.map(p => p.id === projectId ? { ...p, files: next, updated_at: new Date().toISOString() } : p))
+          setSavedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+        }
+        failures = 0
+        setAutonomyCycles(n => n + 1)
+      } catch (e) {
+        failures++
+        toast('error', 'Autonomía: ' + ((e as Error).message || 'falló un ciclo.'))
+        if (failures >= 3) { setAutonomy(false); toast('error', 'Modo autonomía pausado tras tres errores consecutivos.'); return }
+      } finally {
+        if (temporaryConversationId) await chat.remove(temporaryConversationId)
+        if (!stopped) setAutonomyBusy(false)
+      }
+      if (!stopped) {
+        if (autonomyCycles + 1 >= autonomyLimit) { setAutonomy(false); toast('info', 'Modo autonomía finalizado: alcanzaste el límite de ciclos.'); return }
+        await wait(20_000)
+        if (!stopped) void runCycle()
+      }
+    }
+    void runCycle()
+    return () => { stopped = true; if (timer) window.clearTimeout(timer); setAutonomyBusy(false) }
+  }, [autonomy, active?.id, modelId, autonomyLimit])
+
   async function deleteProject() {
     if (!active || !confirm('¿Eliminar este proyecto y sus archivos?')) return
     const { error } = await supabase.from('cr_code_projects').delete().eq('id', active.id)
@@ -141,11 +212,11 @@ export function StudioPage() {
           </aside>
           <section className="studio-workspace">
             {!active ? <div className="studio-empty"><h2>Tu próximo proyecto empieza acá.</h2><p>Creá un proyecto para trabajar con HTML, CSS y JavaScript en archivos vinculados.</p><button className="btn primary" onClick={() => void createProject()}>Crear proyecto</button></div> : <>
-              <div className="workspace-toolbar"><input className="field project-name" value={active.name} onChange={(e) => setActive({ ...active, name: e.target.value })} aria-label="Nombre del proyecto" /><div className="workspace-actions"><span className="autosave-status">{saving ? 'Guardando…' : savedAt ? 'Guardado automáticamente' : 'Guardado automático activo'}</span><button className="btn sm" onClick={() => void saveProject()} disabled={saving}>Guardar ahora</button><button className="btn danger sm" onClick={() => void deleteProject()}>Eliminar</button></div></div>
+              <div className="workspace-toolbar"><input className="field project-name" value={active.name} onChange={(e) => setActive({ ...active, name: e.target.value })} aria-label="Nombre del proyecto" /><div className="workspace-actions"><span className="autosave-status">{saving ? 'Guardando…' : savedAt ? 'Guardado automáticamente' : 'Guardado automático activo'}</span><button className={`btn sm ${autonomy ? 'primary' : ''}`} onClick={() => { if (autonomy) setAutonomy(false); else { setAutonomyCycles(0); setAutonomy(true) } }} disabled={!modelId || generating}>{autonomy ? (autonomyBusy ? 'Autonomía activa · trabajando…' : 'Pausar autonomía') : 'Modo autonomía'}</button><select className="field autonomy-limit" aria-label="Límite de mejoras autónomas" value={autonomyLimit} onChange={(e) => setAutonomyLimit(Number(e.target.value))} disabled={autonomy}><option value={30}>30 mejoras</option><option value={60}>60 mejoras</option><option value={120}>120 mejoras</option><option value={240}>240 mejoras</option><option value={360}>360 mejoras</option></select><button className="btn sm" onClick={() => void saveProject()} disabled={saving}>Guardar ahora</button><button className="btn danger sm" onClick={() => void deleteProject()}>Eliminar</button></div></div>
               <div className="codegen"><div><b>Generar con Cut-real</b><p>Describí qué querés construir y se generarán los tres archivos conectados.</p></div><textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Ej.: una página de presentación para mi emprendimiento, con menú, tarjetas y formulario…" rows={2} /><button className="btn primary sm" onClick={() => void generateCode()} disabled={!prompt.trim() || generating || !modelId}>{generating ? 'Generando…' : !modelId ? 'Cargando modelo…' : 'Generar código'}</button></div>
               <div className={`studio-panels${showPreview ? '' : ' no-preview'}`}>
                 <section className="editor-panel"><div className="file-tabs">{FILES.map((name) => <button key={name} className={file === name ? 'active' : ''} onClick={() => setFile(name)}>{name}</button>)}</div><textarea className="code-editor" spellCheck={false} aria-label={`Código de ${file}`} value={draft[file]} onChange={(e) => setDraft((old) => ({ ...old, [file]: e.target.value }))} /><div className="editor-footer"><span>HTML · CSS · JavaScript</span><button className="btn ghost sm" onClick={() => setShowPreview((v) => !v)}>{showPreview ? 'Ocultar vista previa' : 'Mostrar vista previa'}</button></div></section>
-                {showPreview && <section className="preview-panel"><div className="preview-panel-head"><b>Vista previa en vivo</b><span>Sandbox aislado</span></div><iframe title="Vista previa del proyecto" sandbox="allow-scripts" srcDoc={preview} /></section>}
+                {showPreview && <section className="preview-panel"><div className="preview-panel-head"><b>Vista previa en vivo</b><div className="preview-actions"><span>Sandbox aislado</span><button className="btn sm" onClick={() => setPreviewRun(n => n + 1)}>↻ Ejecutar</button></div></div><iframe key={previewRun} title="Vista previa del proyecto" sandbox="allow-scripts" srcDoc={preview} /></section>}
               </div>
             </>}
           </section>
