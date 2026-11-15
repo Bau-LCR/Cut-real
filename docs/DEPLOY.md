@@ -41,7 +41,7 @@ Editá `supabase/functions/.env`:
 | `GROQ_API_KEY` | Clave de https://console.groq.com/keys | Sí (chat y dictado) |
 | `ALLOWED_ORIGINS` | Solo el *origen*, sin ruta: `https://TU_USUARIO.github.io,http://localhost:5173` | Sí en producción |
 | `GEMINI_API_KEY` | Clave de https://aistudio.google.com/apikey (imágenes originales y Gemini TTS) | No |
-| `SEARCH_PROVIDER` + `TAVILY_API_KEY` (o `BRAVE_API_KEY`) | `tavily` y la clave | No (búsqueda web; Tavily también habilita búsqueda de imágenes) |
+| `SEARCH_PROVIDER` + `TAVILY_API_KEY` o `BRAVE_API_KEY` | Tavily o Brave; cualquiera habilita búsqueda web e imágenes | No |
 | `GEMINI_TTS_MODEL` | `gemini-3.8-flash-tts` (modelo predeterminado para Gemini TTS) | No |
 | `TTS_PROVIDER`, `TTS_BASE_URL`, `TTS_API_KEY`, `TTS_MODEL`, `TTS_VOICE` | Selección del motor Gemini u OpenAI-compatible | No (ver `docs/VOICE.md`) |
 | `MEMORY_TASK_API_URL`, `MEMORY_TASK_API_KEY`, `MEMORY_TASK_APP_ID`, `MEMORY_TASK_IDENTITY_PRIVATE_JWK` | Endpoint `service-api`, API key con `records:read` y `records:write`, App ID y clave privada ES256 generada en Cut-real | No (habilita memoria externa bidireccional; ver panel Administración → Memory Task) |
