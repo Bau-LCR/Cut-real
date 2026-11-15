@@ -180,7 +180,7 @@ export function StudioPage() {
       const request = [
         'MODO PROGRAMACIÓN DE CUT-REAL. Sos un ingeniero de software senior que continúa trabajando en ESTE proyecto, no empezás uno nuevo.',
         'INSTRUCCIÓN DEL USUARIO (continuación de lo anterior):\n' + prompt.trim(),
-        'REGLAS DE CONTINUIDAD: conservá el objetivo, diseño, decisiones, nombres, estructura y funciones ya acordadas en el historial de esta conversación. Interpretá el pedido como una modificación incremental, salvo que el usuario pida explícitamente empezar de cero. No borres ni reemplaces funciones ajenas al cambio. Si pide corregir algo, diagnosticá el problema y modificá lo mínimo necesario. Para renders 3D, asegurate de incluir cámara, iluminación, geometría, materiales y un render loop visible.',
+        'REGLAS DE CONTINUIDAD: conservá el objetivo, diseño, decisiones, nombres, estructura y funciones ya acordadas en el historial de esta conversación. Interpretá el pedido como una modificación incremental, salvo que el usuario pida explícitamente empezar de cero. No borres ni reemplaces funciones ajenas al cambio. Si pide corregir algo, diagnosticá el problema y modificá lo mínimo necesario. Para renders 3D, asegurate de incluir cámara, iluminación, geometría, materiales, una fuente de Three.js cuando corresponda, tamaño visible del canvas y un render loop.',
         'OPTIMIZACIÓN: devolvé únicamente los archivos que realmente cambien. No repitas archivos intactos ni explicaciones extensas. Usá encabezados exactos index.html, style.css y/o script.js y un bloque de código por archivo. Si no hace falta cambiar un archivo, omitilo.',
         currentCodeContext,
       ].join('\n\n')
