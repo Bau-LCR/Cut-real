@@ -225,6 +225,28 @@ const handlers: Record<string, Handler> = {
     await audit(ctx.db, { actorId: ctx.userId, action: p.id ? 'provider.update' : 'provider.create', targetType: 'provider', targetId: p.id ?? row.slug, ip: clientIp(req) })
     return { ok: true }
   },
+  async 'models.delete'(ctx, p, req) {
+    const id = uuid(p.id, 'id')
+    const { data: model } = await ctx.db.from('cr_models').select('id, model_key, display_name').eq('id', id).maybeSingle()
+    if (!model) throw new HttpError(404, 'not_found', 'Modelo no encontrado.')
+    const { error } = await ctx.db.from('cr_models').delete().eq('id', id)
+    if (error) throw new HttpError(409, 'model_in_use', 'No se pudo eliminar el modelo. Deshabilitalo para conservar el historial.')
+    await audit(ctx.db, { actorId: ctx.userId, action: 'model.delete', targetType: 'model', targetId: id, metadata: { model_key: model.model_key }, ip: clientIp(req) })
+    return { ok: true }
+  },
+
+  async 'providers.delete'(ctx, p, req) {
+    const id = uuid(p.id, 'id')
+    const { data: provider } = await ctx.db.from('cr_providers').select('id, slug, name').eq('id', id).maybeSingle()
+    if (!provider) throw new HttpError(404, 'not_found', 'Proveedor no encontrado.')
+    const { count } = await ctx.db.from('cr_models').select('id', { count: 'exact', head: true }).eq('provider_id', id)
+    if (count) throw new HttpError(409, 'provider_has_models', 'Primero eliminá o reasigná los modelos de este proveedor.')
+    const { error } = await ctx.db.from('cr_providers').delete().eq('id', id)
+    if (error) throw new HttpError(409, 'provider_in_use', 'No se pudo eliminar el proveedor; revisá sus referencias.')
+    await audit(ctx.db, { actorId: ctx.userId, action: 'provider.delete', targetType: 'provider', targetId: id, metadata: { slug: provider.slug }, ip: clientIp(req) })
+    return { ok: true }
+  },
+
   async 'models.save'(ctx, p, req) {
     const row = {
       provider_id: uuid(p.provider_id, 'provider_id'), model_key: text(p.model_key, 'model_key', 1, 120), display_name: text(p.display_name, 'nombre', 1, 80),
@@ -262,6 +284,15 @@ const handlers: Record<string, Handler> = {
     const id = uuid(p.id, 'id')
     await ctx.db.from('cr_api_keys').update({ revoked_at: new Date().toISOString(), revoked_by: ctx.userId }).eq('id', id).is('revoked_at', null)
     await audit(ctx.db, { actorId: ctx.userId, action: 'apikey.revoke', targetType: 'api_key', targetId: id, ip: clientIp(req) })
+    return { ok: true }
+  },
+  async 'keys.delete'(ctx, p, req) {
+    const id = uuid(p.id, 'id')
+    const { data: key } = await ctx.db.from('cr_api_keys').select('id, name').eq('id', id).maybeSingle()
+    if (!key) throw new HttpError(404, 'not_found', 'API key no encontrada.')
+    const { error } = await ctx.db.from('cr_api_keys').delete().eq('id', id)
+    if (error) throw new HttpError(409, 'key_in_use', 'No se pudo eliminar la clave. Revocala para desactivarla sin perder referencias.')
+    await audit(ctx.db, { actorId: ctx.userId, action: 'apikey.delete', targetType: 'api_key', targetId: id, metadata: { name: key.name }, ip: clientIp(req) })
     return { ok: true }
   },
   async 'keys.usage'(ctx, p) {
@@ -345,6 +376,21 @@ const handlers: Record<string, Handler> = {
     await ctx.db.from('cr_integrations').update({ status, allowed_scopes: sanitizeScopes(p.allowed_scopes) }).eq('id', id)
     await audit(ctx.db, { actorId: ctx.userId, action: 'integration.update', targetType: 'integration', targetId: id, metadata: { status }, ip: clientIp(req) })
     return { ok: true }
+  },
+  async 'usage.list'(ctx, p) {
+    const page = Math.max(0, Number(p.page) || 0)
+    const { data, count, error } = await ctx.db.from('cr_usage_events')
+      .select('id, user_id, kind, status, error_code, prompt_tokens, completion_tokens, latency_ms, created_at', { count: 'exact' })
+      .order('created_at', { ascending: false }).range(page * 50, page * 50 + 49)
+    if (error) throw new HttpError(500, 'internal', 'No se pudo cargar el historial de llamadas.')
+    return { total: count ?? 0, events: data ?? [] }
+  },
+  async 'usage.clear'(ctx, p, req) {
+    if (p.confirm !== 'BORRAR REGISTROS DE LLAMADAS') throw new HttpError(400, 'confirmation_required', 'Confirmación incorrecta.')
+    const { count, error } = await ctx.db.from('cr_usage_events').delete({ count: 'exact' }).gte('created_at', '1970-01-01T00:00:00.000Z')
+    if (error) throw new HttpError(500, 'internal', 'No se pudieron borrar los registros de llamadas.')
+    await audit(ctx.db, { actorId: ctx.userId, action: 'usage.clear', targetType: 'usage_events', reason: 'El administrador eliminó el historial de llamadas.', metadata: { deleted: count ?? 0 }, ip: clientIp(req) })
+    return { ok: true, deleted: count ?? 0 }
   },
   async 'audit.list'(ctx, p) {
     const page = Math.max(0, Number(p.page) || 0)
