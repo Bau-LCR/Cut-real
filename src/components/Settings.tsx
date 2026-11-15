@@ -6,7 +6,7 @@ import { useSpeech } from '../store/speech'
 import { useUi } from '../store/ui'
 import { X } from './icons'
 
-export const PRIVACY_TEXT = 'Tus conversaciones se guardan en tu cuenta y solo vos podés verlas. Excepcionalmente, administradores autorizados pueden acceder a una conversación para tareas legítimas de soporte o moderación. Ese acceso exige un motivo, está limitado a administradores y queda registrado en un historial de auditoría.'
+export const PRIVACY_TEXT = 'Quturriel almacena datos de cuenta, configuración y conversaciones para prestar el servicio. Las funciones de IA, búsqueda, voz y archivos pueden enviar el contenido necesario a proveedores externos configurados por el administrador; esos proveedores procesan los datos según sus propias condiciones y políticas. No ingreses contraseñas, datos bancarios, documentos ni información sensible de terceros. El acceso administrativo a conversaciones debe limitarse a soporte o revisión de reportes, exige un motivo y queda registrado. Podés solicitar información, corrección o eliminación de tus datos contactando al responsable del proyecto. Los datos pueden conservarse durante el tiempo necesario para seguridad, funcionamiento y obligaciones aplicables. Este aviso no reemplaza las políticas de los proveedores ni asesoramiento legal.'
 
 interface Grant { id: string; integration_id: string; scopes: string[]; granted_at: string; integration: string }
 interface AvailableIntegration { id: string; name: string; slug: string; allowed_scopes: string[] }
