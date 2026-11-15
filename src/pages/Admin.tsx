@@ -131,10 +131,21 @@ function Providers() {
   const { data, err, reload } = useAdmin<any>('providers.list')
   const [edit, setEdit] = useState<{ kind: 'provider' | 'model'; row: any } | null>(null)
   const save = async (action: string, row: any) => { try { await act(action, row); toast('info', 'Guardado.'); setEdit(null); void reload() } catch (e) { toast('error', (e as Error).message) } }
+  const [providerUsage, setProviderUsage] = useState<any | null>(null)
+  const [usageBusy, setUsageBusy] = useState(false)
   const blankP = { slug: '', name: '', base_url: 'https://', api_key_env: '', enabled: true, rpm_limit: '', daily_request_limit: '' }
+  const loadProviderUsage = async () => { setUsageBusy(true); try { setProviderUsage(await act<any>('providers.usage')) } catch (e) { toast('error', (e as Error).message) } finally { setUsageBusy(false) } }
   return (
     <>
       <Err e={err} />
+      <div className="panel">
+        <div className="row"><h3 style={{ margin: 0 }}>Consumo y límites de API</h3><span className="grow" /><button className="btn sm" disabled={usageBusy} onClick={() => void loadProviderUsage()}>{usageBusy ? 'Consultando…' : 'Actualizar consumo'}</button></div>
+        <p className="hint">Los datos se consultan desde el servidor. Las claves nunca se envían al navegador.</p>
+        {providerUsage ? <div className="grid2" style={{ marginTop: 12 }}>
+          <div><b>Groq</b><p className="hint">{providerUsage.groq?.requests_24h ?? 0} solicitudes registradas en 24 h · {(providerUsage.groq?.tokens_24h ?? 0).toLocaleString('es-AR')} tokens en 24 h · {(providerUsage.groq?.tokens_30d ?? 0).toLocaleString('es-AR')} tokens en 30 días.</p><p className="hint">Límite configurado en Cut-real: {providerUsage.groq?.app_rpm_limit ?? 'sin límite'}/min y {providerUsage.groq?.app_daily_limit ?? 'sin límite'}/día. El máximo real de Groq y sus reinicios exactos no se pueden deducir de este registro; consultá el panel de límites de Groq.</p></div>
+          <div><b>Tavily</b>{providerUsage.tavily?.configured ? <><p className="hint">Plan: {providerUsage.tavily.account?.current_plan ?? '—'} · Consumo del plan: {(providerUsage.tavily.account?.plan_usage ?? 0).toLocaleString('es-AR')} / {(providerUsage.tavily.account?.plan_limit ?? 0).toLocaleString('es-AR')} créditos.</p><p className="hint">Clave actual: {(providerUsage.tavily.key?.usage ?? 0).toLocaleString('es-AR')} / {providerUsage.tavily.key?.limit == null ? 'sin límite propio' : Number(providerUsage.tavily.key.limit).toLocaleString('es-AR')} créditos. Reinicio del plan: primer día del mes.</p></> : <p className="hint">No se encontró TAVILY_API_KEY en los secretos de Supabase.</p>}</div>
+        </div> : <p className="hint" style={{ marginTop: 10 }}>Todavía no consultaste los proveedores.</p>}
+      </div>
       <div className="row" style={{ marginBottom: 12 }}><button className="btn" onClick={() => setEdit({ kind: 'provider', row: blankP })}>Agregar proveedor</button></div>
       {data?.providers.map((p: any) => (
         <div className="panel" key={p.id}>
