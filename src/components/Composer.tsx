@@ -6,12 +6,12 @@ import type { Attachment } from '../lib/types'
 import { MicSession, micErrorMessage, transcribe } from '../voice/recorder'
 import { useAuth } from '../store/auth'
 import { useUi } from '../store/ui'
-import { ArrowUp, File, Globe, Mic, Paperclip, Stop, Waves, X } from './icons'
+import { ArrowUp, File, Globe, ImageSearch, Mic, Paperclip, Stop, Waves, X } from './icons'
 
 interface Item { key: string; name: string; size: number; state: 'uploading' | 'ready' | 'error'; attachment?: Attachment; note?: string }
 interface Props {
   convId?: string; generating: boolean; seed?: { t: string; n: number }
-  onSubmit(text: string, attachments: Attachment[], webSearch: boolean): Promise<boolean>
+  onSubmit(text: string, attachments: Attachment[], webSearch: boolean, imageSearch: boolean): Promise<boolean>
   onStop(): void; onVoice(): void
 }
 
@@ -23,6 +23,7 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
   const [text, setText] = useState('')
   const [items, setItems] = useState<Item[]>([])
   const [web, setWeb] = useState(webDefault)
+  const [images, setImages] = useState(false)
   const [rec, setRec] = useState<'idle' | 'recording' | 'transcribing'>('idle')
   const [micLevel, setMicLevel] = useState(0)
   const taRef = useRef<HTMLTextAreaElement>(null)
@@ -78,9 +79,9 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
 
   async function submit() {
     if (!canSend) return
-    const draft = { text, items, web }
+    const draft = { text, items, web, images }
     setText(''); setItems([])
-    const ok = await onSubmit(draft.text, ready, draft.web)
+    const ok = await onSubmit(draft.text, ready, draft.web, draft.images)
     if (!ok) { setText(draft.text); setItems(draft.items) }          // no se pierde lo escrito si falló
   }
 
@@ -127,6 +128,7 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
           <input ref={fileRef} type="file" accept={ACCEPT} multiple hidden onChange={(e) => addFiles(e.target.files)} />
           <button className="icon-btn" title="Adjuntar archivos" aria-label="Adjuntar archivos" onClick={() => fileRef.current?.click()}><Paperclip /></button>
           <button className={`icon-btn${web ? ' on' : ''}`} title={web ? 'Búsqueda web activada' : 'Activar búsqueda web'} aria-pressed={web} aria-label="Búsqueda web" onClick={() => void toggleWebSearch()}><Globe /></button>
+          <button className={`icon-btn${images ? ' on' : ''}`} title={images ? 'Búsqueda de imágenes activada' : 'Buscar imágenes'} aria-pressed={images} aria-label="Buscar imágenes" onClick={() => setImages((value) => !value)}><ImageSearch /></button>
           <button className={`icon-btn${rec === 'recording' ? ' on' : ''}`} title={rec === 'recording' ? 'Detener grabación' : 'Dictar por voz'} aria-label="Dictar por voz" disabled={rec === 'transcribing'} onClick={toggleRecording}><Mic /></button>
           {rec === 'recording' && <span className="rec"><span className="waveform reactive" aria-hidden="true">{Array.from({ length: 9 }, (_, i) => <i key={i} style={{ height: `${Math.max(3, Math.round((0.12 + micLevel * (0.35 + ((i * 7) % 9) / 9)) * 22))}px` }} />)}</span>Grabando…</span>}
           {rec === 'transcribing' && <span className="rec" style={{ color: 'var(--muted)' }}>Transcribiendo…</span>}
