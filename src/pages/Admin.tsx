@@ -75,15 +75,18 @@ function Users() {
     <>
       <div className="row" style={{ marginBottom: 14 }}><input className="field grow" placeholder="Buscar por correo o nombre" aria-label="Buscar usuarios" value={q} onChange={(e) => { setQ(e.target.value); setPage(0) }} /></div>
       <Err e={err} />
-      <div className="panel"><table className="t"><thead><tr><th>Usuario</th><th>Rol</th><th>Último acceso</th><th>Estado</th><th /></tr></thead><tbody>
+      <div className="panel"><table className="t"><thead><tr><th>Usuario</th><th>Rol</th><th>Último acceso</th><th>Acceso / estado</th><th /></tr></thead><tbody>
         {data?.users.map((u: any) => (
           <tr key={u.user_id}>
             <td><b style={{ fontWeight: 500 }}>{u.display_name ?? '—'}</b><br /><span className="hint">{u.email}</span></td>
             <td><span className={`badge ${u.role !== 'user' ? 'pl' : ''}`}>{u.role === 'owner' ? 'propietario' : u.role === 'admin' ? 'admin' : 'usuario'}</span></td>
             <td>{fmt(u.last_seen_at)}</td>
-            <td>{u.suspended ? <span className="badge bad">suspendido</span> : <span className="badge ok">activo</span>}</td>
+            <td><div>{u.access_status === 'approved' ? <span className="badge ok">autorizado</span> : u.access_status === 'rejected' ? <span className="badge bad">rechazado</span> : <span className="badge">pendiente</span>}</div><div>{u.suspended ? <span className="badge bad">suspendido</span> : <span className="hint">sin suspensión</span>}</div></td>
             <td><div className="row" style={{ justifyContent: 'flex-end', gap: 6 }}>
               <button className="btn sm" onClick={() => setView(u)}>Ver</button>
+              {me.role === 'owner' && u.role !== 'owner' && u.user_id !== me.userId && u.access_status !== 'approved' && <button className="btn sm" onClick={() => confirm(`¿Aprobar el acceso de ${u.email}?`) && run(act('users.setAccess', { userId: u.user_id, status: 'approved' }), 'Acceso aprobado.')}>Aprobar acceso</button>}
+              {me.role === 'owner' && u.role !== 'owner' && u.user_id !== me.userId && u.access_status !== 'rejected' && <button className="btn danger sm" onClick={() => confirm(`¿Rechazar el acceso de ${u.email}?`) && run(act('users.setAccess', { userId: u.user_id, status: 'rejected' }), 'Solicitud rechazada.')}>Rechazar</button>}
+              {me.role === 'owner' && u.role !== 'owner' && u.user_id !== me.userId && u.access_status !== 'pending' && <button className="btn sm" onClick={() => run(act('users.setAccess', { userId: u.user_id, status: 'pending' }), 'Acceso puesto pendiente.')}>Poner pendiente</button>}
               {me.role === 'owner' && u.role !== 'owner' && u.user_id !== me.userId && (
                 <button className="btn sm" onClick={() => confirm(u.role === 'admin' ? `¿Revocar permisos de administrador a ${u.email}?` : `¿Promover a ${u.email} como administrador?`) && run(act('users.setRole', { userId: u.user_id, role: u.role === 'admin' ? 'user' : 'admin' }), 'Rol actualizado.')}>{u.role === 'admin' ? 'Revocar admin' : 'Hacer admin'}</button>)}
               {u.role !== 'owner' && u.user_id !== me.userId && (u.suspended
@@ -108,7 +111,7 @@ function UserDetail({ u, onClose }: { u: any; onClose(): void }) {
   const go = async (p: Promise<void>) => { try { await p } catch (e) { toast('error', (e as Error).message) } }
   return (
     <Modal title={u.display_name ?? u.email} onClose={onClose} wide>
-      <p className="hint">{u.email} · alta {fmt(u.created_at)}</p>
+      <p className="hint">{u.email} · alta {fmt(u.created_at)}</p>{data?.suspended && <div className="notice error" style={{marginTop:10}}>Motivo de suspensión: {data.suspended_reason || 'No especificado'}</div>}<p className="hint">Acceso: {data?.access_status === 'approved' ? 'Autorizado' : data?.access_status === 'rejected' ? 'Rechazado' : 'Pendiente'}</p>
       {data && <div className="stats" style={{ marginTop: 12 }}><div className="stat"><b>{data.conversations}</b><span>Conversaciones</span></div><div className="stat"><b>{data.messages}</b><span>Mensajes</span></div></div>}
       <h3>Acceso a conversaciones (auditado)</h3>
       <p className="hint">Solo para soporte o moderación legítimos. Cada consulta queda registrada con tu usuario y el motivo.</p>
