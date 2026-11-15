@@ -25,12 +25,7 @@ interface Body {
 
 function isTargetedAbuse(content: string): boolean {
   const text = content.toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  const insults = '(?:idiota|imbecil|inutil|estupido|estupida|basura|mierda|pedazo de mierda|forro|forra|pelotudo|pelotuda|hdp|hijo de puta|la concha de tu madre)'
-  const directed = new RegExp(
-    String.raw`\\b(?:sos|eres|you are|you['’]re)\\s+(?:un|una)?\\s*${insults}\\b|\\b(?:ia|modelo|chatbot|asistente|qudreal|cut.?real)\\b.{0,45}\\b${insults}\\b|\\b${insults}\\b.{0,35}\\b(?:ia|modelo|chatbot|asistente|qudreal|cut.?real)\\b`,
-    'i',
-  )
-  return directed.test(text)
+  return /\b(?:sos|eres|you are|you['’]re)\s+(?:un|una)?\s*(?:idiota|imbecil|inutil|estupido|estupida|basura|mierda|pedazo de mierda|forro|forra|pelotudo|pelotuda|hdp|hijo de puta|la concha de tu madre)\b|\b(?:ia|modelo|chatbot|asistente|qudreal|cut.?real)\b.{0,45}\b(?:idiota|imbecil|inutil|estupido|estupida|basura|mierda|pedazo de mierda|forro|forra|pelotudo|pelotuda|hdp|hijo de puta|la concha de tu madre)\b|\b(?:idiota|imbecil|inutil|estupido|estupida|basura|mierda|pedazo de mierda|forro|forra|pelotudo|pelotuda|hdp|hijo de puta|la concha de tu madre)\b.{0,35}\b(?:ia|modelo|chatbot|asistente|qudreal|cut.?real)\b/i.test(text)
 }
 async function moderateIncoming(ctx: AuthContext, content: string | undefined) {
   if (!content || !isTargetedAbuse(content)) return
