@@ -237,7 +237,7 @@ async function buildMessages(ctx: AuthContext, convId: string, history: { id: st
     if (!images.length) { out.push({ role: 'user', content: text }); continue }
     if (!model.supports_vision) {
       const visualNotes = m.id === lastImageUserId ? await describeImagesForTextModel(ctx, images.slice(0, 3)).catch(() => '') : ''
-      const note = visualNotes || (m.id === lastImageUserId ? images.map((i) => `No se pudo analizar la imagen ${i.file_name}.`).join(' ') : 'Imagen adjunta en un turno anterior; no se volvió a procesar en esta respuesta.')
+      const note = visualNotes || (m.id === lastImageUserId ? images.map((i) => `No se pudo analizar la imagen ${i.file_name}. El puente visual Qwen no devolvió un análisis válido; probá con una imagen JPG/PNG de menos de 4 MB o verificá el proveedor Groq.`).join(' ') : 'Imagen adjunta en un turno anterior; no se volvió a procesar en esta respuesta.')
       out.push({ role: 'user', content: `${text}\n\n[Análisis visual realizado por un modelo multimodal auxiliar]\n${note}\n[Fin del análisis visual]` })
       continue
     }
@@ -257,28 +257,51 @@ async function buildMessages(ctx: AuthContext, convId: string, history: { id: st
 /** Puente de visión: los modelos de texto reciben un análisis visual de Qwen cuando el usuario adjunta imágenes. */
 async function describeImagesForTextModel(ctx: AuthContext, images: { file_name: string; mime_type: string; storage_path: string }[]): Promise<string> {
   if (!images.length) return ''
-  const { data: visionModel } = await ctx.db.from('cr_models').select('model_key, provider_id, enabled').eq('model_key', 'qwen/qwen3.8-27b').eq('enabled', true).maybeSingle()
+  // Resolver el proveedor explícitamente evita elegir una fila duplicada de Qwen
+  // si el mismo model_key existe en más de un proveedor.
+  const { data: provider } = await ctx.db.from('cr_providers')
+    .select('id, base_url, api_key_env, enabled').eq('slug', 'groq').eq('enabled', true).maybeSingle()
+  if (!provider) return ''
+  const { data: visionModel } = await ctx.db.from('cr_models')
+    .select('id, model_key, provider_id, enabled, supports_vision')
+    .eq('provider_id', provider.id).eq('model_key', 'qwen/qwen3.8-27b')
+    .eq('enabled', true).eq('supports_vision', true).maybeSingle()
   if (!visionModel) return ''
-  const { data: provider } = await ctx.db.from('cr_providers').select('base_url, api_key_env, enabled').eq('id', visionModel.provider_id).maybeSingle()
-  if (!provider?.enabled) return ''
   const apiKey = Deno.env.get(provider.api_key_env)
   if (!apiKey) return ''
   await rateLimit(ctx.db, `vision:${ctx.userId}`, 12)
-  const content: any[] = [{ type: 'text', text: 'Analizá las imágenes adjuntas con precisión. Identificá objetos, animales, texto visible, escena, colores y relaciones espaciales relevantes para responder al usuario. Separá observaciones seguras de inferencias. Si no podés identificar algo, decilo. Respondé en español claro y conciso, sin inventar.' }]
+  const content: any[] = [{ type: 'text', text: 'Analizá las imágenes adjuntas con precisión. Identificá objetos, texto visible, escena, colores, gráficos y relaciones espaciales relevantes para responder al usuario. Si hay texto, transcribí lo legible. Separá observaciones de inferencias. Si algo no se distingue, decilo. Respondé en español claro y conciso, sin inventar.' }]
   for (const img of images.slice(0, 3)) {
-    const { data: blob } = await ctx.db.storage.from('cr-attachments').download(img.storage_path)
-    if (!blob || blob.size > MAX_IMAGE_BYTES) continue
+    const { data: blob, error } = await ctx.db.storage.from('cr-attachments').download(img.storage_path)
+    if (error || !blob || blob.size > MAX_IMAGE_BYTES) continue
     content.push({ type: 'image_url', image_url: { url: `data:${img.mime_type};base64,${toBase64(new Uint8Array(await blob.arrayBuffer()))}` } })
   }
   if (content.length === 1) return ''
   const response = await fetch(`${provider.base_url.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model: visionModel.model_key, messages: [{ role: 'user', content }], stream: false, max_tokens: 700, temperature: 0.2 }),
+    body: JSON.stringify({
+      model: visionModel.model_key,
+      messages: [{ role: 'user', content }],
+      stream: false,
+      max_completion_tokens: 900,
+      temperature: 0.2,
+      reasoning_effort: 'none',
+    }),
   })
-  if (!response.ok) { await response.body?.cancel(); return '' }
+  if (!response.ok) {
+    await response.body?.cancel()
+    await logUsage(ctx.db, { userId: ctx.userId, providerId: provider.id, modelId: visionModel.id, kind: 'api', status: 'error', errorCode: `vision_http_${response.status}` })
+    return ''
+  }
   const payload = await response.json().catch(() => null)
-  return typeof payload?.choices?.[0]?.message?.content === 'string' ? payload.choices[0].message.content.slice(0, 5000) : ''
+  const answer = payload?.choices?.[0]?.message?.content
+  const result = typeof answer === 'string' ? answer : Array.isArray(answer) ? answer.filter((p: any) => p?.type === 'text').map((p: any) => p.text).join('\n') : ''
+  if (result.trim()) {
+    await logUsage(ctx.db, { userId: ctx.userId, providerId: provider.id, modelId: visionModel.id, kind: 'api', status: 'ok' })
+    return result.slice(0, 5000)
+  }
+  return ''
 }
 
 function toBase64(bytes: Uint8Array): string {
