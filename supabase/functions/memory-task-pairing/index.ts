@@ -12,7 +12,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const MEMORY_TASK_ENDPOINT = 'https://evrbaaeccuwaxclnpknk.supabase.co/functions/v1/service-api'
 
 function decodeBearer(req: Request): string {
-  return (req.headers.get('authorization') ?? '').replace(/^Bearer\\s+/i, '').trim()
+  return (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim()
 }
 async function sha256(value: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', encoder.encode(value))
@@ -21,7 +21,7 @@ async function sha256(value: string): Promise<string> {
 function b64url(bytes: Uint8Array): string {
   let binary = ''
   for (const byte of bytes) binary += String.fromCharCode(byte)
-  return btoa(binary).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/g, '')
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
 }
 async function encryptionKey(serviceRoleKey: string): Promise<CryptoKey> {
   const material = await crypto.subtle.digest('SHA-256', encoder.encode('cut-real:memory-task-credentials:v1:' + serviceRoleKey))
