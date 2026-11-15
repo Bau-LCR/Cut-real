@@ -345,3 +345,14 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
 .orb.speaking .orb-core{filter:brightness(calc(1 + var(--voice-level)*.24))!important}
 .orb.speaking .orb-halo{animation:orb-speaking .58s ease-in-out infinite alternate!important}
 .orb.thinking .orb-halo{animation:orb-thinking 2.1s ease-in-out infinite!important}
+
+
+/* Editor integrado para documentos generados o adjuntos procesados */
+.document-actions{display:flex;flex-wrap:wrap;gap:6px}
+.document-editor{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--graphite)}
+.document-editor textarea{min-height:300px;resize:vertical;font:13px/1.55 var(--mono)}
+.document-preview{min-width:0;max-height:440px;overflow:auto;padding:12px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--carbon)}
+.document-preview>b{display:block;margin-bottom:12px;color:var(--muted);font-size:12px}
+.attachment-chip-wrap{display:grid;justify-items:start;gap:4px;min-width:0}
+.attachment-document{padding-left:4px}
+@media(max-width:700px){.document-editor{grid-template-columns:1fr}.document-editor textarea{min-height:220px}.document-actions{width:100%}.document-actions .btn{flex:1}.generated-document{align-items:stretch;flex-direction:column}}
