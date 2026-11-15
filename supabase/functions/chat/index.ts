@@ -329,7 +329,7 @@ async function loadMemoryTaskContext(ctx: AuthContext, text: string, messageCoun
   const t = text.toLocaleLowerCase('es')
   if (/\bno\s+(?:guardes|almacenes|env[ií]es|consultes|leas)\b/i.test(t)) return ''
   const writeIntent = /(?:guard|almacen|registr|conserv|mand|envi)\w*.{0,90}(?:memory task|memoria externa)|(?:memory task|memoria externa).{0,90}(?:guard|almacen|registr|conserv|mand|envi)\w*/i.test(t)
-  const explicitRead = /(?:memory task|memoria externa|recuerdos guardados).{0,90}(?:busc\w*|mostr\w*|consult\w*|recuper\w*|le\w*|list\w*|qu[eé] tengo)|(?:busc\w*|mostr\w*|consult\w*|recuper\w*|le\w*|list\w*).{0,90}(?:memory task|memoria externa|recuerdos guardados)/i.test(t)
+  const explicitRead = /(?:memory task|memoria externa|recuerdos guardados).{0,90}(?:busc\\w*|mostr\\w*|consult\\w*|recuper\\w*|le\\w*|list\\w*|record\\w*|guardad\\w*|qu[eé] tengo)|(?:busc\\w*|mostr\\w*|consult\\w*|recuper\\w*|le\\w*|list\\w*|record\\w*|guardad\\w*|qu[eé] tengo).{0,90}(?:memory task|memoria externa|recuerdos guardados)/i.test(t)
   const automaticRead = !writeIntent && asksForPastChats(text, messageCount)
   if (!writeIntent && !explicitRead && !automaticRead) return ''
 
