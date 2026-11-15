@@ -24,12 +24,14 @@ interface Body {
 }
 
 function isTargetedAbuse(content: string): boolean {
-  const text = content.toLocaleLowerCase('es').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
-  const insult = '(?:idiota|imbecil|inutil|estupido|estupida|basura|mierda|pedazo de mierda|forro|forra|pelotudo|pelotuda|hdp|hijo de puta|la concha de tu madre)'
-  const directed = new RegExp('(?:\\\\b(?:sos|eres|you are|you\\\\x27re)\\\\s+(?:un|una)?\\\\s*' + insult + '\\\\b|\\\\b(?:ia|modelo|chatbot|asistente|qudreal|cut.?real)\\\\b.{0,45}\\\\b' + insult + '\\\\b|\\\\b' + insult + '\\\\b.{0,35}\\\\b(?:ia|modelo|chatbot|asistente|qudreal|cut.?real)\\\\b)', 'i')
+  const text = content.toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const insults = '(?:idiota|imbecil|inutil|estupido|estupida|basura|mierda|pedazo de mierda|forro|forra|pelotudo|pelotuda|hdp|hijo de puta|la concha de tu madre)'
+  const directed = new RegExp(
+    String.raw`\\b(?:sos|eres|you are|you['’]re)\\s+(?:un|una)?\\s*${insults}\\b|\\b(?:ia|modelo|chatbot|asistente|qudreal|cut.?real)\\b.{0,45}\\b${insults}\\b|\\b${insults}\\b.{0,35}\\b(?:ia|modelo|chatbot|asistente|qudreal|cut.?real)\\b`,
+    'i',
+  )
   return directed.test(text)
 }
-
 async function moderateIncoming(ctx: AuthContext, content: string | undefined) {
   if (!content || !isTargetedAbuse(content)) return
   const { db, userId } = ctx
