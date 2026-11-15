@@ -156,12 +156,13 @@ function Providers() {
             <span className={`badge ${p.enabled ? 'ok' : ''}`}>{p.enabled ? 'habilitado' : 'deshabilitado'}</span>
             <span className={`badge ${p.key_configured ? 'ok' : 'bad'}`}>{p.key_configured ? `clave ${p.api_key_env} configurada` : `falta ${p.api_key_env}`}</span>
             <span className="grow" /><button className="btn sm" onClick={() => setEdit({ kind: 'provider', row: p })}>Configurar</button>
-            <button className="btn sm" onClick={() => setEdit({ kind: 'model', row: { provider_id: p.id, model_key: '', display_name: '', enabled: true, supports_vision: false, context_window: '', max_output_tokens: 4096, user_rpm_limit: 20 } })}>Agregar modelo</button></div>
+            <button className="btn sm" onClick={() => setEdit({ kind: 'model', row: { provider_id: p.id, model_key: '', display_name: '', enabled: true, supports_vision: false, context_window: '', max_output_tokens: 4096, user_rpm_limit: 20 } })}>Agregar modelo</button>
+            <button className="btn danger sm" onClick={async () => { if (confirm(`¿Eliminar el proveedor "${p.name}"? Solo se permite si ya no tiene modelos.`)) { try { await act('providers.delete', { id: p.id }); toast('info', 'Proveedor eliminado.'); void reload() } catch (e) { toast('error', (e as Error).message) } } }}>Eliminar</button></div>
           <p className="hint" style={{ margin: '6px 0 10px' }}>{p.base_url} · límite {p.rpm_limit ?? '∞'}/min · {p.daily_request_limit ?? '∞'}/día</p>
           <table className="t"><thead><tr><th>Modelo</th><th>ID</th><th>Visión</th><th>Límite/usuario</th><th>Estado</th><th /></tr></thead><tbody>
             {p.models.filter((m: any) => !/^llama-/i.test(m.model_key)).map((m: any) => (<tr key={m.id}><td>{m.display_name}</td><td className="hint">{m.model_key}</td><td>{m.supports_vision ? 'sí' : 'no'}</td><td>{m.user_rpm_limit}/min</td>
               <td><label className="chk"><label><input type="checkbox" checked={m.enabled} onChange={(e) => save('models.save', { ...m, enabled: e.target.checked })} /> {m.enabled ? 'habilitado' : 'oculto'}</label></label></td>
-              <td><button className="btn sm" onClick={() => setEdit({ kind: 'model', row: m })}>Editar</button></td></tr>))}
+              <td><div className="row" style={{ gap: 5 }}><button className="btn sm" onClick={() => setEdit({ kind: 'model', row: m })}>Editar</button><button className="btn danger sm" onClick={async () => { if (confirm(`¿Eliminar el modelo "${m.display_name}"? Los registros históricos conservarán el uso sin asociarlo al modelo.`)) { try { await act('models.delete', { id: m.id }); toast('info', 'Modelo eliminado.'); void reload() } catch (e) { toast('error', (e as Error).message) } } }}>Eliminar</button></div></td></tr>))}
           </tbody></table>
         </div>))}
       <p className="hint">Las claves API de cada proveedor se guardan como secretos del servidor (no se muestran ni se editan acá). Ver docs/DEPLOY.md.</p>
@@ -217,7 +218,8 @@ function Keys() {
         {data?.keys.map((k: any) => (<tr key={k.id}><td>{k.name}</td><td className="hint">{k.key_prefix}…</td><td className="hint">{k.scopes.join(', ')}</td><td>{fmt(k.created_at)}</td><td>{fmt(k.last_used_at)}</td>
           <td>{k.revoked_at ? <span className="badge bad">revocada</span> : k.expires_at && new Date(k.expires_at) < new Date() ? <span className="badge bad">vencida</span> : <span className="badge ok">activa</span>}</td>
           <td><div className="row" style={{ justifyContent: 'flex-end', gap: 6 }}><button className="btn sm" onClick={async () => setUsage({ k, d: await act('keys.usage', { id: k.id }) })}>Actividad</button>
-            {!k.revoked_at && <button className="btn danger sm" onClick={async () => { if (confirm(`¿Revocar "${k.name}"? Las aplicaciones que la usan dejarán de funcionar.`)) { await act('keys.revoke', { id: k.id }); void reload() } }}>Revocar</button>}</div></td></tr>))}
+            {!k.revoked_at && <button className="btn danger sm" onClick={async () => { if (confirm(`¿Revocar "${k.name}"? Las aplicaciones que la usan dejarán de funcionar.`)) { await act('keys.revoke', { id: k.id }); void reload() } }}>Revocar</button>}
+            <button className="btn danger sm" onClick={async () => { if (confirm(`¿Eliminar definitivamente la API key "${k.name}"? No se podrá recuperar.`)) { try { await act('keys.delete', { id: k.id }); toast('info', 'API key eliminada.'); void reload() } catch (e) { toast('error', (e as Error).message) } } }}>Eliminar</button></div></td></tr>))}
         {data && !data.keys.length && <tr><td colSpan={7} className="hint">Todavía no creaste claves.</td></tr>}</tbody></table></div>
       {secret && <Modal title="Copiá tu clave ahora" onClose={() => setSecret(null)}><p className="hint">Es la única vez que se muestra completa. En la base solo se guarda un hash.</p><div className="secret">{secret}</div><div className="row end"><CopyButton text={secret} label="Copiar clave" /><button className="btn primary" onClick={() => setSecret(null)}>Ya la guardé</button></div></Modal>}
       {usage && <Modal title={`Actividad · ${usage.k.name}`} onClose={() => setUsage(null)} wide><p className="hint">{usage.d.requests_24h} solicitudes en las últimas 24 h.</p><table className="t"><thead><tr><th>Fecha</th><th>Estado</th><th>Latencia</th><th>Tokens</th></tr></thead><tbody>
@@ -419,6 +421,33 @@ function MemoryTaskTab() {
   )
 }
 
+function UsageHistory() {
+  const toast = useUi((s) => s.toast)
+  const [page, setPage] = useState(0)
+  const { data, err, reload } = useAdmin<any>('usage.list', { page })
+  const clear = async () => {
+    if (!confirm('Esto eliminará todos los registros de llamadas y uso. La auditoría administrativa se conservará. ¿Continuar?')) return
+    try {
+      const r = await act<any>('usage.clear', { confirm: 'BORRAR REGISTROS DE LLAMADAS' })
+      toast('info', `Se eliminaron ${r.deleted} registros.`)
+      setPage(0)
+      void reload()
+    } catch (e) { toast('error', (e as Error).message) }
+  }
+  return <>
+    <Err e={err} />
+    <div className="panel">
+      <div className="row"><div className="grow"><h3 style={{margin:0}}>Historial de llamadas</h3><p className="hint">Registros técnicos de uso, errores y tokens. No incluye el contenido de los mensajes.</p></div><button className="btn danger sm" onClick={() => void clear()} disabled={!data?.total}>Borrar todos</button></div>
+      <p className="hint">{data?.total ?? '…'} registros en total.</p>
+      <table className="t"><thead><tr><th>Fecha</th><th>Tipo</th><th>Estado</th><th>Tokens</th><th>Latencia</th><th>Error</th></tr></thead><tbody>
+        {data?.events.map((e:any)=><tr key={e.id}><td>{fmt(e.created_at)}</td><td>{e.kind}</td><td>{e.status}</td><td>{(e.prompt_tokens??0)+(e.completion_tokens??0)}</td><td>{e.latency_ms==null?'—':e.latency_ms+' ms'}</td><td>{e.error_code??'—'}</td></tr>)}
+        {data && !data.events.length && <tr><td colSpan={6} className="hint">Sin registros.</td></tr>}
+      </tbody></table>
+    </div>
+    {data && <div className="row"><button className="btn sm" disabled={page===0} onClick={()=>setPage(page-1)}>Anterior</button><span className="hint">Página {page+1} · {data.total} registros</span><button className="btn sm" disabled={(page+1)*50>=data.total} onClick={()=>setPage(page+1)}>Siguiente</button></div>}
+  </>
+}
+
 function Audit() {
   const [page, setPage] = useState(0)
   const { data, err } = useAdmin<any>('audit.list', { page })
@@ -433,7 +462,7 @@ function Audit() {
   )
 }
 
-const TABS = [['overview', 'Resumen', Overview], ['users', 'Usuarios', Users], ['providers', 'Proveedores y modelos', Providers], ['keys', 'API keys', Keys], ['integrations', 'Integraciones', Integrations], ['memory-task', 'Memory Task', MemoryTaskTab], ['audit', 'Auditoría', Audit]] as const
+const TABS = [['overview', 'Resumen', Overview], ['users', 'Usuarios', Users], ['providers', 'Proveedores y modelos', Providers], ['keys', 'API keys', Keys], ['integrations', 'Integraciones', Integrations], ['memory-task', 'Memory Task', MemoryTaskTab], ['usage', 'Llamadas', UsageHistory], ['audit', 'Auditoría', Audit]] as const
 
 export default function Admin() {
   const nav = useNavigate()
