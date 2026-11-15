@@ -6,6 +6,7 @@ on:
     paths:
       - 'supabase/functions/**'
       - 'supabase/migrations/**'
+      - '.github/workflows/validate-backend.yml'
   pull_request:
     paths:
       - 'supabase/functions/**'
