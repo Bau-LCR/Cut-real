@@ -37,7 +37,7 @@ function walk(dir, visit) {
 walk('.', (p) => {
   const text = readFileSync(p, 'utf8')
   for (const [label, re] of PATTERNS) if (re.test(text)) found.push(`${p}: ${label}`)
-  if (/(^|\\/)(?:\\.env(\\.[a-z]+)?|memory-task-secrets\\.env)$/.test(p) && !p.endsWith('.example')) {
+  if (/(^|\/)(?:\.env(\.[a-z]+)?|memory-task-secrets\.env)$/.test(p) && !p.endsWith('.example')) {
     const filled = text.split('\n').filter((l) => /^[A-Z0-9_]+=\S+/.test(l))
     if (filled.length) found.push(`${p}: archivo .env con valores (no debe ir en el repositorio ni en el ZIP)`)
   }
