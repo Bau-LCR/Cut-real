@@ -2,7 +2,7 @@ import { supabase } from './supabase'
 import type { Attachment } from './types'
 
 export const MAX_FILE_BYTES = 10 * 1024 * 1024
-export const MAX_FILES_PER_MESSAGE = 5
+export const MAX_FILES_PER_MESSAGE = 10
 export const ACCEPT = '.pdf,.txt,.docx,.csv,.json,.png,.jpg,.jpeg,.webp,.gif'
 
 const BY_EXT: Record<string, string> = {
