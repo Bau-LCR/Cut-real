@@ -11,7 +11,7 @@ import { Edit, File, Pause, Play, Refresh, Stop, Volume } from './icons'
 
 const DOCUMENT_RE = /\[\[CUTREAL_DOCUMENT:(pdf|docx)\|([^\]\r\n]{1,160})\]\]\s*([\s\S]*?)\s*\[\[\/CUTREAL_DOCUMENT\]\]/i
 
-function DocumentPreview({ id, title, content }: { id: string; title: string; content: string }) {
+function DocumentPreview({ title, content }: { title: string; content: string }) {
   const [open, setOpen] = useState(false)
   const [format, setFormat] = useState<'pdf' | 'docx'>('pdf')
   const [loading, setLoading] = useState<'preview' | 'download' | null>(null)
@@ -195,7 +195,7 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, busy, modelN
         {msg.content ? (() => {
           const artifact = !generating ? DOCUMENT_RE.exec(msg.content) : null
           const visible = artifact ? msg.content.replace(artifact[0], '').trim() : msg.content
-          return <>{visible && <Markdown text={visible} streaming={generating} />}{artifact && <DocumentPreview id={msg.id} title={artifact[2].trim()} content={artifact[3].trim()} />}</>
+          return <>{visible && <Markdown text={visible} streaming={generating} />}{artifact && <DocumentPreview title={artifact[2].trim()} content={artifact[3].trim()} />}</>
         })() : null}
         {msg.sources?.length ? (
           <div className="sources" aria-label="Fuentes">
