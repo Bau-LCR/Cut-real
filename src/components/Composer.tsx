@@ -139,7 +139,7 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
             : <button className="send" onClick={submit} disabled={!canSend} title="Enviar" aria-label="Enviar mensaje"><ArrowUp /></button>}
         </div>
       </div>
-      <p className="fine">Cut-real puede equivocarse. Verificá la información importante.</p>
+      <p className="fine">{images ? "Búsqueda de imágenes activada · requiere Tavily y muestra imágenes de sitios externos." : "Cut-real puede equivocarse. Verificá la información importante."}</p>
     </div>
   )
 }
