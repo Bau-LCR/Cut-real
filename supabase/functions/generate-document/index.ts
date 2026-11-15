@@ -52,7 +52,10 @@ async function makePdf(title: string, md: string): Promise<Uint8Array> {
   }
   page.drawText(title,{x:M,y,size:23,font:bold,color:rgb(.06,.18,.42),maxWidth:max});y-=38
   page.drawLine({start:{x:M,y},end:{x:W-M,y},thickness:1,color:rgb(.12,.34,.72)});y-=28
+  let orderedIndex=0
   for(const b of parse(md)){
+    if(b.kind==='number'){orderedIndex++;children.push(new Paragraph({text:`${orderedIndex}. ${b.text}`,spacing:{after:70}}));continue}
+    orderedIndex=0
     if(b.kind[0]==='h'){y-=8;draw(b.text,bold,b.kind==='h1'?17:b.kind==='h2'?14:12,rgb(.08,.22,.43));y-=5}
     else if(b.kind==='bullet'||b.kind==='number')draw((b.kind==='bullet'?'•  ':'-  ')+b.text,regular,10.5,undefined,14)
     else if(b.kind==='quote')draw(b.text,italic,10.5,rgb(.35,.38,.43),18)
