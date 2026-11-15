@@ -5,31 +5,36 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../store/auth'
 import { useUi } from '../store/ui'
 import { useChat } from '../store/chat'
+import { MicSession, micErrorMessage, transcribe } from '../voice/recorder'
 
 type CodeFiles = { 'index.html': string; 'style.css': string; 'script.js': string }
-interface Project { id: string; name: string; files: CodeFiles; updated_at: string }
+interface Project { id: string; name: string; files: CodeFiles; code_conversation_id?: string | null; updated_at: string }
 const EMPTY: CodeFiles = { 'index.html': '<!doctype html>\n<html lang="es">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>Mi proyecto</title>\n</head>\n<body>\n  <h1>Hola, mundo</h1>\n  <p>Tu proyecto empieza acá.</p>\n</body>\n</html>', 'style.css': 'body { font-family: system-ui, sans-serif; padding: 2rem; }\nh1 { color: #3159a8; }', 'script.js': "console.log('Proyecto listo');" }
 const FILES = ['index.html', 'style.css', 'script.js'] as const
-function parseGeneratedFiles(content: string): CodeFiles | null {
+function parseGeneratedFiles(content: string, base: CodeFiles): CodeFiles | null {
   const result: Partial<CodeFiles> = {}
-  const headings = [...content.matchAll(/(?:^|\n)\s*(?:#{1,4}\s*)?(?:\*\*)?(index\.html|style\.css|script\.js)(?:\*\*)?\s*:?[ \t]*\n/gi)]
-  if (headings.length >= 2) headings.forEach((match, index) => {
+  const headings = [...content.matchAll(/(?:^|\\n)\\s*(?:#{1,4}\\s*)?(?:\\*\\*)?(index\\.html|style\\.css|script\\.js)(?:\\*\\*)?\\s*:?[ \\t]*\\n/gi)]
+  if (headings.length >= 1) headings.forEach((match, index) => {
     const name = match[1].toLowerCase() as keyof CodeFiles
     const start = (match.index ?? 0) + match[0].length
     const end = index + 1 < headings.length ? (headings[index + 1].index ?? content.length) : content.length
     const section = content.slice(start, end).trim()
-    const fence = section.match(/\x60\x60\x60[^\n]*\n([\s\S]*?)\x60\x60\x60/)
+    const fence = section.match(/\\x60\\x60\\x60[^\\n]*\\n([\\s\\S]*?)\\x60\\x60\\x60/)
     result[name] = (fence?.[1] ?? section).trim()
   })
-  const fences = [...content.matchAll(/\x60\x60\x60([^\n]*)\n([\s\S]*?)\x60\x60\x60/g)]
+  const fences = [...content.matchAll(/\\x60\\x60\\x60([^\\n]*)\\n([\\s\\S]*?)\\x60\\x60\\x60/g)]
   for (const fence of fences) {
     const label = (fence[1] + content.slice(Math.max(0, (fence.index ?? 0) - 100), fence.index ?? 0)).toLowerCase()
-    const name = /index\.html|html/.test(label) ? 'index.html' : /style\.css|css/.test(label) ? 'style.css' : /script\.js|javascript|\bjs\b/.test(label) ? 'script.js' : null
+    const name = /index\\.html|html/.test(label) ? 'index.html' : /style\\.css|css/.test(label) ? 'style.css' : /script\\.js|javascript|\\bjs\\b/.test(label) ? 'script.js' : null
     if (name && result[name] == null) result[name] = fence[2].trim()
   }
-  if (['index.html', 'style.css', 'script.js'].every((name) => result[name as keyof CodeFiles] != null)) return { 'index.html': result['index.html']!, 'style.css': result['style.css']!, 'script.js': result['script.js']!' }
-  if (fences.length === 3) return { 'index.html': fences[0][2].trim(), 'style.css': fences[1][2].trim(), 'script.js': fences[2][2].trim() }
-  return null
+  if (fences.length === 3 && !Object.keys(result).length) {
+    result['index.html'] = fences[0][2].trim()
+    result['style.css'] = fences[1][2].trim()
+    result['script.js'] = fences[2][2].trim()
+  }
+  if (!Object.keys(result).length) return null
+  return { ...base, ...result }
 }
 
 function previewDocument(files: CodeFiles) {
@@ -54,6 +59,8 @@ export function StudioPage() {
   const [file, setFile] = useState<keyof CodeFiles>('index.html')
   const [draft, setDraft] = useState<CodeFiles>(EMPTY)
   const [prompt, setPrompt] = useState('')
+  const [dictation, setDictation] = useState<'idle' | 'recording' | 'transcribing'>('idle')
+  const dictationRef = useRef<{ mic: MicSession; stop: () => void } | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savedAt, setSavedAt] = useState<string | null>(null)
@@ -74,7 +81,7 @@ export function StudioPage() {
   async function loadProjects() {
     if (!userId) return
     setLoading(true)
-    const { data, error } = await supabase.from('cr_code_projects').select('id, name, files, updated_at').eq('user_id', userId).order('updated_at', { ascending: false })
+    const { data, error } = await supabase.from('cr_code_projects').select('id, name, files, code_conversation_id, updated_at').eq('user_id', userId).order('updated_at', { ascending: false })
     if (error) toast('error', 'No se pudieron cargar los proyectos. Comprobá que la migración de Programación esté aplicada.')
     const list = (data ?? []) as Project[]
     setProjects(list)
@@ -83,6 +90,38 @@ export function StudioPage() {
   }
 
   useEffect(() => { void useChat.getState().init(); void loadProjects() }, [userId])
+  useEffect(() => () => dictationRef.current?.mic.close(), [])
+
+  async function ensureProjectConversation(project: Project): Promise<string> {
+    if (project.code_conversation_id) return project.code_conversation_id
+    const id = await useChat.getState().createConversation(true)
+    const { error } = await supabase.from('cr_code_projects').update({ code_conversation_id: id }).eq('id', project.id)
+    if (error) { await useChat.getState().remove(id); throw new Error('No se pudo guardar la memoria de este proyecto.') }
+    const updated = { ...project, code_conversation_id: id }
+    setActive((current) => current?.id === project.id ? updated : current)
+    setProjects((current) => current.map((item) => item.id === project.id ? updated : item))
+    return id
+  }
+
+  async function toggleDictation() {
+    if (dictation === 'recording') { dictationRef.current?.stop(); return }
+    if (!MicSession.supported) return toast('error', 'Tu navegador no permite grabar audio.')
+    const mic = new MicSession()
+    try { await mic.open() } catch (e) { return toast('error', (e as Error).message || micErrorMessage(e)) }
+    const recording = mic.record({ vad: false })
+    dictationRef.current = { mic, stop: recording.stop }
+    setDictation('recording')
+    const blob = await recording.done
+    mic.close(); dictationRef.current = null
+    if (!blob || blob.size < 1200) { setDictation('idle'); return toast('info', 'No se escuchó nada. Probá otra vez.') }
+    setDictation('transcribing')
+    try {
+      const spoken = await transcribe(blob)
+      if (spoken) setPrompt((current) => (current ? current.trimEnd() + ' ' : '') + spoken)
+      else toast('info', 'No se pudo reconocer el audio.')
+    } catch (e) { toast('error', (e as Error).message) }
+    setDictation('idle')
+  }
 
   // Debounce: guarda tras una pausa breve, sin escribir en la base por cada tecla.
   useEffect(() => {
@@ -108,7 +147,7 @@ export function StudioPage() {
     const proposed = window.prompt('Nombre del proyecto', 'Mi proyecto')
     if (proposed === null) return
     const name = proposed.trim().slice(0, 100) || 'Mi proyecto'
-    const { data, error } = await supabase.from('cr_code_projects').insert({ user_id: userId, name, files: EMPTY }).select('id, name, files, updated_at').single()
+    const { data, error } = await supabase.from('cr_code_projects').insert({ user_id: userId, name, files: EMPTY }).select('id, name, files, code_conversation_id, updated_at').single()
     if (error || !data) return toast('error', 'No se pudo crear el proyecto.')
     const p = data as Project
     setProjects((old) => [p, ...old]); setActive(p); setDraft(EMPTY); setFile('index.html')
@@ -130,26 +169,25 @@ export function StudioPage() {
     if (!active || !prompt.trim() || generating) return
     setGenerating(true)
     const chat = useChat.getState()
-    let temporaryConversationId: string | null = null
     try {
-      temporaryConversationId = await chat.createConversation(true)
-      const conversationId = temporaryConversationId
+      const conversationId = await ensureProjectConversation(active)
+      const current = draftRef.current
       const request = [
-        'Actuá como un desarrollador frontend senior. Generá una solución completa y funcional para el siguiente pedido.',
-        prompt.trim(),
-        'Devolvé los tres archivos completos, cada uno bajo un encabezado exacto y separado: index.html, style.css y script.js. Debajo de cada encabezado incluí un bloque de código con el lenguaje correcto (html, css, javascript). No omitas archivos; si uno no necesita código, devolvé un bloque vacío. No mezcles los tres archivos en un único bloque ni agregues explicaciones. El HTML debe enlazar style.css y script.js correctamente.'
-      ].join('\n\n')
+        'MODO PROGRAMACIÓN DE CUT-REAL. Sos un ingeniero de software senior que continúa trabajando en ESTE proyecto, no empezás uno nuevo.',
+        'INSTRUCCIÓN DEL USUARIO (continuación de lo anterior):\\n' + prompt.trim(),
+        'REGLAS DE CONTINUIDAD: conservá el objetivo, diseño, decisiones, nombres, estructura y funciones ya acordadas en el historial de esta conversación. Interpretá el pedido como una modificación incremental, salvo que el usuario pida explícitamente empezar de cero. No borres ni reemplaces funciones ajenas al cambio. Si pide corregir algo, diagnosticá el problema y modificá lo mínimo necesario. Para renders 3D, asegurate de incluir cámara, iluminación, geometría, materiales y un render loop visible.',
+        'OPTIMIZACIÓN: devolvé únicamente los archivos que realmente cambien. No repitas archivos intactos ni explicaciones extensas. Usá encabezados exactos index.html, style.css y/o script.js y un bloque de código por archivo. Si no hace falta cambiar un archivo, omitilo.',
+        'ESTADO ACTUAL (fuente de verdad; prevalece sobre código antiguo del historial):\\nindex.html:\\n' + current['index.html'] + '\\n\\nstyle.css:\\n' + current['style.css'] + '\\n\\nscript.js:\\n' + current['script.js'],
+      ].join('\\n\\n')
       const result = await chat.send(conversationId, request, { silent: true, ephemeral: true })
       if (!result.ok || !result.content) throw new Error(result.error || 'El modelo no devolvió código.')
-      const files = parseGeneratedFiles(result.content)
-      if (!files) throw new Error('La respuesta llegó, pero no pude separar index.html, style.css y script.js. Probá indicando que entregue cada archivo bajo su propio encabezado.')
+      const files = parseGeneratedFiles(result.content, current)
+      if (!files) throw new Error('La respuesta no incluyó ningún archivo válido. No se modificó el proyecto.')
       setDraft(files)
-      toast('info', 'Código generado. Se guardará automáticamente.')
+      draftRef.current = files
+      toast('info', 'Modificación aplicada. La memoria de este proyecto quedó conservada.')
     } catch (e) { toast('error', (e as Error).message) }
-    finally {
-      if (temporaryConversationId) await chat.remove(temporaryConversationId)
-      setGenerating(false)
-    }
+    finally { setGenerating(false) }
   }
 
   // Modo autonomía: una mejora por ciclo, con pausa entre llamadas y límite explícito.
@@ -165,10 +203,9 @@ export function StudioPage() {
       if (autonomyCyclesRef.current >= autonomyLimit) { setAutonomy(false); toast('info', 'Modo autonomía finalizado: alcanzaste el límite de ciclos.'); return }
       setAutonomyBusy(true)
       const chat = useChat.getState()
-      let temporaryConversationId: string | null = null
       try {
-        temporaryConversationId = await chat.createConversation(true)
         const current = draftRef.current
+        const conversationId = await ensureProjectConversation(activeRef.current!)
         const request = [
           'Sos un desarrollador senior trabajando de forma autónoma en un proyecto frontend existente.',
           'Analizá el proyecto completo y elegí UNA sola mejora pequeña, concreta, útil y coherente. Puede ser corregir un error evidente, mejorar accesibilidad, responsive, usabilidad, rendimiento o un detalle visual.',
@@ -179,9 +216,9 @@ export function StudioPage() {
           'ARCHIVO style.css:\n' + current['style.css'],
           'ARCHIVO script.js:\n' + current['script.js'],
         ].join('\n\n')
-        const result = await chat.send(temporaryConversationId, request, { silent: true, ephemeral: true })
+        const result = await chat.send(conversationId, request, { silent: true, ephemeral: true })
         if (!result.ok || !result.content) throw new Error(result.error || 'La IA no devolvió una mejora.')
-        const next = parseGeneratedFiles(result.content)
+        const next = parseGeneratedFiles(result.content, current)
         if (!next) throw new Error('La respuesta autónoma no incluyó los tres archivos separados.')
         if (stopped || activeRef.current?.id !== projectId) return
         const unchanged = FILES.every((name) => next[name] === current[name])
@@ -201,7 +238,6 @@ export function StudioPage() {
         toast('error', 'Autonomía: ' + ((e as Error).message || 'falló un ciclo.'))
         if (failures >= 3) { setAutonomy(false); toast('error', 'Modo autonomía pausado tras tres errores consecutivos.'); return }
       } finally {
-        if (temporaryConversationId) await chat.remove(temporaryConversationId)
         if (!stopped) setAutonomyBusy(false)
       }
       if (!stopped) {
@@ -235,7 +271,7 @@ export function StudioPage() {
           <section className="studio-workspace">
             {!active ? <div className="studio-empty"><h2>Tu próximo proyecto empieza acá.</h2><p>Creá un proyecto para trabajar con HTML, CSS y JavaScript en archivos vinculados.</p><button className="btn primary" onClick={() => void createProject()}>Crear proyecto</button></div> : <>
               <div className="workspace-toolbar"><input className="field project-name" value={active.name} onChange={(e) => setActive({ ...active, name: e.target.value })} aria-label="Nombre del proyecto" /><div className="workspace-actions"><span className="autosave-status">{saving ? 'Guardando…' : savedAt ? 'Guardado automáticamente' : 'Guardado automático activo'}</span><button className={`btn sm ${autonomy ? 'primary' : ''}`} onClick={() => { if (autonomy) setAutonomy(false); else { autonomyCyclesRef.current = 0; setAutonomyCycles(0); setAutonomy(true) } }} disabled={!modelId || generating}>{autonomy ? (autonomyBusy ? `Autonomía · ${autonomyCycles}/${autonomyLimit} · trabajando…` : `Pausar autonomía · ${autonomyCycles}/${autonomyLimit}`) : 'Modo autonomía'}</button><select className="field autonomy-limit" aria-label="Límite de mejoras autónomas" value={autonomyLimit} onChange={(e) => setAutonomyLimit(Number(e.target.value))} disabled={autonomy}><option value={30}>30 mejoras</option><option value={60}>60 mejoras</option><option value={120}>120 mejoras</option><option value={240}>240 mejoras</option><option value={360}>360 mejoras</option></select><button className="btn sm" onClick={() => void saveProject()} disabled={saving}>Guardar ahora</button><button className="btn danger sm" onClick={() => void deleteProject()}>Eliminar</button></div></div>
-              <div className="codegen"><div><b>Generar con Cut-real</b><p>Describí qué querés construir y se generarán los tres archivos conectados.</p></div><textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Ej.: una página de presentación para mi emprendimiento, con menú, tarjetas y formulario…" rows={2} /><button className="btn primary sm" onClick={() => void generateCode()} disabled={!prompt.trim() || generating || autonomy || autonomyBusy || !modelId}>{generating ? 'Generando…' : !modelId ? 'Cargando modelo…' : 'Generar código'}</button></div>
+              <div className="codegen"><div><b>Generar con Cut-real</b><p>Describí qué querés construir o modificar. Cada proyecto conserva su propio historial técnico.</p></div><div className="codegen-input"><textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Ej.: agregá un render 3D de figuras geométricas verdes sobre fondo negro, manteniendo lo que ya hicimos…" rows={2} /><button className={`icon-btn ${dictation === 'recording' ? 'on' : ''}`} type="button" title={dictation === 'recording' ? 'Detener dictado' : 'Dictar solicitud'} aria-label="Dictar solicitud por voz" disabled={dictation === 'transcribing'} onClick={() => void toggleDictation()}><Mic /></button>{dictation !== 'idle' && <small className="hint">{dictation === 'recording' ? 'Grabando…' : 'Transcribiendo…'}</small>}</div><button className="btn primary sm" onClick={() => void generateCode()} disabled={!prompt.trim() || generating || autonomy || autonomyBusy || !modelId}>{generating ? 'Generando…' : !modelId ? 'Cargando modelo…' : 'Generar / modificar'}</button></div>
               <div className={`studio-panels${showPreview ? '' : ' no-preview'}`}>
                 <section className="editor-panel"><div className="file-tabs">{FILES.map((name) => <button key={name} className={file === name ? 'active' : ''} onClick={() => setFile(name)}>{name}</button>)}</div><textarea className="code-editor" spellCheck={false} aria-label={`Código de ${file}`} value={draft[file]} readOnly={autonomy} onChange={(e) => setDraft((old) => ({ ...old, [file]: e.target.value }))} /><div className="editor-footer"><span>HTML · CSS · JavaScript</span><button className="btn ghost sm" onClick={() => setShowPreview((v) => !v)}>{showPreview ? 'Ocultar vista previa' : 'Mostrar vista previa'}</button></div></section>
                 {showPreview && <section className="preview-panel"><div className="preview-panel-head"><b>Vista previa en vivo</b><div className="preview-actions"><span>Sandbox aislado</span><button className="btn sm" onClick={() => setPreviewRun(n => n + 1)}>↻ Ejecutar</button></div></div><iframe key={previewRun} title="Vista previa del proyecto" sandbox="allow-scripts" srcDoc={preview} /></section>}
