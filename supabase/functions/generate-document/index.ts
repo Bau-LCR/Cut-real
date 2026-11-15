@@ -74,7 +74,7 @@ function parse(s: string) {
     const t = line.trim()
     if (!t || /^\x60{3}/.test(t)) return null
     const make = (kind: string, raw: string) => ({ kind, raw, text: clean(raw) })
-    const image = t.match(/^<!--CUTREAL_IMAGE:([0-9a-f-]{36})\\|([^>]*)-->$/i)
+    const image = t.match(/^<!--CUTREAL_IMAGE:([0-9a-f-]{36})\|([^>]*)-->$/i)
     if (image) return make('image', image[1])
     if (/^#{1,3}\s/.test(t)) return make('h' + Math.min(3, t.match(/^#+/)![0].length), t.replace(/^#{1,3}\s*/, ''))
     if (/^[-*+]\s/.test(t)) return make('bullet', t.replace(/^[-*+]\s*/, ''))
