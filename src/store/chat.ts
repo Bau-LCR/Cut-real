@@ -85,7 +85,7 @@ export const useChat = create<ChatState>((set, get) => {
 
   async function fetchAttachments(msgIds: string[]) {
     if (!msgIds.length) return
-    const { data } = await supabase.from('cr_attachments').select('id, conversation_id, message_id, storage_path, file_name, mime_type, size_bytes, status').in('message_id', msgIds)
+    const { data } = await supabase.from('cr_attachments').select('id, conversation_id, message_id, storage_path, file_name, mime_type, size_bytes, status, extracted_text').in('message_id', msgIds)
     if (!data?.length) return
     set((s) => {
       const next = { ...s.attachments }
