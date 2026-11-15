@@ -354,7 +354,7 @@ async function loadCrossChatContext(ctx: AuthContext, currentConversationId: str
 }
 
 
-/** Memoria externa opcional: solo lee al pedir continuidad o mencionar Memory Task, y solo escribe por orden explícita. */
+/** Memoria externa opcional y búsqueda de imágenes: lectura/escritura por permisos y órdenes explícitas. */
 async function loadMemoryTaskContext(ctx: AuthContext, text: string, messageCount: number): Promise<string> {
   const t = text.toLocaleLowerCase('es')
   if (/\bno\s+(?:guardes|almacenes|env[ií]es|consultes|leas)\b/i.test(t)) return ''
