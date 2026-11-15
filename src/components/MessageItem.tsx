@@ -80,7 +80,7 @@ function DocumentPreview({ title, content }: { title: string; content: string })
           {error && <small className="document-error">{error}</small>}
         </div>
         <div className="document-actions">
-          <button className="btn sm" onClick={() => { setOpen(true); void createFile('preview') }} disabled={!!loading}>
+          <button className="btn sm" onClick={() => void createFile('preview')} disabled={!!loading}>
             {loading === 'preview' ? 'Preparando vista…' : 'Vista previa'}
           </button>
           <button className="btn primary sm" onClick={() => void createFile('download')} disabled={!!loading}>
@@ -96,7 +96,7 @@ function DocumentPreview({ title, content }: { title: string; content: string })
         <div className="document-preview-backdrop" role="presentation" onClick={closePreview}>
           <aside className="document-preview-panel" role="dialog" aria-modal="true" aria-label={'Vista previa de ' + title} onClick={e => e.stopPropagation()}>
             <header className="document-preview-header">
-              <div><b>{title}</b><small>{format === 'pdf' ? 'Vista previa PDF' : 'Vista previa Word'} · solo lectura</small></div>
+              <div><b>{title}</b><small>{format === 'pdf' ? 'PDF original · vista previa' : 'Word · vista orientativa de solo lectura'}</small></div>
               <button className="btn sm" onClick={closePreview}>Cerrar</button>
             </header>
             <div className="document-preview-content">
