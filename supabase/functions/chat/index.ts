@@ -489,7 +489,7 @@ async function describeImagesForTextModel(ctx: AuthContext, images: { file_name:
   if (!apiKey) return ''
   await rateLimit(ctx.db, `vision:${ctx.userId}`, 12)
   const content: any[] = [{ type: 'text', text: 'Analizá las imágenes adjuntas con precisión. Identificá objetos, texto visible, escena, colores, gráficos y relaciones espaciales relevantes para responder al usuario. Si hay texto, transcribí lo legible. Separá observaciones de inferencias. Si algo no se distingue, decilo. Respondé en español claro y conciso, sin inventar.' }]
-  for (const img of images.slice(0, 3)) {
+  for (const img of images.slice(0, 10)) {
     const { data: blob, error } = await ctx.db.storage.from('cr-attachments').download(img.storage_path)
     if (error || !blob || blob.size > MAX_IMAGE_BYTES) continue
     content.push({ type: 'image_url', image_url: { url: `data:${img.mime_type};base64,${toBase64(new Uint8Array(await blob.arrayBuffer()))}` } })
