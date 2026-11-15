@@ -34,4 +34,5 @@ jobs:
             supabase/functions/api/index.ts \
             supabase/functions/transcribe/index.ts \
             supabase/functions/tts/index.ts \
-            supabase/functions/generate-document/index.ts
+            supabase/functions/generate-document/index.ts \\
+            supabase/functions/generated-image/index.ts
