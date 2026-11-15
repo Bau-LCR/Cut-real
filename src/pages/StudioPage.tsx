@@ -9,7 +9,7 @@ import { MicSession, micErrorMessage, transcribe } from '../voice/recorder'
 import { Mic } from '../components/icons'
 
 type CodeFiles = { 'index.html': string; 'style.css': string; 'script.js': string }
-interface Project { id: string; name: string; files: CodeFiles; code_conversation_id?: string | null; updated_at: string }
+interface Project { id: string; name: string; files: CodeFiles; code_conversation_id?: string | null; last_ai_files?: CodeFiles | null; updated_at: string }
 const EMPTY: CodeFiles = { 'index.html': '<!doctype html>\n<html lang="es">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>Mi proyecto</title>\n</head>\n<body>\n  <h1>Hola, mundo</h1>\n  <p>Tu proyecto empieza acá.</p>\n</body>\n</html>', 'style.css': 'body { font-family: system-ui, sans-serif; padding: 2rem; }\nh1 { color: #3159a8; }', 'script.js': "console.log('Proyecto listo');" }
 const FILES = ['index.html', 'style.css', 'script.js'] as const
 function parseGeneratedFiles(content: string, base: CodeFiles): CodeFiles | null {
@@ -82,7 +82,7 @@ export function StudioPage() {
   async function loadProjects() {
     if (!userId) return
     setLoading(true)
-    const { data, error } = await supabase.from('cr_code_projects').select('id, name, files, code_conversation_id, updated_at').eq('user_id', userId).order('updated_at', { ascending: false })
+    const { data, error } = await supabase.from('cr_code_projects').select('id, name, files, code_conversation_id, last_ai_files, updated_at').eq('user_id', userId).order('updated_at', { ascending: false })
     if (error) toast('error', 'No se pudieron cargar los proyectos. Comprobá que la migración de Programación esté aplicada.')
     const list = (data ?? []) as Project[]
     setProjects(list)
@@ -173,6 +173,10 @@ export function StudioPage() {
     try {
       const conversationId = await ensureProjectConversation(active)
       const current = draftRef.current
+      const codeWasManuallyEdited = JSON.stringify(active.last_ai_files ?? null) !== JSON.stringify(current)
+      const currentCodeContext = codeWasManuallyEdited
+        ? 'ESTADO ACTUAL (el usuario modificó código desde la última respuesta; esta es la fuente de verdad):\\nindex.html:\\n' + current['index.html'] + '\\n\\nstyle.css:\\n' + current['style.css'] + '\\n\\nscript.js:\\n' + current['script.js']
+        : 'El código actual coincide con la última versión que ya está en el historial. Usá ese historial como base y evitá repetir el código completo.'
       const request = [
         'MODO PROGRAMACIÓN DE CUT-REAL. Sos un ingeniero de software senior que continúa trabajando en ESTE proyecto, no empezás uno nuevo.',
         'INSTRUCCIÓN DEL USUARIO (continuación de lo anterior):\n' + prompt.trim(),
@@ -186,7 +190,12 @@ export function StudioPage() {
       if (!files) throw new Error('La respuesta no incluyó ningún archivo válido. No se modificó el proyecto.')
       setDraft(files)
       draftRef.current = files
-      toast('info', 'Modificación aplicada. La memoria de este proyecto quedó conservada.')
+      const updatedProject = { ...active, files, last_ai_files: files }
+      setActive(updatedProject)
+      setProjects((items) => items.map((item) => item.id === active.id ? updatedProject : item))
+      const { error: snapshotError } = await supabase.from('cr_code_projects').update({ last_ai_files: files }).eq('id', active.id)
+      if (snapshotError) toast('error', 'El código se aplicó, pero no se pudo guardar la referencia de optimización de tokens.')
+      toast('info', 'Modificación aplicada. La memoria del proyecto quedó conservada.')
     } catch (e) { toast('error', (e as Error).message) }
     finally { setGenerating(false) }
   }
@@ -224,11 +233,12 @@ export function StudioPage() {
         if (stopped || activeRef.current?.id !== projectId) return
         const unchanged = FILES.every((name) => next[name] === current[name])
         if (!unchanged) {
-          const { error } = await supabase.from('cr_code_projects').update({ files: next, updated_at: new Date().toISOString() }).eq('id', projectId)
+          const { error } = await supabase.from('cr_code_projects').update({ files: next, last_ai_files: next, updated_at: new Date().toISOString() }).eq('id', projectId)
           if (error) throw new Error('No se pudo guardar la mejora automática.')
           draftRef.current = next
           setDraft(next)
-          setProjects(old => old.map(p => p.id === projectId ? { ...p, files: next, updated_at: new Date().toISOString() } : p))
+          setProjects(old => old.map(p => p.id === projectId ? { ...p, files: next, last_ai_files: next, updated_at: new Date().toISOString() } : p))
+          setActive((current) => current?.id === projectId ? { ...current, files: next, last_ai_files: next } : current)
           setSavedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
         }
         failures = 0
@@ -253,8 +263,10 @@ export function StudioPage() {
 
   async function deleteProject() {
     if (!active || !confirm('¿Eliminar este proyecto y sus archivos?')) return
+    const projectConversationId = active.code_conversation_id
     const { error } = await supabase.from('cr_code_projects').delete().eq('id', active.id)
     if (error) return toast('error', 'No se pudo eliminar el proyecto.')
+    if (projectConversationId) await useChat.getState().remove(projectConversationId)
     const rest = projects.filter((p) => p.id !== active.id)
     setProjects(rest); setActive(rest[0] ?? null); setDraft(rest[0] ? { ...EMPTY, ...rest[0].files } : EMPTY)
   }
