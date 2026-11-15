@@ -58,10 +58,14 @@ Deno.serve(async (req) => {
     const tokenHash = await sha256(token)
     const { data: pending, error: lookupError } = await admin.from('cr_memory_task_connections')
       .select('id,status,expires_at')
-      .eq('token_hash', tokenHash).eq('status', 'pending')
-      .gt('expires_at', new Date().toISOString()).maybeSingle()
+      .eq('token_hash', tokenHash).maybeSingle()
     if (lookupError) throw lookupError
-    if (!pending) return json({ error: 'El código ya fue utilizado o venció. Generá uno nuevo desde Cut-real.' }, 409)
+    if (!pending) return json({ error: 'El código no existe. Generá uno nuevo desde Cut-real.' }, 409)
+    // Idempotent response for a retry when Cut-real saved the first callback but its response was lost.
+    if (pending.status === 'connected') return json({ success: true, message: 'La vinculación ya se había completado.' })
+    if (pending.status !== 'pending' || new Date(pending.expires_at).getTime() <= Date.now()) {
+      return json({ error: 'El código ya fue utilizado o venció. Generá uno nuevo desde Cut-real.' }, 409)
+    }
 
     const encrypted = await encrypt(apiKey, serviceRoleKey)
     const { data: updated, error: updateError } = await admin.from('cr_memory_task_connections')
