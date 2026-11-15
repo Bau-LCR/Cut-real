@@ -229,6 +229,21 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
             if (cur?.status === 'cancelled') { status = 'cancelled'; abort.abort(); break }
           }
         }
+        if (status === 'done' && full.includes('[[CUTREAL_GENERATE_IMAGE:')) {
+          try {
+            const result = await generateOriginalImages(ctx, conv.id, full)
+            full = result.content
+            if (result.generated) {
+              send({ type: 'replace', text: full })
+              send({ type: 'notice', message: result.generated + ' imagen(es) original(es) creada(s) y guardada(s) en tu cuenta.' })
+            }
+          } catch (imageError) {
+            console.error('image generation failed', (imageError as Error).message)
+            full = full.replace(/\\[\\[CUTREAL_GENERATE_IMAGE:[\\s\\S]*?\\]\\]/g, '[No pude generar esta ilustración ahora. Podés volver a pedírmela.]')
+            send({ type: 'replace', text: full })
+            send({ type: 'notice', message: 'No se pudo generar una de las imágenes. El resto de la respuesta se conservó.' })
+          }
+        }
         if (status === 'done' && !full && !imageResults.length) { status = 'error'; errCode = 'empty_response'; errMsg = 'El modelo no devolvió contenido. Probá de nuevo o elegí otro modelo.' }
         if (status === 'done' && imageResults.length) {
           if (!full) full = 'Encontré estas imágenes relacionadas con tu búsqueda:'
@@ -271,6 +286,55 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
   return new Response(stream, {
     headers: { ...corsHeaders(req), 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no' },
   })
+}
+
+
+/** Genera imágenes originales con Gemini, las guarda en un bucket privado y devuelve marcadores estables para exportación. */
+async function generateOriginalImages(ctx: AuthContext, conversationId: string, content: string): Promise<{content:string;generated:number}> {
+  const matches = [...content.matchAll(/\\[\\[CUTREAL_GENERATE_IMAGE:\\s*([\\s\\S]{1,1200}?)\\s*\\|\\s*([^\\]\\r\\n]{1,160})\\]\\]/g)].slice(0, 2)
+  if (!matches.length) return { content, generated: 0 }
+  const apiKey = Deno.env.get('GEMINI_API_KEY')
+  if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
+  await rateLimit(ctx.db, 'image-generation:' + ctx.userId, 4, 3600)
+  let output = content
+  let generated = 0
+  for (const match of matches) {
+    const prompt = String(match[1]).trim().slice(0, 1200)
+    const alt = String(match[2]).trim().replace(/[<>\\r\\n]/g, ' ').slice(0, 140) || 'Imagen generada por Cut-real'
+    const response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-3.1-flash-image:generateContent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({ contents: [{ parts: [{ text: 'Create one original image for a document or chat illustration. Follow this visual brief. Avoid adding written text unless explicitly requested. ' + prompt }] }], generationConfig: { responseModalities: ['IMAGE'] } }),
+    })
+    if (!response.ok) {
+      await response.body?.cancel()
+      throw new Error('Gemini image API returned HTTP ' + response.status)
+    }
+    const payload = await response.json()
+    const part = payload?.candidates?.[0]?.content?.parts?.find((p: any) => p?.inlineData?.data)
+    if (!part?.inlineData?.data) throw new Error('Gemini returned no image data')
+    const mimeType = String(part.inlineData.mimeType ?? 'image/png').toLowerCase()
+    if (!['image/png','image/jpeg','image/webp'].includes(mimeType)) throw new Error('Unsupported generated image type')
+    const bytes = Uint8Array.from(atob(part.inlineData.data), (c) => c.charCodeAt(0))
+    if (!bytes.length || bytes.length > 12 * 1024 * 1024) throw new Error('Generated image exceeded size limit')
+    const id = crypto.randomUUID()
+    const extension = mimeType === 'image/jpeg' ? 'jpg' : mimeType === 'image/webp' ? 'webp' : 'png'
+    const storagePath = ctx.userId + '/' + id + '.' + extension
+    const { error: uploadError } = await ctx.db.storage.from('cr-generated-images').upload(storagePath, bytes, { contentType: mimeType, upsert: false })
+    if (uploadError) throw new Error('Could not store generated image: ' + uploadError.message)
+    const { error: rowError } = await ctx.db.from('cr_generated_images').insert({
+      id, user_id: ctx.userId, conversation_id: conversationId, storage_path: storagePath, mime_type: mimeType, prompt, alt_text: alt,
+    })
+    if (rowError) {
+      await ctx.db.storage.from('cr-generated-images').remove([storagePath])
+      throw new Error('Could not register generated image: ' + rowError.message)
+    }
+    const marker = '![' + alt.replace(/[\\[\\]]/g, ' ') + '](cutreal-image:' + id + ')\\n<!--CUTREAL_IMAGE:' + id + '|' + alt.replace(/[<>]/g, ' ') + '-->'
+    output = output.replace(match[0], marker)
+    generated++
+    await logUsage(ctx.db, { userId: ctx.userId, conversationId, kind: 'api', status: 'ok' })
+  }
+  return { content: output, generated }
 }
 
 async function buildMessages(ctx: AuthContext, convId: string, history: { id: string; role: 'user' | 'assistant'; content: string }[], model: ModelRow, extraSystem: string): Promise<ChatMessage[]> {
