@@ -9,6 +9,7 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   new Uint8Array(buffer).set(bytes)
   return buffer
 }
+function decodeBase64(value: string): Uint8Array {
   const binary = atob(value)
   return Uint8Array.from(binary, (char) => char.charCodeAt(0))
 }
