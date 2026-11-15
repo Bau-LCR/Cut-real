@@ -8,7 +8,7 @@ export function Login() {
       <main className="login">
         <img src={`${import.meta.env.BASE_URL}brand/Logo_Original.png`} alt="Cut-real 2" />
         <h1>Cut-real 2</h1>
-        <p>Tu asistente de inteligencia artificial para estudiar, programar y crear.</p>
+        <p>Tu asistente de inteligencia artificial para estudiar, programar y crear. El acceso requiere registro con Google y aprobación del propietario.</p>
         {!isConfigured && (
           <div className="notice error" role="alert" style={{ marginTop: 20, textAlign: 'left' }}>
             <div className="grow"><div className="t">Falta configurar Supabase</div>Copiá <code>.env.example</code> a <code>.env</code> y completá <code>VITE_SUPABASE_URL</code> y <code>VITE_SUPABASE_ANON_KEY</code>. Pasos en docs/DEPLOY.md.</div>
