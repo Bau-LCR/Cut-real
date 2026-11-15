@@ -239,7 +239,7 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
             }
           } catch (imageError) {
             console.error('image generation failed', (imageError as Error).message)
-            full = full.replace(/\\[\\[CUTREAL_GENERATE_IMAGE:[\\s\\S]*?\\]\\]/g, '[No pude generar esta ilustración ahora. Podés volver a pedírmela.]')
+            full = full.replace(/\[\[CUTREAL_GENERATE_IMAGE:[\s\S]*?\]\]/g, '[No pude generar esta ilustración ahora. Podés volver a pedírmela.]')
             send({ type: 'replace', text: full })
             send({ type: 'notice', message: 'No se pudo generar una de las imágenes. El resto de la respuesta se conservó.' })
           }
@@ -291,7 +291,7 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
 
 /** Genera imágenes originales con Gemini, las guarda en un bucket privado y devuelve marcadores estables para exportación. */
 async function generateOriginalImages(ctx: AuthContext, conversationId: string, content: string): Promise<{content:string;generated:number}> {
-  const matches = [...content.matchAll(/\\[\\[CUTREAL_GENERATE_IMAGE:\\s*([\\s\\S]{1,1200}?)\\s*\\|\\s*([^\\]\\r\\n]{1,160})\\]\\]/g)].slice(0, 2)
+  const matches = [...content.matchAll(/\[\[CUTREAL_GENERATE_IMAGE:\s*([\s\S]{1,1200}?)\s*\|\s*([^\]\r\n]{1,160})\]\]/g)].slice(0, 2)
   if (!matches.length) return { content, generated: 0 }
   const apiKey = Deno.env.get('GEMINI_API_KEY')
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
@@ -329,7 +329,7 @@ async function generateOriginalImages(ctx: AuthContext, conversationId: string, 
       await ctx.db.storage.from('cr-generated-images').remove([storagePath])
       throw new Error('Could not register generated image: ' + rowError.message)
     }
-    const marker = '![' + alt.replace(/[\\[\\]]/g, ' ') + '](cutreal-image:' + id + ')\\n<!--CUTREAL_IMAGE:' + id + '|' + alt.replace(/[<>]/g, ' ') + '-->'
+    const marker = '![' + alt.replace(/[\[\]]/g, ' ') + '](cutreal-image:' + id + ')\n<!--CUTREAL_IMAGE:' + id + '|' + alt.replace(/[<>]/g, ' ') + '-->'
     output = output.replace(match[0], marker)
     generated++
     await logUsage(ctx.db, { userId: ctx.userId, conversationId, kind: 'api', status: 'ok' })
