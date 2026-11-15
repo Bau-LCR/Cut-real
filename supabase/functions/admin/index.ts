@@ -87,7 +87,7 @@ async function callMemoryTask(ctx: AuthContext, action: string, data: Record<str
 }
 
 async function targetUser(ctx: AuthContext, userId: string) {
-  const { data } = await ctx.db.from('cr_user_roles').select('user_id, role, suspended').eq('user_id', userId).maybeSingle()
+  const { data } = await ctx.db.from('cr_user_roles').select('user_id, role, suspended, access_status, suspended_reason').eq('user_id', userId).maybeSingle()
   if (!data) throw new HttpError(404, 'not_found', 'Usuario no encontrado.')
   return data
 }
@@ -106,9 +106,9 @@ const handlers: Record<string, Handler> = {
     if (p.q) { const s = esc(String(p.q).slice(0, 80)); q = q.or(`email.ilike.%${s}%,display_name.ilike.%${s}%`) }
     const { data, count } = await q.order('last_seen_at', { ascending: false }).range(page * PAGE, page * PAGE + PAGE - 1)
     const ids = (data ?? []).map((u: any) => u.user_id)
-    const { data: roles } = ids.length ? await ctx.db.from('cr_user_roles').select('user_id, role, suspended').in('user_id', ids) : { data: [] }
+    const { data: roles } = ids.length ? await ctx.db.from('cr_user_roles').select('user_id, role, suspended, access_status, suspended_reason').in('user_id', ids) : { data: [] }
     const rmap = new Map((roles ?? []).map((r: any) => [r.user_id, r]))
-    return { total: count ?? 0, pageSize: PAGE, users: (data ?? []).map((u: any) => ({ ...u, role: rmap.get(u.user_id)?.role ?? 'user', suspended: !!rmap.get(u.user_id)?.suspended })) }
+    return { total: count ?? 0, pageSize: PAGE, users: (data ?? []).map((u: any) => ({ ...u, role: rmap.get(u.user_id)?.role ?? 'user', suspended: !!rmap.get(u.user_id)?.suspended, access_status: rmap.get(u.user_id)?.role === 'owner' ? 'approved' : (rmap.get(u.user_id)?.access_status ?? 'pending'), suspended_reason: rmap.get(u.user_id)?.suspended_reason ?? null })) }
   },
   async 'users.get'(ctx, p) {
     const id = uuid(p.userId, 'userId')
@@ -118,7 +118,18 @@ const handlers: Record<string, Handler> = {
       ctx.db.from('cr_conversations').select('id', { count: 'exact', head: true }).eq('user_id', id),
       ctx.db.from('cr_messages').select('id', { count: 'exact', head: true }).eq('user_id', id),
     ])
-    return { profile, role: role.role, suspended: role.suspended, conversations: convs.count ?? 0, messages: msgs.count ?? 0 }
+    return { profile, role: role.role, suspended: role.suspended, suspended_reason: (role as any).suspended_reason ?? null, access_status: (role as any).access_status ?? 'pending', conversations: convs.count ?? 0, messages: msgs.count ?? 0 }
+  },
+  async 'users.setAccess'(ctx, p, req) {
+    if (ctx.role !== 'owner') throw new HttpError(403, 'forbidden', 'Solo el propietario puede aprobar solicitudes.')
+    const id = uuid(p.userId, 'userId')
+    if (!['approved', 'rejected', 'pending'].includes(p.status)) throw new HttpError(400, 'bad_request', 'Estado inválido.')
+    const t = await targetUser(ctx, id)
+    if (t.role === 'owner') throw new HttpError(403, 'forbidden', 'El propietario siempre conserva acceso.')
+    const { error } = await ctx.db.from('cr_user_roles').update({ access_status: p.status, access_updated_at: new Date().toISOString(), access_updated_by: ctx.userId, updated_at: new Date().toISOString() }).eq('user_id', id)
+    if (error) throw new HttpError(500, 'internal', 'No se pudo actualizar el acceso.')
+    await audit(ctx.db, { actorId: ctx.userId, action: 'user.access_' + p.status, targetType: 'user', targetId: id, reason: typeof p.reason === 'string' ? p.reason.slice(0, 200) : undefined, ip: clientIp(req) })
+    return { ok: true }
   },
   async 'users.setRole'(ctx, p, req) {
     if (ctx.role !== 'owner') throw new HttpError(403, 'forbidden', 'Solo el propietario puede promover o revocar administradores.')
