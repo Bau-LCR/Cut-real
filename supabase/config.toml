@@ -24,3 +24,7 @@ verify_jwt = false
 
 [functions.generate-document]
 verify_jwt = true
+
+# The pairing callback uses a one-time bearer token instead of a Supabase user JWT.
+[functions.memory-task-pairing]
+verify_jwt = false
