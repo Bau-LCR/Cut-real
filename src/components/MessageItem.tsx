@@ -26,7 +26,7 @@ function DocumentPreview({ title, content }: { title: string; content: string })
     setLoading(action)
     setError('')
     try {
-      const images = [...content.matchAll(/<!--CUTREAL_IMAGE:([0-9a-f-]{36})\\|([^>]*)-->/gi)].map((match) => ({ id: match[1], alt: match[2].trim() })).slice(0, 8)
+      const images = [...content.matchAll(/<!--CUTREAL_IMAGE:([0-9a-f-]{36})\|([^>]*)-->/gi)].map((match) => ({ id: match[1], alt: match[2].trim() })).slice(0, 8)
       const blob = await callFnBlob('generate-document', {
         format,
         title: title.trim() || 'Documento',
@@ -196,7 +196,7 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, busy, modelN
         {generating && !msg.content ? <div className="typing" role="status" aria-label="La IA está respondiendo"><i /><i /><i /></div> : null}
         {msg.content ? (() => {
           const artifact = !generating ? DOCUMENT_RE.exec(msg.content) : null
-          const visible = (artifact ? msg.content.replace(artifact[0], '') : msg.content).replace(/\\[\\[CUTREAL_GENERATE_IMAGE:[\\s\\S]*?(?:\\]\\]|$)/g, '').trim()
+          const visible = (artifact ? msg.content.replace(artifact[0], '') : msg.content).replace(/\[\[CUTREAL_GENERATE_IMAGE:[\s\S]*?(?:\]\]|$)/g, '').trim()
           return <>{visible && <Markdown text={visible} streaming={generating} />}{artifact && <DocumentPreview title={artifact[2].trim()} content={artifact[3].trim()} />}</>
         })() : null}
         {msg.sources?.length ? (
