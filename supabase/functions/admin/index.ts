@@ -319,7 +319,7 @@ const handlers: Record<string, Handler> = {
       appIdConfigured: !!cfg.appId,
       identityKeyConfigured: !!cfg.privateJwkRaw,
       enabled: integration?.status === 'enabled',
-      authorized: !!grant?.scopes?.includes('conversations:write'),
+      authorized: !!grant?.scopes?.includes('records:write'),
     }
   },
   async 'integrations.memory_task_generate_identity'(ctx, _p, req) {
@@ -348,7 +348,7 @@ const handlers: Record<string, Handler> = {
     const { data: grant } = await ctx.db.from('cr_integration_grants').select('scopes')
       .eq('integration_id', integration.id).eq('user_id', ctx.userId).is('revoked_at', null).maybeSingle()
     if (!grant?.scopes?.includes('conversations:write')) {
-      throw new HttpError(403, 'integration_not_authorized', 'Primero autorizá Memory Task desde Configuración → Integraciones autorizadas y concedé conversations:write.')
+      throw new HttpError(403, 'integration_not_authorized', 'Primero autorizá Memory Task desde Configuración → Integraciones autorizadas y concedé records:write.')
     }
     const title = text(p.title, 'El título', 1, 120)
     const content = text(p.content, 'El contenido', 1, 20000)
