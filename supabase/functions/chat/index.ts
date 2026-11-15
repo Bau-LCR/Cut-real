@@ -90,7 +90,7 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
   const { model, provider, apiKey } = await loadModel(db, modelId)
   if (b.webSearch && !searchProvider())
     throw new HttpError(400, 'search_not_configured', 'La búsqueda web todavía no está configurada en el servidor.')
-  if (b.imageSearch && !Deno.env.get('TAVILY_API_KEY'))
+  if (b.imageSearch && !Deno.env.get('TAVILY_API_KEY') && !Deno.env.get('BRAVE_API_KEY'))
     throw new HttpError(400, 'image_search_not_configured', 'La búsqueda de imágenes requiere configurar TAVILY_API_KEY en el servidor.')
 
   await db.rpc('cr_sweep_stale_generations')
