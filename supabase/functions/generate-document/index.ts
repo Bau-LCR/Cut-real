@@ -20,7 +20,12 @@ Deno.serve(async (req) => {
   } catch (e) { return errorResponse(req, e) }
 })
 
-function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {\n  const buffer = new ArrayBuffer(bytes.byteLength)\n  new Uint8Array(buffer).set(bytes)\n  return buffer\n}\nfunction clean(s: string) {
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength)
+  new Uint8Array(buffer).set(bytes)
+  return buffer
+}
+function clean(s: string) {
   return s.replace(/\*\*(.*?)\*\*/g, '$1').replace(/__(.*?)__/g, '$1').replace(/\*(.*?)\*/g, '$1')
     .replace(/\x60([^\x60]+)\x60/g, '$1').replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/[—–]/g, '-')
     .replace(/…/g, '...').replace(/[^\u0009\u000A\u000D\u0020-\u00FF]/g, '').trim()
