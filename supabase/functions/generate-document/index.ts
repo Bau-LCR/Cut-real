@@ -27,40 +27,40 @@ function clean(s: string) {
 }
 function decodeEntities(value: string) {
   return value.replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'")
-    .replace(/&#(\\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
-    .replace(/&#x([\\da-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&#x([\da-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
 }
 function htmlToMarkdown(html: string) {
-  return decodeEntities(html.replace(/<!--[\\s\\S]*?-->/g, '').replace(/<(script|style|iframe)[^>]*>[\\s\\S]*?<\\/\\1>/gi, '')
-    .replace(/<br\\s*\\/?\s*>/gi, '\n')
-    .replace(/<(h1|h2|h3)\\b[^>]*>/gi, (_, tag) => '\n\n' + '#'.repeat(Number(tag[1])) + ' ')
-    .replace(/<\\/h[1-3]>/gi, '\n\n')
-    .replace(/<(strong|b)\\b[^>]*>/gi, '**').replace(/<\\/(strong|b)>/gi, '**')
-    .replace(/<(em|i)\\b[^>]*>/gi, '*').replace(/<\\/(em|i)>/gi, '*')
-    .replace(/<u\\b[^>]*>/gi, '__').replace(/<\\/u>/gi, '__')
-    .replace(/<(s|strike|del)\\b[^>]*>/gi, '~~').replace(/<\\/(s|strike|del)>/gi, '~~')
-    .replace(/<code\\b[^>]*>/gi, '`').replace(/<\\/code>/gi, '`')
-    .replace(/<li\\b[^>]*>/gi, '\n- ').replace(/<\\/li>/gi, '\n')
-    .replace(/<blockquote\\b[^>]*>/gi, '\n> ').replace(/<\\/blockquote>/gi, '\n\n')
-    .replace(/<\\/(p|div|section|ul|ol|table|tr)>/gi, '\n\n')
-    .replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ').replace(/[ \\t]+\\n/g, '\n').replace(/\\n{3,}/g, '\n\n')).trim()
+  return decodeEntities(html.replace(/<!--[\s\S]*?-->/g, '').replace(/<(script|style|iframe)[^>]*>[\s\S]*?<\/\1>/gi, '')
+    .replace(/<br\s*\/?\s*>/gi, '\n')
+    .replace(/<(h1|h2|h3)\b[^>]*>/gi, (_, tag) => '\n\n' + '#'.repeat(Number(tag[1])) + ' ')
+    .replace(/<\/h[1-3]>/gi, '\n\n')
+    .replace(/<(strong|b)\b[^>]*>/gi, '**').replace(/<\/(strong|b)>/gi, '**')
+    .replace(/<(em|i)\b[^>]*>/gi, '*').replace(/<\/(em|i)>/gi, '*')
+    .replace(/<u\b[^>]*>/gi, '__').replace(/<\/u>/gi, '__')
+    .replace(/<(s|strike|del)\b[^>]*>/gi, '~~').replace(/<\/(s|strike|del)>/gi, '~~')
+    .replace(/<code\b[^>]*>/gi, '`').replace(/<\/code>/gi, '`')
+    .replace(/<li\b[^>]*>/gi, '\n- ').replace(/<\/li>/gi, '\n')
+    .replace(/<blockquote\b[^>]*>/gi, '\n> ').replace(/<\/blockquote>/gi, '\n\n')
+    .replace(/<\/(p|div|section|ul|ol|table|tr)>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n')).trim()
 }
 function parse(s: string) {
-  return s.replace(/\\r/g, '').split('\\n').map(line => {
+  return s.replace(/\r/g, '').split('\n').map(line => {
     const t = line.trim()
     if (!t || /^\x60{3}/.test(t)) return null
     const make = (kind: string, raw: string) => ({ kind, raw, text: clean(raw) })
-    if (/^#{1,3}\\s/.test(t)) return make('h' + Math.min(3, t.match(/^#+/)![0].length), t.replace(/^#{1,3}\\s*/, ''))
-    if (/^[-*+]\\s/.test(t)) return make('bullet', t.replace(/^[-*+]\\s*/, ''))
-    if (/^\\d+[.)]\\s/.test(t)) return make('number', t.replace(/^\\d+[.)]\\s*/, ''))
-    if (/^>\\s?/.test(t)) return make('quote', t.replace(/^>\\s?/, ''))
-    if (/^\\|/.test(t)) { if (/^\\|[\\s:|-]+\\|?$/.test(t)) return null; return make('table', t.replace(/^\\||\\|$/g, '').split('|').join('   •   ')) }
+    if (/^#{1,3}\s/.test(t)) return make('h' + Math.min(3, t.match(/^#+/)![0].length), t.replace(/^#{1,3}\s*/, ''))
+    if (/^[-*+]\s/.test(t)) return make('bullet', t.replace(/^[-*+]\s*/, ''))
+    if (/^\d+[.)]\s/.test(t)) return make('number', t.replace(/^\d+[.)]\s*/, ''))
+    if (/^>\s?/.test(t)) return make('quote', t.replace(/^>\s?/, ''))
+    if (/^\|/.test(t)) { if (/^\|[\s:|-]+\|?$/.test(t)) return null; return make('table', t.replace(/^\||\|$/g, '').split('|').join('   •   ')) }
     return make('p', t)
   }).filter((x): x is {kind:string;text:string;raw:string} => !!x && !!x.text)
 }
 function inlineRuns(value: string) {
   const runs: TextRun[] = []
-  const token = /(\\*\\*[^*]+\\*\\*|__[^_]+__|~~[^~]+~~|\\*[^*]+\\*|`[^`]+`)/g
+  const token = /(\*\*[^*]+\*\*|__[^_]+__|~~[^~]+~~|\*[^*]+\*|`[^`]+`)/g
   let cursor = 0
   for (const match of value.matchAll(token)) {
     const index = match.index ?? 0
