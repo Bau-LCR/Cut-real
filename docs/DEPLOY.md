@@ -43,6 +43,7 @@ Editá `supabase/functions/.env`:
 | `GEMINI_API_KEY` | Clave de https://aistudio.google.com/apikey | No |
 | `SEARCH_PROVIDER` + `TAVILY_API_KEY` (o `BRAVE_API_KEY`) | `tavily` y la clave | No (activa búsqueda web) |
 | `TTS_BASE_URL`, `TTS_API_KEY`, `TTS_MODEL`, `TTS_VOICE` | Proveedor de voz OpenAI-compatible | No (ver `docs/VOICE.md`) |
+| `MEMORY_TASK_API_URL`, `MEMORY_TASK_API_KEY`, `MEMORY_TASK_APP_ID`, `MEMORY_TASK_IDENTITY_PRIVATE_JWK` | Endpoint `service-api`, API key con `records:read` y `records:write`, App ID y clave privada ES256 generada en Cut-real | No (habilita memoria externa bidireccional; ver panel Administración → Memory Task) |
 
 Subilos: `npm run secrets:set`. (`SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` los inyecta Supabase solo; no los cargues.)
 
