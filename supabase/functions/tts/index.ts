@@ -58,6 +58,7 @@ Deno.serve(async (req) => {
     if (req.method !== 'POST') throw new HttpError(405, 'method_not_allowed', 'Método no permitido.')
     const ctx = await authenticate(req)
     await rateLimit(ctx.db, `tts:${ctx.userId}`, 30)
+    await rateLimit(ctx.db, `tts-daily:${ctx.userId}`, 60, 86400)
     const body = await req.json().catch(() => null)
     const input = typeof body?.text === 'string' ? body.text.trim().slice(0, 4000) : ''
     if (!input) throw new HttpError(400, 'bad_request', 'Falta el texto.')
