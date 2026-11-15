@@ -8,6 +8,7 @@ on:
       - 'supabase/functions/**'
       - 'supabase/config.toml'
       - 'supabase/migrations/**'
+      - '.github/workflows/edge-functions.yml'
 
 permissions:
   contents: read
