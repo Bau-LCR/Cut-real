@@ -79,7 +79,7 @@ function getDraftTitle(key: string, fallback: string) {
 }
 
 function DocumentEditor({ id, title, content }: { id: string; title: string; content: string }) {
-  const storageKey = \`cutreal:document-draft:\${id}\`
+  const storageKey = `cutreal:document-draft:${id}`
   const [value, setValue] = useState(() => getDraft(storageKey, content))
   const [docTitle, setDocTitle] = useState(() => getDraftTitle(storageKey, title))
   const [editing, setEditing] = useState(false)
