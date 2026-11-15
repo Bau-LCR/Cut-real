@@ -60,7 +60,7 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
       setItems((p) => [...p, { key, name: f.name, size: f.size, state: 'uploading', previewUrl }])
       uploadAttachment(f, me.userId, convId ?? null)
         .then(({ attachment, note }) => setItems((p) => p.map((i) => (i.key === key ? { ...i, state: 'ready', attachment, note } : i))))
-        .catch((e) => { toast('error', (e as Error).message); setItems((p) => p.filter((i) => i.key !== key)) })
+        .catch((e) => { if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrls.current.delete(previewUrl) } toast('error', (e as Error).message); setItems((p) => p.filter((i) => i.key !== key)) })
     }
     if (fileRef.current) fileRef.current.value = ''
   }
