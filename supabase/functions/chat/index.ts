@@ -180,8 +180,8 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
         try {
           imageResults = await imageSearch(String((lastUser as any).content ?? ''), abort.signal)
           if (imageResults.length) {
-            extraSystem += '\\n\\nResultados de búsqueda de imágenes (URLs externas y descripciones; no afirmes derechos de uso):\\n' +
-              imageResults.map((image, index) => (index + 1) + '. ' + image.description + ' — ' + image.url).join('\\n')
+            extraSystem += '\n\nResultados de búsqueda de imágenes (URLs externas y descripciones; no afirmes derechos de uso):\n' +
+              imageResults.map((image, index) => (index + 1) + '. ' + image.description + ' — ' + image.url).join('\n')
             send({ type: 'notice', message: 'Encontré ' + imageResults.length + ' imágenes. Las agrego al final de la respuesta.' })
           } else {
             send({ type: 'notice', message: 'La búsqueda no encontró imágenes para esa consulta.' })
@@ -229,8 +229,8 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
         }
         if (status === 'done' && !full) { status = 'error'; errCode = 'empty_response'; errMsg = 'El modelo no devolvió contenido. Probá de nuevo o elegí otro modelo.' }
         if (status === 'done' && imageResults.length) {
-          const markdown = imageResults.map((image) => { const alt = image.description.replace(/[\\[\\]\\r\\n]/g, ' ').slice(0, 120); return '![' + alt + '](<' + image.url + '>)' }).join('\\n\\n')
-          full += '\\n\\n### Imágenes encontradas\\n\\n' + markdown
+          const markdown = imageResults.map((image) => { const alt = image.description.replace(/[\[\]\r\n]/g, ' ').slice(0, 120); return '![' + alt + '](<' + image.url + '>)' }).join('\n\n')
+          full += '\n\n### Imágenes encontradas\n\n' + markdown
         }
       }
     } catch (e) {
