@@ -12,7 +12,7 @@ const MSG_PAGE = 40
 
 interface Gen { controller: AbortController; assistantId: string | null }
 export interface SendResult { ok: boolean; content?: string; status?: MsgStatus; error?: string }
-export interface SendOpts { webSearch?: boolean; attachments?: Attachment[]; silent?: boolean; ephemeral?: boolean }
+export interface SendOpts { webSearch?: boolean; imageSearch?: boolean; attachments?: Attachment[]; silent?: boolean; ephemeral?: boolean }
 
 interface ChatState {
   models: ModelInfo[]; modelId: string | null
@@ -123,7 +123,7 @@ export const useChat = create<ChatState>((set, get) => {
     // Feedback instantáneo: se muestra el indicador de escritura antes de que el servidor responda.
     const tmpAsst: Message = {
       id: `tmp-a-${crypto.randomUUID()}`, conversation_id: convId, role: 'assistant', content: '', status: 'generating', model_id: get().modelId, error: null,
-      sources: [], web_search_used: !!body.webSearch, created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      sources: [], web_search_used: !!body.webSearch || !!body.imageSearch, created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     }
     set((s) => ({ messages: { ...s.messages, [convId]: [...(s.messages[convId] ?? []), tmpAsst] } }))
     const dropTmp = () => set((s) => ({ messages: { ...s.messages, [convId]: (s.messages[convId] ?? []).filter((m) => m.id !== tmpAsst.id) } }))
@@ -315,7 +315,7 @@ export const useChat = create<ChatState>((set, get) => {
         sources: [], web_search_used: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
       }
       set((s) => ({ messages: { ...s.messages, [convId]: [...(s.messages[convId] ?? []), tmp] }, attachments: opts.attachments?.length ? { ...s.attachments, [tmp.id]: opts.attachments } : s.attachments }))
-      return run(convId, { mode: 'send', conversationId: convId, modelId: currentModel(), content: text.trim(), attachmentIds: opts.attachments?.map((a) => a.id), webSearch: !!opts.webSearch }, { optimisticId: tmp.id, attachments: opts.attachments, silent: opts.silent, ephemeral: opts.ephemeral })
+      return run(convId, { mode: 'send', conversationId: convId, modelId: currentModel(), content: text.trim(), attachmentIds: opts.attachments?.map((a) => a.id), webSearch: !!opts.webSearch, imageSearch: !!opts.imageSearch }, { optimisticId: tmp.id, attachments: opts.attachments, silent: opts.silent, ephemeral: opts.ephemeral })
     },
 
     async regenerate(convId, assistantId, webSearch = false) {
