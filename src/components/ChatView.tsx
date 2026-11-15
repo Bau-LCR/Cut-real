@@ -49,11 +49,11 @@ export function ChatView({ convId }: { convId?: string }) {
     nav(`/c/${id}`, { replace: true })
     return id
   }
-  async function onSubmit(text: string, attachments: Attachment[], webSearch: boolean) {
+  async function onSubmit(text: string, attachments: Attachment[], webSearch: boolean, imageSearch: boolean) {
     try {
       const id = await ensureConv()
       stick.current = true
-      const r = await send(id, text, { attachments, webSearch })
+      const r = await send(id, text, { attachments, webSearch, imageSearch })
       return r.ok
     } catch (e) { useUi.getState().toast('error', (e as Error).message); return false }
   }
