@@ -30,18 +30,16 @@ function isTargetedAbuse(content: string): boolean {
 async function moderateIncoming(ctx: AuthContext, content: string | undefined) {
   if (!content || !isTargetedAbuse(content)) return
   const { db, userId } = ctx
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-  const { count } = await db.from('cr_audit_logs').select('id', { count: 'exact', head: true })
-    .eq('actor_id', userId).eq('action', 'moderation.targeted_abuse').gte('created_at', since)
+  // Solo se activa ante insultos explícitamente dirigidos al asistente, no por palabras aisladas.
+  const reason = 'Suspensión automática por un mensaje con insultos explícitamente dirigidos a Cut-real.'
   await audit(db, { actorId: userId, action: 'moderation.targeted_abuse', targetType: 'user', targetId: userId,
-    reason: 'Mensaje dirigido con insultos al asistente', metadata: { window: '24h' } })
-  if ((count ?? 0) >= 1) {
-    const reason = 'Suspensión automática: reiteración de insultos dirigidos al asistente.'
-    await db.from('cr_user_roles').update({ suspended: true, suspended_reason: reason, suspended_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('user_id', userId)
-    await audit(db, { actorId: null, actorKind: 'system', action: 'user.suspend', targetType: 'user', targetId: userId, reason })
-    throw new HttpError(403, 'suspended', 'Tu cuenta fue suspendida automáticamente por reiterar insultos dirigidos al asistente. Un administrador puede revisar y restaurar el acceso.')
-  }
-  throw new HttpError(422, 'moderation_warning', 'Este mensaje no se envió porque contiene insultos dirigidos al asistente. Si volvés a reiterar esta conducta, la cuenta podrá ser suspendida y requerirá revisión administrativa.')
+    reason, metadata: { policy: 'first_clear_targeted_offense' } })
+  const { error } = await db.from('cr_user_roles').update({
+    suspended: true, suspended_reason: reason, suspended_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+  }).eq('user_id', userId)
+  if (error) throw new HttpError(500, 'moderation_failed', 'No se pudo aplicar la medida de moderación. Avisá a un administrador.')
+  await audit(db, { actorId: null, actorKind: 'system', action: 'user.suspend', targetType: 'user', targetId: userId, reason })
+  throw new HttpError(403, 'suspended', 'La cuenta fue suspendida automáticamente por un mensaje con insultos dirigidos a Cut-real. Solo un administrador puede revisar la medida y restaurar el acceso.')
 }
 
 function readBody(raw: any): Body {
