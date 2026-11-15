@@ -7,7 +7,8 @@ import { useChat } from '../store/chat'
 import { useSpeech } from '../store/speech'
 import { CopyButton, Markdown } from './Markdown'
 import { callFnBlob } from '../lib/functions'
-import { Edit, File, Pause, Play, Refresh, Stop, Volume } from './icons'
+import { supabase } from '../lib/supabase'
+import { Edit, File, Pause, Play, Refresh, Stop, Volume, X } from './icons'
 
 const DOCUMENT_RE = /\[\[CUTREAL_DOCUMENT:(pdf|docx)\|([^\]\r\n]{1,160})\]\]\s*([\s\S]*?)\s*\[\[\/CUTREAL_DOCUMENT\]\]/i
 
@@ -139,21 +140,63 @@ function SpeakControls({ msg }: { msg: Message }) {
 }
 
 function Chips({ list }: { list: Attachment[] }) {
+  const [urls, setUrls] = useState<Record<string, string>>({})
+  const [selected, setSelected] = useState<Attachment | null>(null)
+  const images = list.filter((item) => item.mime_type.startsWith('image/'))
+  const otherFiles = list.filter((item) => !item.mime_type.startsWith('image/'))
+
+  useEffect(() => {
+    let active = true
+    Promise.all(images.map(async (item) => {
+      const { data } = await supabase.storage.from('cr-attachments').createSignedUrl(item.storage_path, 3600)
+      return [item.id, data?.signedUrl ?? ''] as const
+    })).then((entries) => {
+      if (active) setUrls(Object.fromEntries(entries.filter(([, url]) => !!url)))
+    })
+    return () => { active = false }
+  }, [list])
+
+  useEffect(() => {
+    if (!selected) return
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setSelected(null) }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [selected])
+
   return (
-    <div className="chips">
-      {list.map((a) => (
-        <div className="attachment-chip-wrap" key={a.id}>
-          <button className={'chip ' + (a.status !== 'processed' ? 'warn' : '')} onClick={() => openAttachment(a)} title="Abrir archivo">
-            <File className="sm" /><span className="n">{a.file_name}</span>
-            <small>{formatBytes(a.size_bytes)}{a.status === 'processed' ? ' · leído' : a.mime_type.startsWith('image/') ? ' · imagen' : ' · sin analizar'}</small>
+    <>
+      {images.length > 0 && <div className="chat-image-attachments" aria-label="Imágenes adjuntas">
+        {images.map((item) => urls[item.id] ? (
+          <button className="chat-image-thumb" key={item.id} onClick={() => setSelected(item)} title="Ampliar imagen">
+            <img src={urls[item.id]} alt={item.file_name} loading="lazy" />
+            <span>{item.file_name}</span>
           </button>
-          
+        ) : (
+          <span className="chat-image-loading" key={item.id}>{item.file_name} · cargando imagen…</span>
+        ))}
+      </div>}
+      {otherFiles.length > 0 && <div className="chips">
+        {otherFiles.map((a) => (
+          <div className="attachment-chip-wrap" key={a.id}>
+            <button className={'chip ' + (a.status !== 'processed' ? 'warn' : '')} onClick={() => openAttachment(a)} title="Abrir archivo">
+              <File className="sm" /><span className="n">{a.file_name}</span>
+              <small>{formatBytes(a.size_bytes)}{a.status === 'processed' ? ' · leído' : ' · sin analizar'}</small>
+            </button>
+          </div>
+        ))}
+      </div>}
+      {selected && urls[selected.id] && (
+        <div className="image-lightbox" role="presentation" onClick={() => setSelected(null)}>
+          <div className="image-lightbox-panel" role="dialog" aria-modal="true" aria-label={selected.file_name} onClick={(event) => event.stopPropagation()}>
+            <button className="image-lightbox-close" onClick={() => setSelected(null)} aria-label="Cerrar imagen"><X /></button>
+            <img src={urls[selected.id]} alt={selected.file_name} />
+            <span>{selected.file_name}</span>
+          </div>
         </div>
-      ))}
-    </div>
+      )}
+    </>
   )
 }
-
 interface Props { msg: Message; isLast: boolean; busy: boolean; modelName?: string; onRegenerate(id: string): void; onEdit(id: string, text: string): void }
 
 export const MessageItem = memo(function MessageItem({ msg, isLast, busy, modelName, onRegenerate, onEdit }: Props) {
