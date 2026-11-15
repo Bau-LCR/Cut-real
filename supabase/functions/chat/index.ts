@@ -147,6 +147,9 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
     let errCode: string | null = null
     let errMsg: string | null = null
     let usage: { prompt_tokens?: number; completion_tokens?: number } | undefined
+    let estimatedPromptTokens = 0
+    let reservedTokens = 0
+    let reservationId: string | null = null
     let sources: SearchResult[] = []
     let lastFlush = Date.now()
     let lastCancelCheck = Date.now()
@@ -168,24 +171,42 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
         }
       }
       const messages = await buildMessages(ctx, conv.id, history as any[], model, extraSystem)
-      send({ type: 'status', status: 'generating' })
-      for await (const ev of streamFromProvider({ provider, apiKey, model, messages, signal: abort.signal })) {
-        if (ev.delta) {
-          full += ev.delta
-          send({ type: 'delta', text: ev.delta })
-          if (Date.now() - lastFlush > 600) {
-            lastFlush = Date.now()
-            await db.from('cr_messages').update({ content: full, updated_at: new Date().toISOString() }).eq('id', asst.id)
+      const promptChars = messages.reduce((total, message) => total + (typeof message.content === 'string'
+        ? message.content.length
+        : message.content.reduce((sum: number, part: any) => sum + (part.type === 'text' ? String(part.text ?? '').length : 4800), 0)), 0)
+      estimatedPromptTokens = Math.max(1, Math.ceil(promptChars / 4))
+      reservedTokens = estimatedPromptTokens + Math.min(Number(model.max_output_tokens ?? 4096), 4096)
+      const { data: quota, error: quotaError } = await db.rpc('cr_reserve_daily_tokens', {
+        p_user_id: userId, p_tokens: reservedTokens, p_limit: 70000,
+      })
+      if (quotaError) throw new Error('No se pudo verificar el límite diario de tokens.')
+      if (!quota?.allowed) {
+        status = 'error'
+        errCode = 'daily_token_limit'
+        const reset = quota?.resets_at ? new Date(quota.resets_at).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'UTC' }) + ' UTC' : 'el próximo día UTC'
+        errMsg = `Alcanzaste el límite de 70.000 tokens de Cut-real para hoy. Tu cupo se renueva el ${reset}. No se inició una nueva llamada al modelo.`
+        send({ type: 'notice', message: errMsg })
+      } else {
+        reservationId = String(quota.reservation_id)
+        send({ type: 'status', status: 'generating' })
+        for await (const ev of streamFromProvider({ provider, apiKey, model, messages, signal: abort.signal })) {
+          if (ev.delta) {
+            full += ev.delta
+            send({ type: 'delta', text: ev.delta })
+            if (Date.now() - lastFlush > 600) {
+              lastFlush = Date.now()
+              await db.from('cr_messages').update({ content: full, updated_at: new Date().toISOString() }).eq('id', asst.id)
+            }
+          }
+          if (ev.usage) usage = ev.usage
+          if (Date.now() - lastCancelCheck > 1000) {
+            lastCancelCheck = Date.now()
+            const { data: cur } = await db.from('cr_messages').select('status').eq('id', asst.id).maybeSingle()
+            if (cur?.status === 'cancelled') { status = 'cancelled'; abort.abort(); break }
           }
         }
-        if (ev.usage) usage = ev.usage
-        if (Date.now() - lastCancelCheck > 1000) {
-          lastCancelCheck = Date.now()
-          const { data: cur } = await db.from('cr_messages').select('status').eq('id', asst.id).maybeSingle()
-          if (cur?.status === 'cancelled') { status = 'cancelled'; abort.abort(); break }
-        }
+        if (status === 'done' && !full) { status = 'error'; errCode = 'empty_response'; errMsg = 'El modelo no devolvió contenido. Probá de nuevo o elegí otro modelo.' }
       }
-      if (status === 'done' && !full) { status = 'error'; errCode = 'empty_response'; errMsg = 'El modelo no devolvió contenido. Probá de nuevo o elegí otro modelo.' }
     } catch (e) {
       if (status !== 'cancelled') {
         status = 'error'
@@ -199,12 +220,19 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
     if (cur?.status === 'cancelled') status = 'cancelled'
     await db.from('cr_messages').update({ content: full, status, error: errMsg, updated_at: new Date().toISOString() }).eq('id', asst.id)
     await db.from('cr_conversations').update({ last_message_at: new Date().toISOString() }).eq('id', conv.id)
+    if (reservationId) {
+      const actualTokens = Math.max(1, (usage?.prompt_tokens ?? estimatedPromptTokens) + (usage?.completion_tokens ?? Math.ceil(full.length / 4)))
+      const { error: finalizeError } = await db.rpc('cr_finalize_daily_tokens', {
+        p_user_id: userId, p_reservation_id: reservationId, p_actual_tokens: actualTokens,
+      })
+      if (finalizeError) console.error('daily token reservation finalization failed', finalizeError.message)
+    }
     send({ type: 'done', status, error: errMsg, errorCode: errCode })
     try { controller.close() } catch { /* cliente ya desconectado */ }
     await logUsage(db, {
       userId, conversationId: conv.id, providerId: provider.id, modelId: model.id, kind: 'chat',
       status: status === 'done' ? 'ok' : status === 'cancelled' ? 'cancelled' : 'error', errorCode: errCode,
-      promptTokens: usage?.prompt_tokens ?? null, completionTokens: usage?.completion_tokens ?? Math.round(full.length / 4), latencyMs: Date.now() - t0,
+      promptTokens: usage?.prompt_tokens ?? estimatedPromptTokens, completionTokens: usage?.completion_tokens ?? Math.round(full.length / 4), latencyMs: Date.now() - t0,
     })
   })()
   if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(run) // sigue aunque el cliente se desconecte
