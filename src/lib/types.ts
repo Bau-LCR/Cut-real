@@ -9,7 +9,7 @@ export interface Message {
 export interface ModelInfo { id: string; model_key: string; display_name: string; supports_vision: boolean; context_window: number | null; provider_slug: string; provider_name: string; sort_order: number }
 export interface Attachment {
   id: string; conversation_id: string | null; message_id: string | null; storage_path: string; file_name: string; mime_type: string
-  size_bytes: number; status: 'processed' | 'attached_only' | 'failed'
+  size_bytes: number; status: 'processed' | 'attached_only' | 'failed'; extracted_text?: string | null
 }
 export interface VoiceSettings { rate: number; auto_read: boolean; engine: 'browser' | 'remote'; voice_uri?: string }
 export interface Me { userId: string; email: string | null; display_name: string | null; avatar_url: string | null; role: Role; suspended: boolean }
