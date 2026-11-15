@@ -97,10 +97,24 @@ export function Settings() {
         {voice.engine === 'browser' && <div>
           <label className="lbl" htmlFor="voice-name">Voz en español</label>
           <select id="voice-name" className="field" value={voice.voice_uri ?? ''} onChange={(e) => guard(saveSettings({ voice: { ...voice, voice_uri: e.target.value } }))}>
-            <option value="">Automática (voz masculina si está disponible)</option>
+            <option value="">Automática (según el dispositivo)</option>
             {browserVoices.map((v) => <option key={v.voiceURI} value={v.voiceURI}>{v.name} · {v.lang}</option>)}
           </select>
-          <p className="hint">Las voces disponibles dependen del navegador y del sistema operativo. La opción automática prioriza voces masculinas en español cuando están disponibles.</p>
+          <p className="hint">Las voces del navegador dependen de Windows, Chrome y los paquetes de idioma instalados.</p>
+        </div>}
+        {voice.engine === 'remote' && <div>
+          <label className="lbl" htmlFor="remote-voice">Voz natural de Cut-real</label>
+          <select id="remote-voice" className="field" value={voice.voice_uri || 'Kore'} onChange={(e) => guard(saveSettings({ voice: { ...voice, voice_uri: e.target.value } }))}>
+            <option value="Kore">Kore · firme y clara</option>
+            <option value="Puck">Puck · animada</option>
+            <option value="Charon">Charon · informativa</option>
+            <option value="Aoede">Aoede · ligera</option>
+            <option value="Zephyr">Zephyr · brillante</option>
+            <option value="Enceladus">Enceladus · aireada</option>
+            <option value="Gacrux">Gacrux · madura</option>
+            <option value="Sulafat">Sulafat · cálida</option>
+          </select>
+          <p className="hint">Usa Gemini TTS en el servidor para una lectura más expresiva. La voz y el texto se procesan en el proveedor configurado.</p>
         </div>}
                 <button className="btn sm" onClick={() => void useSpeech.getState().speak('settings-test', 'Hola. Soy Cut-real. Esta es mi voz.')}>Probar voz</button>
 
