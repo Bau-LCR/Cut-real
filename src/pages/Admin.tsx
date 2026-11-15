@@ -38,11 +38,13 @@ function Overview() {
   if (err) return <Err e={err} />
   if (!s) return <p className="hint">Cargando…</p>
   const max = Math.max(1, ...s.daily.map((d: any) => d.requests))
-  const cards: [string, number][] = [['Usuarios', s.users], ['Activos 24 h', s.active_users_24h], ['Activos 7 días', s.active_users_7d], ['Suspendidos', s.suspended_users], ['Conversaciones', s.conversations], ['Mensajes', s.messages], ['Errores 24 h', s.errors_24h]]
+  const totalRequests = s.by_model.reduce((n: number, m: any) => n + Number(m.requests || 0), 0)
+  const totalTokens = s.by_model.reduce((n: number, m: any) => n + Number(m.prompt_tokens || 0) + Number(m.completion_tokens || 0), 0)
+  const cards: [string, number][] = [['Usuarios', s.users], ['Activos 24 h', s.active_users_24h], ['Activos 7 días', s.active_users_7d], ['Suspendidos', s.suspended_users], ['Conversaciones', s.conversations], ['Mensajes', s.messages], ['Errores 24 h', s.errors_24h], ['Solicitudes (período)', totalRequests], ['Tokens registrados (período)', totalTokens]]
   return (
     <>
       <div className="stats">{cards.map(([l, v]) => <div className="stat" key={l}><b>{v.toLocaleString('es-AR')}</b><span>{l}</span></div>)}</div>
-      <div className="panel"><h3>Actividad diaria (solicitudes; rojo = con errores)</h3>
+      <div className="panel"><h3>Actividad diaria (solicitudes; rojo = con errores)</h3><p className="hint">Las solicitudes cuentan llamadas registradas por Cut-real. Los tokens suman entrada + salida durante el período del resumen; no representan el máximo permitido por Groq.</p>
         {s.daily.length ? <div className="bars" aria-label="Actividad diaria">{s.daily.map((d: any) => <i key={d.day} className={d.errors > 0 ? 'err' : ''} style={{ height: `${(d.requests / max) * 100}%` }} title={`${d.day}: ${d.requests} solicitudes, ${d.errors} errores`} />)}</div> : <p className="hint">Sin actividad todavía.</p>}</div>
       <div className="grid2">
         <div className="panel"><h3>Modelos utilizados</h3><table className="t"><thead><tr><th>Modelo</th><th>Solicitudes</th><th>Tokens</th></tr></thead><tbody>
@@ -143,7 +145,7 @@ function Providers() {
             <button className="btn sm" onClick={() => setEdit({ kind: 'model', row: { provider_id: p.id, model_key: '', display_name: '', enabled: true, supports_vision: false, context_window: '', max_output_tokens: 4096, user_rpm_limit: 20 } })}>Agregar modelo</button></div>
           <p className="hint" style={{ margin: '6px 0 10px' }}>{p.base_url} · límite {p.rpm_limit ?? '∞'}/min · {p.daily_request_limit ?? '∞'}/día</p>
           <table className="t"><thead><tr><th>Modelo</th><th>ID</th><th>Visión</th><th>Límite/usuario</th><th>Estado</th><th /></tr></thead><tbody>
-            {p.models.map((m: any) => (<tr key={m.id}><td>{m.display_name}</td><td className="hint">{m.model_key}</td><td>{m.supports_vision ? 'sí' : 'no'}</td><td>{m.user_rpm_limit}/min</td>
+            {p.models.filter((m: any) => !/^llama-/i.test(m.model_key)).map((m: any) => (<tr key={m.id}><td>{m.display_name}</td><td className="hint">{m.model_key}</td><td>{m.supports_vision ? 'sí' : 'no'}</td><td>{m.user_rpm_limit}/min</td>
               <td><label className="chk"><label><input type="checkbox" checked={m.enabled} onChange={(e) => save('models.save', { ...m, enabled: e.target.checked })} /> {m.enabled ? 'habilitado' : 'oculto'}</label></label></td>
               <td><button className="btn sm" onClick={() => setEdit({ kind: 'model', row: m })}>Editar</button></td></tr>))}
           </tbody></table>
