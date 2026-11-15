@@ -333,7 +333,7 @@ const handlers: Record<string, Handler> = {
     const tokenBytes = crypto.getRandomValues(new Uint8Array(32))
     const token = b64(tokenBytes)
     const tokenHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))), b => b.toString(16).padStart(2, '0')).join('')
-    const callbackUrl = supabaseUrl.replace(/\\/$/, '') + '/functions/v1/memory-task-pairing'
+    const callbackUrl = supabaseUrl.replace(/\/$/, '') + '/functions/v1/memory-task-pairing'
     const expiresAt = new Date(Date.now() + 10 * 60_000).toISOString()
     const { error } = await ctx.db.from('cr_memory_task_connections').insert({
       owner_id: ctx.userId, token_hash: tokenHash, public_jwk: publicJwk,
