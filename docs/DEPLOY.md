@@ -40,9 +40,10 @@ Editá `supabase/functions/.env`:
 |---|---|---|
 | `GROQ_API_KEY` | Clave de https://console.groq.com/keys | Sí (chat y dictado) |
 | `ALLOWED_ORIGINS` | Solo el *origen*, sin ruta: `https://TU_USUARIO.github.io,http://localhost:5173` | Sí en producción |
-| `GEMINI_API_KEY` | Clave de https://aistudio.google.com/apikey | No |
-| `SEARCH_PROVIDER` + `TAVILY_API_KEY` (o `BRAVE_API_KEY`) | `tavily` y la clave | No (activa búsqueda web y búsqueda de imágenes) |
-| `TTS_BASE_URL`, `TTS_API_KEY`, `TTS_MODEL`, `TTS_VOICE` | Proveedor de voz OpenAI-compatible | No (ver `docs/VOICE.md`) |
+| `GEMINI_API_KEY` | Clave de https://aistudio.google.com/apikey (imágenes originales y Gemini TTS) | No |
+| `SEARCH_PROVIDER` + `TAVILY_API_KEY` (o `BRAVE_API_KEY`) | `tavily` y la clave | No (búsqueda web; Tavily también habilita búsqueda de imágenes) |
+| `GEMINI_TTS_MODEL` | `gemini-3.8-flash-tts` (modelo predeterminado para Gemini TTS) | No |
+| `TTS_PROVIDER`, `TTS_BASE_URL`, `TTS_API_KEY`, `TTS_MODEL`, `TTS_VOICE` | Selección del motor Gemini u OpenAI-compatible | No (ver `docs/VOICE.md`) |
 | `MEMORY_TASK_API_URL`, `MEMORY_TASK_API_KEY`, `MEMORY_TASK_APP_ID`, `MEMORY_TASK_IDENTITY_PRIVATE_JWK` | Endpoint `service-api`, API key con `records:read` y `records:write`, App ID y clave privada ES256 generada en Cut-real | No (habilita memoria externa bidireccional; ver panel Administración → Memory Task) |
 
 Subilos: `npm run secrets:set`. (`SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` los inyecta Supabase solo; no los cargues.)
@@ -51,7 +52,7 @@ Subilos: `npm run secrets:set`. (`SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` lo
 ```bash
 npm run fn:deploy
 ```
-Despliega `chat`, `admin`, `api`, `transcribe` y `tts`. La `api` queda sin verificación de JWT de Supabase (configurado en `supabase/config.toml`) porque se autentica con claves propias `crk_…`.
+Despliega `chat`, `admin`, `api`, `transcribe`, `tts`, `generate-document` y `generated-image`. La `api` queda sin verificación de JWT de Supabase (configurado en `supabase/config.toml`) porque se autentica con claves propias `crk_…`.
 
 > Si alguna función devuelve `401 Invalid JWT` desde el gateway aunque estés logueado, redesplegala con `npx supabase functions deploy NOMBRE --no-verify-jwt`: el código ya valida el token del usuario por su cuenta.
 
