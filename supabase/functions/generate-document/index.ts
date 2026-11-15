@@ -1,5 +1,5 @@
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1'
-import { Document, Footer, HeadingLevel, Packer, Paragraph, TextRun, AlignmentType } from 'npm:docx@8.5.0'
+import { Document, Footer, HeadingLevel, Packer, Paragraph, TextRun, ImageRun, AlignmentType } from 'npm:docx@8.5.0'
 import { corsHeaders, errorResponse, HttpError } from '../_shared/cors.ts'
 import { authenticate, rateLimit } from '../_shared/supabase.ts'
 
@@ -10,16 +10,35 @@ Deno.serve(async (req) => {
     const ctx = await authenticate(req)
     await rateLimit(ctx.db, 'document:' + ctx.userId, 12)
     const body = await req.json().catch(() => null)
-    if (!body || !['pdf', 'docx'].includes(body.format) || typeof body.title !== 'string' || typeof body.content !== 'string' || (body.html !== undefined && typeof body.html !== 'string'))
-      throw new HttpError(400, 'bad_request', 'Se requiere formato PDF o DOCX, título y contenido.')
+    if (!body || !['pdf', 'docx'].includes(body.format) || typeof body.title !== 'string' || typeof body.content !== 'string' || (body.html !== undefined && typeof body.html !== 'string') || (body.images !== undefined && (!Array.isArray(body.images) || body.images.length > 8 || !body.images.every((image: any) => image && typeof image.id === 'string' && /^[0-9a-f-]{36}$/i.test(image.id)))))
+      throw new HttpError(400, 'bad_request', 'Se requiere formato PDF o DOCX, título, contenido y hasta 8 referencias de imágenes válidas.')
     const title = body.title.trim().slice(0, 160), content = (typeof body.html === 'string' && body.html.trim() ? htmlToMarkdown(body.html.slice(0, 300000)) : body.content).trim()
     if (!title || !content || content.length > 300000) throw new HttpError(400, 'invalid_document', 'El documento está vacío o supera el límite permitido.')
     const safeTitle = title.replace(/[^\p{L}\p{N} ._-]/gu, '').slice(0, 100) || 'Documento'
-    if (body.format === 'pdf') return new Response(toArrayBuffer(await makePdf(safeTitle, content)), { headers: { ...corsHeaders(req), 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="documento.pdf"', 'Cache-Control': 'no-store' } })
-    return new Response(toArrayBuffer(await makeDocx(safeTitle, content)), { headers: { ...corsHeaders(req), 'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Content-Disposition': 'attachment; filename="documento.docx"', 'Cache-Control': 'no-store' } })
+    const documentImages = await loadDocumentImages(ctx, Array.isArray(body.images) ? body.images : [])
+    if (body.format === 'pdf') return new Response(toArrayBuffer(await makePdf(safeTitle, content, documentImages)), { headers: { ...corsHeaders(req), 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="documento.pdf"', 'Cache-Control': 'no-store' } })
+    return new Response(toArrayBuffer(await makeDocx(safeTitle, content, documentImages)), { headers: { ...corsHeaders(req), 'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Content-Disposition': 'attachment; filename="documento.docx"', 'Cache-Control': 'no-store' } })
   } catch (e) { return errorResponse(req, e) }
 })
 
+interface DocumentImage { id: string; mimeType: string; data: Uint8Array; alt: string }
+async function loadDocumentImages(ctx: Awaited<ReturnType<typeof authenticate>>, requested: {id:string;alt?:string}[]): Promise<Map<string,DocumentImage>> {
+  const output = new Map<string,DocumentImage>()
+  if (!requested.length) return output
+  const ids = [...new Set(requested.map((item) => item.id))]
+  const { data: rows, error } = await ctx.db.from('cr_generated_images')
+    .select('id, user_id, storage_path, mime_type, alt_text').in('id', ids).eq('user_id', ctx.userId)
+  if (error || !rows || rows.length !== ids.length) throw new HttpError(403, 'image_access_denied', 'Una o más imágenes no pertenecen a tu cuenta o ya no están disponibles.')
+  let totalBytes = 0
+  for (const row of rows) {
+    const { data: blob, error: downloadError } = await ctx.db.storage.from('cr-generated-images').download(row.storage_path)
+    if (downloadError || !blob) throw new HttpError(404, 'image_missing', 'No se pudo recuperar una imagen del documento.')
+    totalBytes += blob.size
+    if (blob.size > 12 * 1024 * 1024 || totalBytes > 24 * 1024 * 1024) throw new HttpError(413, 'images_too_large', 'Las imágenes superan el tamaño permitido para el documento.')
+    output.set(row.id, { id: row.id, mimeType: row.mime_type, data: new Uint8Array(await blob.arrayBuffer()), alt: row.alt_text })
+  }
+  return output
+}
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const buffer = new ArrayBuffer(bytes.byteLength)
   new Uint8Array(buffer).set(bytes)
@@ -55,6 +74,8 @@ function parse(s: string) {
     const t = line.trim()
     if (!t || /^\x60{3}/.test(t)) return null
     const make = (kind: string, raw: string) => ({ kind, raw, text: clean(raw) })
+    const image = t.match(/^<!--CUTREAL_IMAGE:([0-9a-f-]{36})\\|([^>]*)-->$/i)
+    if (image) return make('image', image[1])
     if (/^#{1,3}\s/.test(t)) return make('h' + Math.min(3, t.match(/^#+/)![0].length), t.replace(/^#{1,3}\s*/, ''))
     if (/^[-*+]\s/.test(t)) return make('bullet', t.replace(/^[-*+]\s*/, ''))
     if (/^\d+[.)]\s/.test(t)) return make('number', t.replace(/^\d+[.)]\s*/, ''))
@@ -82,7 +103,7 @@ function inlineSegments(value: string) {
 function inlineRuns(value: string) {
   return inlineSegments(value).map(run => new TextRun({ text: run.text, bold: run.bold, italics: run.italic, underline: run.underline ? {} : undefined, strike: run.strike, font: run.code ? 'Consolas' : undefined }))
 }
-async function makePdf(title: string, md: string): Promise<Uint8Array> {
+async function makePdf(title: string, md: string, images: Map<string,DocumentImage>): Promise<Uint8Array> {
   const pdf = await PDFDocument.create(), regular = await pdf.embedFont(StandardFonts.Helvetica), bold = await pdf.embedFont(StandardFonts.HelveticaBold), italic = await pdf.embedFont(StandardFonts.HelveticaOblique)
   pdf.setTitle(title)
   const W=595.28,H=841.89,M=58, max=W-M*2
@@ -108,6 +129,18 @@ async function makePdf(title: string, md: string): Promise<Uint8Array> {
   page.drawLine({start:{x:M,y},end:{x:W-M,y},thickness:1,color:rgb(.12,.34,.72)});y-=28
   let orderedIndex=0
   for(const b of parse(md)){
+    if (b.kind === 'image') {
+      const image = images.get(b.raw)
+      if (image && (image.mimeType === 'image/png' || image.mimeType === 'image/jpeg')) {
+        const embedded = image.mimeType === 'image/jpeg' ? await pdf.embedJpg(image.data) : await pdf.embedPng(image.data)
+        const scale = Math.min(max / embedded.width, 340 / embedded.height, 1)
+        const width = embedded.width * scale, height = embedded.height * scale
+        if (y - height < 65) next()
+        page.drawImage(embedded, { x: M + (max - width) / 2, y: y - height, width, height })
+        y -= height + 18
+      }
+      continue
+    }
     if(b.kind==='number'){orderedIndex++;drawRich(`${orderedIndex}. ${b.raw}`,regular,10.5,undefined,14);y-=5;continue}
     orderedIndex=0
     if(b.kind[0]==='h'){y-=8;drawRich(b.raw,bold,b.kind==='h1'?17:b.kind==='h2'?14:12,rgb(.08,.22,.43));y-=5}
@@ -120,10 +153,17 @@ async function makePdf(title: string, md: string): Promise<Uint8Array> {
   pages.forEach((p,i)=>{p.drawLine({start:{x:M,y:42},end:{x:W-M,y:42},thickness:.5,color:rgb(.82,.84,.88)});p.drawText('Cut-real',{x:M,y:27,size:8,font:regular,color:rgb(.45,.48,.54)});p.drawText('Página '+(i+1)+' de '+pages.length,{x:W-M-70,y:27,size:8,font:regular,color:rgb(.45,.48,.54)})})
   return pdf.save()
 }
-async function makeDocx(title:string,md:string):Promise<Uint8Array>{
+async function makeDocx(title:string,md:string,images:Map<string,DocumentImage>):Promise<Uint8Array>{
   const children:Paragraph[]=[new Paragraph({text:title,heading:HeadingLevel.TITLE,spacing:{after:280}}),new Paragraph({children:[new TextRun({text:'CUT-REAL',bold:true,color:'315B9B',size:18})],spacing:{after:240}})]
   let orderedIndex=0
   for(const b of parse(md)){
+    if (b.kind === 'image') {
+      const image = images.get(b.raw)
+      if (image && (image.mimeType === 'image/png' || image.mimeType === 'image/jpeg')) {
+        children.push(new Paragraph({ children: [new ImageRun({ data: image.data, transformation: { width: 480, height: 320 } })], alignment: AlignmentType.CENTER, spacing: { before: 120, after: 180 } }))
+      }
+      continue
+    }
     if(b.kind==='number'){orderedIndex++;children.push(new Paragraph({children:[new TextRun({text:`${orderedIndex}. `}),...inlineRuns(b.raw)],spacing:{after:70}}));continue}
     orderedIndex=0
     if(b.kind[0]==='h'){const level=b.kind==='h1'?HeadingLevel.HEADING_1:b.kind==='h2'?HeadingLevel.HEADING_2:HeadingLevel.HEADING_3;children.push(new Paragraph({children:inlineRuns(b.raw),heading:level,spacing:{before:220,after:100},keepNext:true}))}
