@@ -17,10 +17,13 @@ por separado; consultá la documentación de `docs/`.
 
 ## Conexión con Memory Task
 
-En **Administración → Memory Task** está el asistente de vinculación. Generá allí un par ES256, registrá la clave pública en la aplicación correspondiente de Memory Task y pegá en el asistente la URL de API, el App ID y la API key. Descargá el archivo de secretos y cargalo desde la raíz del repositorio:
+La vinculación se realiza desde las interfaces de ambas aplicaciones, sin cargar secretos manualmente en Supabase:
 
-```bash
-npx supabase secrets set --env-file memory-task-secrets.env
-```
+1. En **Administración → Memory Task**, pulsá **Generar código de vinculación**.
+2. Copiá el código temporal y pegalo en **Memory Task → Servicios → Conectar Cut-real**.
+3. Pulsá **Vincular ahora**. Memory Task crea o reutiliza la aplicación y la API key, registra la clave pública y entrega las credenciales directamente al backend de Cut-real.
+4. Volvé a Cut-real, actualizá el estado y ejecutá **Probar conexión**.
 
-Después actualizá el estado y ejecutá **Probar conexión**. El archivo contiene credenciales privadas: no lo subas a GitHub y eliminá la copia local una vez cargados los secretos. La clave privada nunca se registra en Memory Task; allí solo se almacena la clave pública.
+El código vence a los 10 minutos y solo puede usarse una vez. La clave privada ES256 y la API key nunca se muestran al navegador; Cut-real las cifra y conserva en una tabla privada accesible únicamente desde Edge Functions. El cifrado utiliza una clave derivada en el servidor de la service-role key, por lo que no requiere configurar secretos adicionales. Si se rota la service-role key del proyecto, las credenciales cifradas existentes deberán volver a vincularse.
+
+El workflow `deploy-memory-task.yml` aplica la migración y despliega `admin` y `memory-task-pairing` al integrar los cambios en `main`. Para habilitarlo, agregá en GitHub → Settings → Secrets and variables → Actions los secretos `SUPABASE_ACCESS_TOKEN` y `SUPABASE_DB_PASSWORD` de este proyecto. No los pegues en el código ni los compartas. El frontend de GitHub Pages no despliega funciones ni migraciones de Supabase.

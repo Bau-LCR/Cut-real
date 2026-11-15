@@ -28,12 +28,36 @@ function b64urlBytes(bytes: Uint8Array): string {
 function b64urlJson(value: unknown): string {
   return b64urlBytes(new TextEncoder().encode(JSON.stringify(value)))
 }
-function memoryTaskConfig() {
-  const endpoint = Deno.env.get('MEMORY_TASK_API_URL') ?? ''
-  const apiKey = Deno.env.get('MEMORY_TASK_API_KEY') ?? ''
-  const appId = Deno.env.get('MEMORY_TASK_APP_ID') ?? ''
-  const privateJwkRaw = Deno.env.get('MEMORY_TASK_IDENTITY_PRIVATE_JWK') ?? ''
-  return { endpoint, apiKey, appId, privateJwkRaw, configured: !!(endpoint && apiKey && appId && privateJwkRaw) }
+function decodeB64url(value: string): Uint8Array {
+  const base64 = value.replace(/-/g, '+').replace(/_/g, '/')
+  const padded = base64 + '='.repeat((4 - base64.length % 4) % 4)
+  return Uint8Array.from(atob(padded), c => c.charCodeAt(0))
+}
+// Credentials are encrypted at rest with AES-GCM; the derived key and plaintext never leave this server function.
+async function decryptMemoryTaskSecret(ciphertext: string, ivText: string): Promise<string> {
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  if (!serviceRoleKey) throw new HttpError(500, 'integration_config_error', 'No está disponible la clave de cifrado del servidor.')
+  const material = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('cut-real:memory-task-credentials:v1:' + serviceRoleKey))
+  const key = await crypto.subtle.importKey('raw', material, { name: 'AES-GCM' }, false, ['decrypt'])
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: decodeB64url(ivText) }, key, decodeB64url(ciphertext))
+  return new TextDecoder().decode(plain)
+}
+async function memoryTaskConfig(ctx: AuthContext) {
+  const { data: row, error } = await ctx.db.from('cr_memory_task_connections')
+    .select('endpoint,app_id,api_key_ciphertext,api_key_iv,private_jwk_ciphertext,private_jwk_iv')
+    .eq('owner_id', ctx.userId).eq('status', 'connected')
+    .order('connected_at', { ascending: false }).limit(1).maybeSingle()
+  if (error) throw new HttpError(500, 'integration_config_error', 'No se pudo leer la conexión de Memory Task.')
+  if (!row) return { endpoint: '', apiKey: '', appId: '', privateJwkRaw: '', configured: false }
+  try {
+    const [apiKey, privateJwkRaw] = await Promise.all([
+      decryptMemoryTaskSecret(row.api_key_ciphertext, row.api_key_iv),
+      decryptMemoryTaskSecret(row.private_jwk_ciphertext, row.private_jwk_iv),
+    ])
+    return { endpoint: row.endpoint, apiKey, appId: row.app_id, privateJwkRaw, configured: true }
+  } catch {
+    throw new HttpError(500, 'integration_config_error', 'No se pudieron descifrar las credenciales de Memory Task. La clave de cifrado del proyecto pudo haber cambiado.')
+  }
 }
 async function memoryTaskIdentity(appId: string, userId: string, privateJwkRaw: string): Promise<string> {
   let jwk: JsonWebKey
@@ -53,8 +77,8 @@ async function memoryTaskIdentity(appId: string, userId: string, privateJwkRaw: 
   return unsigned + '.' + b64urlBytes(signature)
 }
 async function callMemoryTask(ctx: AuthContext, action: string, data: Record<string, unknown>) {
-  const cfg = memoryTaskConfig()
-  if (!cfg.configured) throw new HttpError(409, 'integration_not_configured', 'Falta configurar la URL, la API key, el ID de aplicación o la clave privada de identidad de Memory Task en los secretos de Supabase.')
+  const cfg = await memoryTaskConfig(ctx)
+  if (!cfg.configured) throw new HttpError(409, 'integration_not_configured', 'La conexión con Memory Task todavía no está completada. Generá un código temporal y vinculá la cuenta desde Memory Task.')
   let endpoint: URL
   try { endpoint = new URL(cfg.endpoint) } catch { throw new HttpError(500, 'integration_config_error', 'La URL de Memory Task no es válida.') }
   if (endpoint.protocol !== 'https:' || !endpoint.hostname.endsWith('.supabase.co') || !endpoint.pathname.endsWith('/functions/v1/service-api')) {
@@ -276,7 +300,7 @@ const handlers: Record<string, Handler> = {
 
 
   async 'integrations.memory_task_status'(ctx) {
-    const cfg = memoryTaskConfig()
+    const cfg = await memoryTaskConfig(ctx)
     const { data: integration } = await ctx.db.from('cr_integrations').select('id,status')
       .eq('slug', 'memory-task').maybeSingle()
     const { data: grant } = integration?.id ? await ctx.db.from('cr_integration_grants').select('scopes')
@@ -291,16 +315,35 @@ const handlers: Record<string, Handler> = {
       authorized: !!grant?.scopes?.includes('conversations:write'),
     }
   },
-  async 'integrations.memory_task_generate_identity'(ctx, _p, req) {
+  async 'integrations.memory_task_create_pairing'(ctx, _p, req) {
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    if (!serviceRoleKey || !supabaseUrl) throw new HttpError(500, 'integration_config_error', 'No se pudo preparar la vinculación segura.')
     const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']) as CryptoKeyPair
-    const publicJwk = await crypto.subtle.exportKey('jwk', pair.publicKey)
-    const privateJwk = await crypto.subtle.exportKey('jwk', pair.privateKey)
-    await audit(ctx.db, { actorId: ctx.userId, action: 'integration.memory_task_identity_generated', targetType: 'integration', targetId: 'memory-task', ip: clientIp(req) })
-    return {
-      publicJwk: { kty: publicJwk.kty, crv: publicJwk.crv, x: publicJwk.x, y: publicJwk.y, ext: true },
-      privateJwk,
-      warning: 'Guardá la clave privada en Supabase Edge Function Secrets. No la publiques ni la compartas.',
+    const publicRaw = await crypto.subtle.exportKey('jwk', pair.publicKey)
+    const privateRaw = await crypto.subtle.exportKey('jwk', pair.privateKey)
+    const publicJwk = { kty: 'EC', crv: 'P-256', x: publicRaw.x, y: publicRaw.y, ext: true }
+    const material = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('cut-real:memory-task-credentials:v1:' + serviceRoleKey))
+    const encryptionKey = await crypto.subtle.importKey('raw', material, { name: 'AES-GCM' }, false, ['encrypt'])
+    const iv = crypto.getRandomValues(new Uint8Array(12))
+    const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, encryptionKey, new TextEncoder().encode(JSON.stringify(privateRaw)))
+    const b64 = (bytes: Uint8Array) => {
+      let binary = ''; for (const byte of bytes) binary += String.fromCharCode(byte)
+      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
     }
+    const tokenBytes = crypto.getRandomValues(new Uint8Array(32))
+    const token = b64(tokenBytes)
+    const tokenHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))), b => b.toString(16).padStart(2, '0')).join('')
+    const callbackUrl = supabaseUrl.replace(/\/$/, '') + '/functions/v1/memory-task-pairing'
+    const expiresAt = new Date(Date.now() + 10 * 60_000).toISOString()
+    const { error } = await ctx.db.from('cr_memory_task_connections').insert({
+      owner_id: ctx.userId, token_hash: tokenHash, public_jwk: publicJwk,
+      private_jwk_ciphertext: b64(new Uint8Array(encrypted)), private_jwk_iv: b64(iv),
+      status: 'pending', expires_at: expiresAt,
+    })
+    if (error) throw new HttpError(500, 'integration_pairing_failed', 'No se pudo crear el código de vinculación.')
+    await audit(ctx.db, { actorId: ctx.userId, action: 'integration.memory_task_pairing_started', targetType: 'integration', targetId: 'memory-task', ip: clientIp(req) })
+    return { pairingCode: 'crpair1.' + b64urlJson({ v: 1, callbackUrl, token, publicJwk }), expiresAt }
   },
   async 'integrations.memory_task_test'(ctx, _p, req) {
     const { data: integration } = await ctx.db.from('cr_integrations').select('status').eq('slug', 'memory-task').maybeSingle()
