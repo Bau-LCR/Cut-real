@@ -87,13 +87,26 @@ function DocumentEditor({ id, title, content }: { id: string; title: string; con
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const editorRef = useRef<HTMLDivElement>(null)
+  const savedSelection = useRef<Range | null>(null)
+
+  function captureSelection() {
+    const selection = window.getSelection()
+    if (selection?.rangeCount && editorRef.current?.contains(selection.anchorNode)) {
+      savedSelection.current = selection.getRangeAt(0).cloneRange()
+    }
+  }
+  function restoreSelection() {
+    const selection = window.getSelection()
+    if (!selection || !savedSelection.current || !editorRef.current?.contains(savedSelection.current.commonAncestorContainer)) return
+    selection.removeAllRanges()
+    selection.addRange(savedSelection.current)
+  }
 
   function currentContent() {
     return editorRef.current ? htmlToMarkdown(editorRef.current.innerHTML) : value
   }
   function saveDraft() {
     const current = currentContent()
-    setValue(current)
     try {
       localStorage.setItem(storageKey, JSON.stringify({ title: docTitle, content: current }))
       setSaved(true); setError('')
@@ -101,15 +114,16 @@ function DocumentEditor({ id, title, content }: { id: string; title: string; con
   }
   function runCommand(command: string, argument?: string) {
     editorRef.current?.focus()
+    restoreSelection()
     document.execCommand(command, false, argument)
-    if (editorRef.current) setValue(htmlToMarkdown(editorRef.current.innerHTML))
+    captureSelection()
     setSaved(false)
   }
   function setBlock(tag: string) { runCommand('formatBlock', tag) }
   async function download(format: 'pdf' | 'docx') {
     const current = currentContent()
     if (loading || !current.trim()) return
-    setValue(current); setLoading(format); setError('')
+    setLoading(format); setError('')
     try {
       const blob = await callFnBlob('generate-document', { format, title: docTitle.trim() || 'Documento', content: current })
       const url = URL.createObjectURL(blob)
@@ -122,7 +136,7 @@ function DocumentEditor({ id, title, content }: { id: string; title: string; con
     finally { setLoading(null) }
   }
   const tool = (label: string, command: string, text: ReactNode) => (
-    <button type="button" title={label} aria-label={label} onMouseDown={e => e.preventDefault()} onClick={() => runCommand(command)}>{text}</button>
+    <button type="button" title={label} aria-label={label} onMouseDown={e => { captureSelection(); e.preventDefault() }} onClick={() => runCommand(command)}>{text}</button>
   )
   return <section className="generated-document-editor">
     <div className="generated-document">
@@ -132,9 +146,9 @@ function DocumentEditor({ id, title, content }: { id: string; title: string; con
     {editing && <div className="document-workspace">
       <div className="document-workspace-top">
         <div><span className="document-kicker">CUT-REAL DOCUMENTS</span><input className="document-title-input" aria-label="Nombre del documento" value={docTitle} onChange={e => { setDocTitle(e.target.value); setSaved(false) }} /><small>Editor de texto enriquecido · guardado local en este dispositivo</small></div>
-        <div className="document-actions"><button className="btn sm" onClick={saveDraft}>Guardar borrador</button><button className="btn primary sm" onClick={() => void download('docx')} disabled={!!loading}>Descargar Word</button><button className="btn sm" onClick={() => void download('pdf')} disabled={!!loading}>Exportar PDF</button></div>
+        <div className="document-actions"><button className="btn sm" onClick={saveDraft}>Guardar borrador</button><button className="btn primary sm" onClick={() => void download('docx')} disabled={!!loading}>Descargar Word</button><button className="btn sm" onClick={() => void download('pdf')} disabled={!!loading}>Exportar PDF</button><button className="btn sm" onClick={() => { saveDraft(); setEditing(false) }}>Cerrar editor</button></div>
       </div>
-      <div className="document-ribbon" role="toolbar" aria-label="Herramientas de edición">
+      <div className="document-ribbon" role="toolbar" aria-label="Herramientas de edición" onMouseDownCapture={captureSelection}>
         <div className="document-tool-group">
           {tool('Deshacer','undo','↶')}{tool('Rehacer','redo','↷')}
         </div>
@@ -160,7 +174,7 @@ function DocumentEditor({ id, title, content }: { id: string; title: string; con
           {tool('Quitar formato','removeFormat','Limpiar formato')}
         </div>
       </div>
-      <div className="document-page-wrap"><div className="document-page" ref={editorRef} contentEditable suppressContentEditableWarning role="textbox" aria-label="Contenido editable del documento" aria-multiline="true" spellCheck onInput={() => { if (editorRef.current) { setValue(htmlToMarkdown(editorRef.current.innerHTML)); setSaved(false) } }} dangerouslySetInnerHTML={{ __html: markdownToHtml(value) }} /></div>
+      <div className="document-page-wrap"><div className="document-page" ref={editorRef} contentEditable suppressContentEditableWarning role="textbox" aria-label="Contenido editable del documento" aria-multiline="true" spellCheck onInput={() => { captureSelection(); setSaved(false) }} dangerouslySetInnerHTML={{ __html: markdownToHtml(value) }} /></div>
       <div className="document-workspace-footer"><span>Los cambios se guardan localmente. La exportación crea un archivo Word o PDF nuevo.</span><button className="btn sm" onClick={saveDraft}>Guardar cambios</button></div>
     </div>}
   </section>
