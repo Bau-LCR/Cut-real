@@ -56,10 +56,10 @@ export class RemoteEngine implements SpeechEngine {
   private ctx: AudioContext | null = null
   private src: AudioBufferSourceNode | null = null
   private token = 0
-  async speak(text: string, rate: number): Promise<void> {
+  async speak(text: string, rate: number, voiceURI?: string, onActivity?: (level: number) => void): Promise<void> {
     this.stop()
     const my = ++this.token
-    const blob = await callFnBlob('tts', { text })
+    const blob = await callFnBlob('tts', { text, voice: voiceURI })
     if (my !== this.token) return
     const ctx = (this.ctx ??= new AudioContext())
     if (ctx.state === 'suspended') await ctx.resume()
@@ -67,17 +67,14 @@ export class RemoteEngine implements SpeechEngine {
     if (my !== this.token) return
     const src = ctx.createBufferSource(); src.buffer = buf
     src.playbackRate.value = Math.min(2, Math.max(0.5, rate * 0.92)); this.src = src
-    // Reproducimos el audio original del proveedor sin efectos artificiales.\n    const out = ctx.createGain(); out.gain.value = 1\n    src.connect(out).connect(ctx.destination)\n    return new Promise((resolve) => { src.onended = () => resolve(); src.start() })
+    // Reproducimos el audio original del proveedor sin efectos artificiales.
+    const out = ctx.createGain(); out.gain.value = 1
+    src.connect(out).connect(ctx.destination)
+    return new Promise((resolve) => { src.onended = () => { onActivity?.(0); resolve() }; onActivity?.(0.5); src.start() })
   }
   pause() { void this.ctx?.suspend() }
   resume() { void this.ctx?.resume() }
   stop() { this.token++; try { this.src?.stop() } catch { /* ya detenido */ } this.src = null; if (this.ctx?.state === 'suspended') void this.ctx.resume() }
-}
-
-function softClip(amount: number): Float32Array<ArrayBuffer> {
-  const n = 1024, c = new Float32Array(new ArrayBuffer(n * 4))
-  for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = Math.tanh(x * amount) / Math.tanh(amount) }
-  return c
 }
 
 export const makeEngine = (kind: 'browser' | 'remote'): SpeechEngine => (kind === 'remote' ? new RemoteEngine() : new BrowserEngine())
