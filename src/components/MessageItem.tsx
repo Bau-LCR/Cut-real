@@ -69,19 +69,25 @@ function getDraft(key: string, fallback: string) {
 }
 
 function DocumentEditor({ id, title, content }: { id: string; title: string; content: string }) {
-  const storageKey = `cutreal:document-draft:${id}`
+  const storageKey = \`cutreal:document-draft:\${id}\`
   const [value, setValue] = useState(() => getDraft(storageKey, content))
+  const [docTitle, setDocTitle] = useState(title)
   const [editing, setEditing] = useState(false)
   const [loading, setLoading] = useState<'pdf' | 'docx' | null>(null)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const editorRef = useRef<HTMLDivElement>(null)
 
+  function currentContent() {
+    return editorRef.current ? htmlToMarkdown(editorRef.current.innerHTML) : value
+  }
   function saveDraft() {
-    const current = editorRef.current ? htmlToMarkdown(editorRef.current.innerHTML) : value
+    const current = currentContent()
     setValue(current)
-    try { localStorage.setItem(storageKey, current); setSaved(true); setError('') }
-    catch { setError('No se pudo guardar el borrador en este navegador. Descargá una copia para conservarlo.') }
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({ title: docTitle, content: current }))
+      setSaved(true); setError('')
+    } catch { setError('No se pudo guardar el borrador en este navegador. Descargá una copia para conservarlo.') }
   }
   function runCommand(command: string, argument?: string) {
     editorRef.current?.focus()
@@ -89,46 +95,66 @@ function DocumentEditor({ id, title, content }: { id: string; title: string; con
     if (editorRef.current) setValue(htmlToMarkdown(editorRef.current.innerHTML))
     setSaved(false)
   }
+  function setBlock(tag: string) { runCommand('formatBlock', tag) }
   async function download(format: 'pdf' | 'docx') {
-    const current = editorRef.current ? htmlToMarkdown(editorRef.current.innerHTML) : value
+    const current = currentContent()
     if (loading || !current.trim()) return
     setValue(current); setLoading(format); setError('')
     try {
-      const blob = await callFnBlob('generate-document', { format, title, content: current })
+      const blob = await callFnBlob('generate-document', { format, title: docTitle.trim() || 'Documento', content: current })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = title.replace(/[^\p{L}\p{N}._-]+/gu, '_').slice(0, 70) + '.' + format
+      a.download = (docTitle.trim() || 'Documento').replace(/[^\p{L}\p{N}._-]+/gu, '_').slice(0, 70) + '.' + format
       document.body.appendChild(a); a.click(); a.remove()
       window.setTimeout(() => URL.revokeObjectURL(url), 1500)
     } catch (e) { setError((e as Error).message || 'No se pudo generar el documento.') }
     finally { setLoading(null) }
   }
+  const tool = (label: string, command: string, text: React.ReactNode) => (
+    <button type="button" title={label} aria-label={label} onMouseDown={e => e.preventDefault()} onClick={() => runCommand(command)}>{text}</button>
+  )
   return <section className="generated-document-editor">
     <div className="generated-document">
-      <div><b>{title}</b><small>Editor de documentos · Word y PDF</small>{error && <small className="document-error">{error}</small>}{saved && <small className="document-saved">Borrador guardado en este navegador</small>}</div>
+      <div><b>{docTitle}</b><small>Documento editable · espacio de trabajo Cut-real</small>{error && <small className="document-error">{error}</small>}{saved && <small className="document-saved">Borrador guardado en este navegador</small>}</div>
       <div className="document-actions"><button className="btn sm" onClick={() => setEditing(v => !v)}>{editing ? 'Cerrar editor' : 'Abrir editor'}</button><button className="btn primary sm" onClick={() => void download('docx')} disabled={!!loading}>{loading === 'docx' ? 'Preparando…' : 'Descargar Word'}</button><button className="btn sm" onClick={() => void download('pdf')} disabled={!!loading}>{loading === 'pdf' ? 'Preparando…' : 'Exportar PDF'}</button></div>
     </div>
     {editing && <div className="document-workspace">
-      <div className="document-workspace-top"><div><span className="document-kicker">CUT-REAL DOCUMENTS</span><b>{title}</b><small>Los cambios se conservan como borrador en este navegador.</small></div><div className="document-actions"><button className="btn sm" onClick={saveDraft}>Guardar borrador</button><button className="btn primary sm" onClick={() => void download('docx')} disabled={!!loading}>Descargar .docx</button></div></div>
-      <div className="document-ribbon" role="toolbar" aria-label="Formato del documento">
-        <button type="button" title="Deshacer" onMouseDown={e => e.preventDefault()} onClick={() => runCommand('undo')}>↶</button>
-        <button type="button" title="Rehacer" onMouseDown={e => e.preventDefault()} onClick={() => runCommand('redo')}>↷</button><span />
-        <select aria-label="Estilo de texto" defaultValue="p" onChange={e => runCommand('formatBlock', e.target.value)}><option value="p">Normal</option><option value="h1">Título 1</option><option value="h2">Título 2</option><option value="h3">Título 3</option></select>
-        <button type="button" title="Negrita" onMouseDown={e => e.preventDefault()} onClick={() => runCommand('bold')}><b>B</b></button>
-        <button type="button" title="Cursiva" onMouseDown={e => e.preventDefault()} onClick={() => runCommand('italic')}><i>I</i></button>
-        <button type="button" title="Subrayado" onMouseDown={e => e.preventDefault()} onClick={() => runCommand('underline')}><u>U</u></button><span />
-        <button type="button" title="Lista con viñetas" onMouseDown={e => e.preventDefault()} onClick={() => runCommand('insertUnorderedList')}>• Lista</button>
-        <button type="button" title="Lista numerada" onMouseDown={e => e.preventDefault()} onClick={() => runCommand('insertOrderedList')}>1. Lista</button>
-        <button type="button" title="Alinear a la izquierda" onMouseDown={e => e.preventDefault()} onClick={() => runCommand('justifyLeft')}>☰</button>
-        <button type="button" title="Centrar" onMouseDown={e => e.preventDefault()} onClick={() => runCommand('justifyCenter')}>≡</button>
+      <div className="document-workspace-top">
+        <div><span className="document-kicker">CUT-REAL DOCUMENTS</span><input className="document-title-input" aria-label="Nombre del documento" value={docTitle} onChange={e => { setDocTitle(e.target.value); setSaved(false) }} /><small>Editor de texto enriquecido · guardado local en este dispositivo</small></div>
+        <div className="document-actions"><button className="btn sm" onClick={saveDraft}>Guardar borrador</button><button className="btn primary sm" onClick={() => void download('docx')} disabled={!!loading}>Descargar Word</button><button className="btn sm" onClick={() => void download('pdf')} disabled={!!loading}>Exportar PDF</button></div>
       </div>
-      <div className="document-page-wrap"><div ref={editorRef} className="document-page" contentEditable suppressContentEditableWarning role="textbox" aria-label="Contenido editable del documento" aria-multiline="true" onInput={() => { if (editorRef.current) { setValue(htmlToMarkdown(editorRef.current.innerHTML)); setSaved(false) } }} dangerouslySetInnerHTML={{ __html: markdownToHtml(value) }} /></div>
-      <div className="document-workspace-footer"><span>Editor enriquecido · Los formatos básicos se exportan a Word y PDF</span><button className="btn sm" onClick={saveDraft}>Guardar cambios</button></div>
+      <div className="document-ribbon" role="toolbar" aria-label="Herramientas de edición">
+        <div className="document-tool-group">
+          {tool('Deshacer','undo','↶')}{tool('Rehacer','redo','↷')}
+        </div>
+        <div className="document-tool-group">
+          <select aria-label="Estilo de párrafo" defaultValue="p" onChange={e => setBlock(e.target.value)}><option value="p">Normal</option><option value="h1">Título 1</option><option value="h2">Título 2</option><option value="h3">Título 3</option><option value="blockquote">Cita</option></select>
+          <select aria-label="Tipo de letra" defaultValue="Arial" onChange={e => runCommand('fontName',e.target.value)}><option>Arial</option><option>Calibri</option><option>Georgia</option><option>Times New Roman</option><option>Verdana</option><option>Courier New</option></select>
+          <select aria-label="Tamaño de letra" defaultValue="3" onChange={e => runCommand('fontSize',e.target.value)}><option value="1">8 pt</option><option value="2">10 pt</option><option value="3">12 pt</option><option value="4">14 pt</option><option value="5">18 pt</option><option value="6">24 pt</option><option value="7">36 pt</option></select>
+        </div>
+        <div className="document-tool-group">
+          {tool('Negrita','bold',<b>B</b>)}{tool('Cursiva','italic',<i>I</i>)}{tool('Subrayado','underline',<u>U</u>)}{tool('Tachado','strikeThrough',<s>S</s>)}
+          <label className="document-color" title="Color de texto">A <input type="color" aria-label="Color de texto" defaultValue="#20242c" onChange={e => runCommand('foreColor',e.target.value)} /></label>
+          <label className="document-color highlight" title="Resaltar texto">▰ <input type="color" aria-label="Color de resaltado" defaultValue="#fff29a" onChange={e => runCommand('hiliteColor',e.target.value)} /></label>
+        </div>
+        <div className="document-tool-group">
+          {tool('Alinear a la izquierda','justifyLeft','☰')}{tool('Centrar','justifyCenter','≡')}{tool('Alinear a la derecha','justifyRight','☷')}{tool('Justificar','justifyFull','▤')}
+        </div>
+        <div className="document-tool-group">
+          {tool('Lista con viñetas','insertUnorderedList','• Lista')}{tool('Lista numerada','insertOrderedList','1. Lista')}
+          {tool('Disminuir sangría','outdent','⇤')}{tool('Aumentar sangría','indent','⇥')}
+        </div>
+        <div className="document-tool-group">
+          <button type="button" title="Insertar enlace" onMouseDown={e => e.preventDefault()} onClick={() => { const url = window.prompt('Dirección del enlace (https://…)'); if (url && /^https?:\/\//i.test(url)) runCommand('createLink',url) }}>Enlace</button>
+          {tool('Quitar formato','removeFormat','Limpiar formato')}
+        </div>
+      </div>
+      <div className="document-page-wrap"><div className="document-page" ref={editorRef} contentEditable suppressContentEditableWarning role="textbox" aria-label="Contenido editable del documento" aria-multiline="true" spellCheck onInput={() => { if (editorRef.current) { setValue(htmlToMarkdown(editorRef.current.innerHTML)); setSaved(false) } }} dangerouslySetInnerHTML={{ __html: markdownToHtml(value) }} /></div>
+      <div className="document-workspace-footer"><span>Los cambios se guardan localmente. La exportación crea un archivo Word o PDF nuevo.</span><button className="btn sm" onClick={saveDraft}>Guardar cambios</button></div>
     </div>}
   </section>
 }
-
 function AttachmentDocument({ file }: { file: Attachment }) {
   const [open, setOpen] = useState(false)
   if (!file.extracted_text?.trim()) return null
