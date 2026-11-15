@@ -6,6 +6,7 @@ import { authenticate, audit, logUsage, rateLimit, type AuthContext } from '../_
 import { checkProviderLimits, loadModel, ProviderError, streamFromProvider, type ChatMessage, type ChatPart, type ModelRow } from '../_shared/providers.ts'
 import { renderUserContent, searchContext, SYSTEM_PROMPT, titleFrom, trimHistory, type AttachmentCtx } from '../_shared/prompt.ts'
 import { searchProvider, webSearch, type SearchResult } from '../_shared/search.ts'
+import { callMemoryTask } from '../_shared/memory-task.ts'
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined
 
@@ -258,7 +259,8 @@ async function buildMessages(ctx: AuthContext, convId: string, history: { id: st
   const crossChatContext = asksForPastChats(latestUserText, history.length)
     ? await loadCrossChatContext(ctx, convId)
     : ''
-  const out: ChatMessage[] = [{ role: 'system', content: [SYSTEM_PROMPT, extraSystem, crossChatContext].filter(Boolean).join('\n\n') }]
+  const memoryTaskContext = await loadMemoryTaskContext(ctx, latestUserText, history.length)
+  const out: ChatMessage[] = [{ role: 'system', content: [SYSTEM_PROMPT, extraSystem, crossChatContext, memoryTaskContext].filter(Boolean).join('\n\n') }]
   for (const m of trimmed) {
     if (m.role === 'assistant') { out.push({ role: 'assistant', content: m.content }); continue }
     const files = (byMsg.get(m.id) ?? []) as (AttachmentCtx & { storage_path: string })[]
@@ -321,6 +323,54 @@ async function loadCrossChatContext(ctx: AuthContext, currentConversationId: str
   return '[MEMORIA DE OTRAS CONVERSACIONES DEL MISMO USUARIO — contexto recuperado bajo pedido. Se muestran hasta 20 conversaciones recientes y hasta 2 mensajes recientes por conversación; puede no ser el historial completo. Usá esto para resumir o continuar, sin inventar lo que no aparece.]\n\n' + sections.join('\n\n')
 }
 
+
+/** Memoria externa opcional: solo lee al pedir continuidad o mencionar Memory Task, y solo escribe por orden explícita. */
+async function loadMemoryTaskContext(ctx: AuthContext, text: string, messageCount: number): Promise<string> {
+  const t = text.toLocaleLowerCase('es')
+  if (/\bno\s+(?:guardes|almacenes|env[ií]es|consultes|leas)\b/i.test(t)) return ''
+  const writeIntent = /(?:guard[aá]|almacen[aá]|registr[aá]|conserv[aá]|mand[aá]|envi[aá]).{0,90}(?:memory task|memoria externa)|(?:memory task|memoria externa).{0,90}(?:guard[aá]|almacen[aá]|registr[aá]|conserv[aá]|mand[aá]|envi[aá])/i.test(t)
+  const explicitRead = /(?:memory task|memoria externa|recuerdos guardados).{0,90}(?:busc[aá]|mostr[aá]|consult[aá]|recuper[aá]|le[eé]|list[aá]|qu[eé] tengo)|(?:busc[aá]|mostr[aá]|consult[aá]|recuper[aá]|le[eé]|list[aá]).{0,90}(?:memory task|memoria externa|recuerdos guardados)/i.test(t)
+  const automaticRead = !writeIntent && asksForPastChats(text, messageCount)
+  if (!writeIntent && !explicitRead && !automaticRead) return ''
+
+  const { data: integration } = await ctx.db.from('cr_integrations').select('id')
+    .eq('slug', 'memory-task').eq('status', 'enabled').maybeSingle()
+  if (!integration) return '[Memory Task no está habilitado en esta instalación. No afirmes que consultaste ni guardaste recuerdos externos.]'
+  const { data: grant } = await ctx.db.from('cr_integration_grants').select('scopes')
+    .eq('integration_id', integration.id).eq('user_id', ctx.userId).is('revoked_at', null).maybeSingle()
+  const scope = writeIntent ? 'records:write' : 'records:read'
+  if (!grant?.scopes?.includes(scope)) return `[Memory Task: falta autorización del permiso ${scope}. La persona puede habilitarlo en Configuración → Integraciones autorizadas. No afirmes que la operación se realizó.]`
+
+  try {
+    if (writeIntent) {
+      const content = text.trim().slice(0, 12000)
+      const title = content.replace(/\s+/g, ' ').slice(0, 90) || 'Nota de Cut-real'
+      const key = 'cutreal-memory-' + new Date().toISOString().slice(0, 10) + '-' + crypto.randomUUID().slice(0, 8)
+      const result = await callMemoryTask(ctx.userId, 'put', {
+        key, category: 'custom',
+        data: { source: 'Cut-real', type: 'saved_memory', title, content, saved_at: new Date().toISOString() },
+      })
+      return '[MEMORY TASK: registro guardado correctamente. Clave: ' + String(result.record?.object_key ?? key) + '. Confirmá el guardado sin repetir todo el contenido.]'
+    }
+    const result = await callMemoryTask(ctx.userId, 'list', { limit: 30 })
+    const records = Array.isArray(result.records) ? result.records : []
+    if (!records.length) return '[Memory Task está conectado, pero no hay recuerdos guardados para esta cuenta.]'
+    let used = 0
+    const sections = records.map((record: any) => {
+      const payload = record.payload && typeof record.payload === 'object' ? record.payload : {}
+      const title = String(payload.title ?? payload.name ?? record.object_key ?? 'Recuerdo').slice(0, 120)
+      const content = String(payload.content ?? payload.text ?? JSON.stringify(payload)).slice(0, 900)
+      const section = '• ' + title + ': ' + content
+      if (used + section.length > 10000) return ''
+      used += section.length
+      return section
+    }).filter(Boolean)
+    return '[RECUERDOS DE MEMORY TASK — registros privados de esta misma cuenta externa. Usalos como contexto, distinguí recuerdos de hechos actuales y no inventes registros.]\n' + sections.join('\n')
+  } catch (error) {
+    const message = (error as Error).message || 'Error de conexión'
+    return '[Memory Task no pudo completar la operación: ' + message.slice(0, 240) + '. No afirmes que guardaste ni consultaste información.]'
+  }
+}
 
 /** Puente de visión: los modelos de texto reciben un análisis visual de Qwen cuando el usuario adjunta imágenes. */
 async function describeImagesForTextModel(ctx: AuthContext, images: { file_name: string; mime_type: string; storage_path: string }[]): Promise<string> {
