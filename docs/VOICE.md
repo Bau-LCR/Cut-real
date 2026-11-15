@@ -1,24 +1,20 @@
-# Voz: dictado, lectura y modo conversación
+# Voz de Cut-real
 
-## Qué hace cada parte
-| Función | Motor | Qué necesita |
+## Motores disponibles
+| Función | Motor | Configuración |
 |---|---|---|
-| **Dictado** | Groq Whisper `whisper-large-v3-turbo` mediante la función `transcribe` | `GROQ_API_KEY` en secretos y permiso de micrófono |
-| **Leer respuestas** | `speechSynthesis` del navegador por defecto | Nada; las voces dependen del navegador y del sistema |
-| **Lectura con voz externa** | Función `tts` → proveedor OpenAI-compatible `/audio/speech` | `TTS_BASE_URL`, `TTS_API_KEY`, `TTS_MODEL`, `TTS_VOICE` |
-| **Modo conversación por voz** | Dictado + chat + motor de lectura | Lo anterior y HTTPS (o localhost) |
+| Dictado | Groq Whisper `whisper-large-v3-turbo` | `GROQ_API_KEY` y permiso de micrófono |
+| Lectura del navegador | `speechSynthesis` del navegador | No requiere clave; depende de las voces instaladas |
+| Lectura natural de Cut-real | Gemini TTS `gemini-3.8-flash-tts` | `GEMINI_API_KEY` en secretos de Supabase |
+| Proveedor alternativo | OpenAI-compatible `/audio/speech` | `TTS_PROVIDER=openai`, `TTS_BASE_URL`, `TTS_API_KEY`, `TTS_MODEL` |
 
-El dictado no envía automáticamente: el texto reconocido queda en el cuadro para que lo revises. El permiso de micrófono lo controla el navegador.
+## Voz natural recomendada
+La opción recomendada es **Proveedor externo** en Configuración → Voz. Si `GEMINI_API_KEY` está configurada, el backend utiliza Gemini TTS y genera audio WAV con una instrucción de español rioplatense natural, pausas moderadas y entonación conversacional. Se puede elegir una voz predefinida (Kore, Puck, Charon, Aoede, Zephyr, Enceladus, Gacrux o Sulafat).
 
-## Selección de voz
-En Configuración → Voz se puede elegir el motor, la velocidad y una voz en español instalada en el navegador. La selección automática prioriza voces en español latino/argentino y nombres de voz masculinos cuando están disponibles; el catálogo depende del dispositivo.
+La función limita el texto a 4.000 caracteres y aplica un máximo de 30 solicitudes por minuto y usuario. La generación remota puede tardar más que la voz local y consume cuota del proveedor. Si el servicio no está disponible, Cut-real informa el error y puede recurrir a la voz del navegador.
 
-El motor externo utiliza la voz configurada en el proveedor. De forma predeterminada, la función solicita el modelo `tts-1` y la voz `onyx`, pero el administrador puede cambiarlos mediante secretos. No hay efectos de audio artificiales aplicados después de generar la voz.
+## Modo conversación
+El modo conversación usa el motor seleccionado en Configuración, incluida la voz remota si está activada. El navegador debe permitir audio y micrófono; usá auriculares para reducir eco.
 
-**Importante:** la calidad y naturalidad del motor externo no puede garantizarse sin probar el proveedor real. Si no está configurado o falla, Cut-real informa el problema y recurre a la voz del navegador cuando es posible.
-
-## Modo conversación por voz
-Escuchar → detectar silencio → transcribir → responder → hablar. La detección de silencio, cancelación de eco y funcionamiento manos libres dependen del navegador, micrófono y dispositivo. Para reducir falsos inicios, probá con auriculares.
-
-## Cambiar de motor
-Configuración → Voz → Motor de voz. Para habilitar voz externa, el responsable del servidor debe configurar los cuatro secretos TTS en Supabase y desplegar la función `tts`. Nunca coloques claves TTS en el frontend, repositorio ni navegador.
+## Privacidad y seguridad
+El texto que se lee en voz alta se envía al proveedor de TTS configurado para generar el audio. No coloques claves en el frontend ni en el repositorio. Las claves se guardan únicamente como secretos de Supabase.
