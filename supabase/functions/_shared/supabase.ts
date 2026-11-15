@@ -9,7 +9,7 @@ export function serviceClient(): SupabaseClient {
   })
 }
 
-export interface AuthContext { db: SupabaseClient; userId: string; email: string | null; role: 'user' | 'admin' | 'owner' }
+export interface AuthContext { db: SupabaseClient; userId: string; email: string | null; role: 'user' | 'admin' | 'owner'; accessStatus: 'pending' | 'approved' | 'rejected'; suspendedReason: string | null }
 
 /** Valida el JWT del usuario y relee rol/suspensión desde la base (nunca confía en el cliente). */
 export async function authenticate(req: Request): Promise<AuthContext> {
@@ -18,9 +18,12 @@ export async function authenticate(req: Request): Promise<AuthContext> {
   const db = serviceClient()
   const { data, error } = await db.auth.getUser(token)
   if (error || !data.user) throw new HttpError(401, 'unauthenticated', 'La sesión no es válida o expiró.')
-  const { data: r } = await db.from('cr_user_roles').select('role, suspended').eq('user_id', data.user.id).maybeSingle()
+  const { data: r } = await db.from('cr_user_roles').select('role, suspended, access_status, suspended_reason').eq('user_id', data.user.id).maybeSingle()
   if (r?.suspended) throw new HttpError(403, 'suspended', 'Tu cuenta está suspendida. Contactá a un administrador.')
-  return { db, userId: data.user.id, email: data.user.email ?? null, role: (r?.role ?? 'user') as AuthContext['role'] }
+  const role = (r?.role ?? 'user') as AuthContext['role']
+  const accessStatus = role === 'owner' ? 'approved' : ((r?.access_status ?? 'pending') as AuthContext['accessStatus'])
+  if (accessStatus !== 'approved') throw new HttpError(403, accessStatus === 'rejected' ? 'access_rejected' : 'access_pending', accessStatus === 'rejected' ? 'Tu solicitud de acceso no fue aprobada.' : 'Tu cuenta está pendiente de autorización del administrador.')
+  return { db, userId: data.user.id, email: data.user.email ?? null, role, accessStatus, suspendedReason: r?.suspended_reason ?? null }
 }
 
 export function requireAdmin(ctx: AuthContext) {
