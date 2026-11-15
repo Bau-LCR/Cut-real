@@ -1,4 +1,5 @@
 import { memo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { Attachment, Message } from '../lib/types'
 import { STALE_MS, formatBytes } from '../lib/format'
 import { openAttachment } from '../lib/files'
@@ -65,13 +66,22 @@ function htmlToMarkdown(html: string) {
   return Array.from(doc.body.childNodes).map(inline).join('').replace(/\n{3,}/g, '\n\n').trim()
 }
 function getDraft(key: string, fallback: string) {
-  try { return localStorage.getItem(key) ?? fallback } catch { return fallback }
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return fallback
+    try { const parsed = JSON.parse(raw); if (parsed && typeof parsed.content === 'string') return parsed.content } catch { /* borrador anterior en texto plano */ }
+    return raw
+  } catch { return fallback }
+}
+function getDraftTitle(key: string, fallback: string) {
+  try { const raw = localStorage.getItem(key); if (raw) { const parsed = JSON.parse(raw); if (parsed && typeof parsed.title === 'string') return parsed.title } } catch { /* ignorar formato antiguo */ }
+  return fallback
 }
 
 function DocumentEditor({ id, title, content }: { id: string; title: string; content: string }) {
   const storageKey = \`cutreal:document-draft:\${id}\`
   const [value, setValue] = useState(() => getDraft(storageKey, content))
-  const [docTitle, setDocTitle] = useState(title)
+  const [docTitle, setDocTitle] = useState(() => getDraftTitle(storageKey, title))
   const [editing, setEditing] = useState(false)
   const [loading, setLoading] = useState<'pdf' | 'docx' | null>(null)
   const [error, setError] = useState('')
@@ -111,7 +121,7 @@ function DocumentEditor({ id, title, content }: { id: string; title: string; con
     } catch (e) { setError((e as Error).message || 'No se pudo generar el documento.') }
     finally { setLoading(null) }
   }
-  const tool = (label: string, command: string, text: React.ReactNode) => (
+  const tool = (label: string, command: string, text: ReactNode) => (
     <button type="button" title={label} aria-label={label} onMouseDown={e => e.preventDefault()} onClick={() => runCommand(command)}>{text}</button>
   )
   return <section className="generated-document-editor">
