@@ -6,7 +6,7 @@ import { authenticate, audit, logUsage, rateLimit, type AuthContext } from '../_
 import { checkProviderLimits, loadModel, ProviderError, streamFromProvider, type ChatMessage, type ChatPart, type ModelRow } from '../_shared/providers.ts'
 import { renderUserContent, searchContext, SYSTEM_PROMPT, titleFrom, trimHistory, type AttachmentCtx } from '../_shared/prompt.ts'
 import { searchProvider, webSearch, imageSearch, type SearchResult, type SearchImageResult } from '../_shared/search.ts'
-import { callMemoryTask } from '../_shared/memory-task.ts'
+import { callMemoryTask } from '../_shared/memory-task.ts' // integración firmada y aislada por usuario
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined
 
