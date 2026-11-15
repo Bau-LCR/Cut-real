@@ -33,13 +33,40 @@ export async function webSearch(query: string, signal?: AbortSignal): Promise<Se
 export interface SearchImageResult { url: string; pageUrl: string; description: string }
 
 export async function imageSearch(query: string, signal?: AbortSignal): Promise<SearchImageResult[]> {
+  const q = query.slice(0, 400)
+  const braveKey = Deno.env.get('BRAVE_API_KEY')
   const tavilyKey = Deno.env.get('TAVILY_API_KEY')
+
+  // Brave se prioriza para imágenes porque devuelve URLs directas y metadatos de origen.
+  if (braveKey) {
+    try {
+      const params = new URLSearchParams({ q, count: '8', country: 'AR', search_lang: 'es', safesearch: 'strict' })
+      const response = await fetch('https://api.search.brave.com/res/v1/images/search?' + params.toString(), {
+        signal,
+        headers: { Accept: 'application/json', 'X-Subscription-Token': braveKey },
+      })
+      if (!response.ok) throw new Error('image_search_http_' + response.status)
+      const payload = await response.json()
+      const results = (Array.isArray(payload.results) ? payload.results : []).slice(0, 8).flatMap((item: any) => {
+        const url = typeof item?.properties?.url === 'string' ? item.properties.url : item?.thumbnail?.src
+        const pageUrl = typeof item?.url === 'string' ? item.url : ''
+        if (typeof url !== 'string' || !/^https?:\\/\\//i.test(url)) return []
+        const description = [item.title, item.source].filter((value) => typeof value === 'string' && value.trim()).join(' · ') || 'Imagen encontrada en Internet'
+        return [{ url, pageUrl, description: description.slice(0, 240) }]
+      })
+      if (results.length) return results
+    } catch (error) {
+      if (!tavilyKey || (error as Error)?.name === 'AbortError') throw error
+    }
+  }
+
+  // Tavily queda como alternativa si Brave no está configurado o no devuelve imágenes.
   if (tavilyKey) {
     const response = await fetch('https://api.tavily.com/search', {
       method: 'POST', signal,
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tavilyKey },
       body: JSON.stringify({
-        query: query.slice(0, 400), max_results: 5, search_depth: 'basic',
+        query: q, max_results: 5, search_depth: 'basic',
         include_images: true, include_image_descriptions: true,
       }),
     })
@@ -47,25 +74,11 @@ export async function imageSearch(query: string, signal?: AbortSignal): Promise<
     const payload = await response.json()
     return (Array.isArray(payload.images) ? payload.images : []).slice(0, 8).flatMap((item: any) => {
       const url = typeof item?.url === 'string' ? item.url : ''
-      if (!/^https?:\/\//i.test(url)) return []
-      return [{ url, pageUrl: url, description: String(item.description ?? 'Imagen encontrada en la web').slice(0, 240) }]
+      if (!/^https?:\\/\\//i.test(url)) return []
+      const pageUrl = typeof item?.page_url === 'string' ? item.page_url : ''
+      return [{ url, pageUrl, description: String(item.description ?? 'Imagen encontrada en Internet').slice(0, 240) }]
     })
   }
 
-  const braveKey = Deno.env.get('BRAVE_API_KEY')
-  if (!braveKey) throw new Error('image_search_not_configured')
-  const params = new URLSearchParams({ q: query.slice(0, 400), count: '8', country: 'AR', search_lang: 'es', safesearch: 'strict' })
-  const response = await fetch('https://api.search.brave.com/res/v1/images/search?' + params.toString(), {
-    signal,
-    headers: { Accept: 'application/json', 'X-Subscription-Token': braveKey },
-  })
-  if (!response.ok) throw new Error('image_search_http_' + response.status)
-  const payload = await response.json()
-  return (Array.isArray(payload.results) ? payload.results : []).slice(0, 8).flatMap((item: any) => {
-    const url = typeof item?.thumbnail?.src === 'string' ? item.thumbnail.src : item?.properties?.url
-    const pageUrl = typeof item?.url === 'string' ? item.url : ''
-    if (typeof url !== 'string' || !/^https?:\/\//i.test(url) || !/^https?:\/\//i.test(pageUrl)) return []
-    const description = [item.title, item.source].filter((value) => typeof value === 'string' && value.trim()).join(' · ') || 'Imagen encontrada en la web'
-    return [{ url, pageUrl, description: description.slice(0, 240) }]
-  })
+  throw new Error('image_search_not_configured')
 }
