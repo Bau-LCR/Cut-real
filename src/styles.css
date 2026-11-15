@@ -356,3 +356,46 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
 .attachment-chip-wrap{display:grid;justify-items:start;gap:4px;min-width:0}
 .attachment-document{padding-left:4px}
 @media(max-width:700px){.document-editor{grid-template-columns:1fr}.document-editor textarea{min-height:220px}.document-actions{width:100%}.document-actions .btn{flex:1}.generated-document{align-items:stretch;flex-direction:column}}
+
+
+/* Editor de documentos ampliado: espacio de trabajo tipo procesador de texto */
+.document-workspace{position:fixed;inset:16px;z-index:120;display:flex;flex-direction:column;min-height:0;overflow:hidden;border:1px solid var(--line-strong);border-radius:18px;background:#101217;box-shadow:0 24px 90px rgba(0,0,0,.72)}
+.document-workspace-top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 20px;border-bottom:1px solid var(--line);background:linear-gradient(110deg,#151c2b,#11151d)}
+.document-workspace-top>div:first-child{display:grid;gap:2px;min-width:0}
+.document-workspace-top b{font:600 17px var(--display);overflow-wrap:anywhere}
+.document-workspace-top small{color:var(--muted);font-size:12px}
+.document-kicker{font:600 10px var(--mono);letter-spacing:.14em;color:#79aaff}
+.document-ribbon{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:9px 14px;border-bottom:1px solid var(--line);background:#191c23}
+.document-ribbon button{min-width:34px;height:32px;padding:0 9px;border:1px solid transparent;border-radius:6px;color:#dce2ee}
+.document-ribbon button:hover{background:#292e39;border-color:#3b4558}
+.document-ribbon select{height:32px;min-width:118px;padding:0 8px;border:1px solid var(--line-strong);border-radius:6px;background:#101217;color:var(--text)}
+.document-ribbon span{height:22px;width:1px;background:var(--line-strong);margin:0 4px}
+.document-page-wrap{flex:1;min-height:0;overflow:auto;padding:30px 18px;background:radial-gradient(ellipse at top,#202a3d 0%,#11151d 48%,#0c0d10 100%)}
+.document-page{width:min(100%,850px);min-height:100%;margin:0 auto;padding:68px 76px;background:#fff;color:#20242c;box-shadow:0 8px 36px rgba(0,0,0,.36);font:16px/1.75 Arial,Helvetica,sans-serif;outline:none;overflow-wrap:anywhere}
+.document-page:focus{box-shadow:0 8px 36px rgba(0,0,0,.36),0 0 0 1px #6397ff}
+.document-page p{margin:0 0 14px}
+.document-page h1,.document-page h2,.document-page h3{color:#172b4d;line-height:1.25;margin:22px 0 10px}
+.document-page h1{font-size:30px}.document-page h2{font-size:23px}.document-page h3{font-size:18px}
+.document-page ul,.document-page ol{padding-left:28px;margin:8px 0 16px}
+.document-page blockquote{margin:12px 0;padding:8px 16px;border-left:3px solid #3978d8;color:#596273;background:#f3f6fb}
+.document-page code{font-family:Consolas,monospace;background:#f0f2f6;padding:1px 4px;border-radius:3px}
+.document-workspace-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;border-top:1px solid var(--line);background:#151820;color:var(--muted);font-size:12px}
+.document-saved{color:var(--ok)!important}
+@media(max-width:700px){.document-workspace{inset:5px;border-radius:12px}.document-workspace-top{align-items:flex-start;flex-direction:column;padding:12px}.document-workspace-top .document-actions{width:100%}.document-workspace-top .document-actions .btn{flex:1}.document-page-wrap{padding:12px 6px}.document-page{padding:32px 22px;font-size:14px}.document-workspace-footer{align-items:flex-start;flex-direction:column}.document-ribbon{gap:3px;padding:7px}.document-ribbon button{min-width:30px;padding:0 6px}}
+
+/* Orbe 2D por capas: cintas luminosas, trazos orbitales y partículas */
+.orb-ribbon{position:absolute;z-index:2;display:block;width:74%;height:28%;left:13%;top:36%;border:2px solid rgba(111,207,255,.72);border-left-color:rgba(35,104,255,.12);border-right-color:rgba(175,235,255,.85);border-radius:50%;filter:drop-shadow(0 0 7px rgba(40,137,255,.8));pointer-events:none}
+.orb-ribbon-a{transform:rotate(-31deg) scaleY(.72);background:linear-gradient(90deg,transparent 4%,rgba(44,135,255,.18) 28%,rgba(183,242,255,.3) 52%,transparent 91%)}
+.orb-ribbon-b{width:66%;height:40%;left:17%;top:29%;transform:rotate(48deg) scaleY(.58);border-width:1px;border-color:rgba(86,174,255,.5);border-top-color:rgba(211,248,255,.95);opacity:.8}
+.orb-particle{position:absolute;z-index:4;width:7px;height:7px;border-radius:50%;background:#d9f8ff;box-shadow:0 0 8px 3px rgba(74,172,255,.85),0 0 18px rgba(36,108,255,.8)}
+.orb-particle-a{left:22%;top:32%}.orb-particle-b{right:19%;top:48%;width:5px;height:5px}.orb-particle-c{left:39%;bottom:19%;width:4px;height:4px}
+.orb.listening .orb-ribbon,.orb.listening .orb-particle{animation:none!important}
+.orb.thinking .orb-ribbon-a{animation:orb-ribbon-drift 4.2s ease-in-out infinite alternate}
+.orb.thinking .orb-ribbon-b{animation:orb-ribbon-drift 5.1s ease-in-out infinite alternate-reverse}
+.orb.thinking .orb-particle{animation:orb-particle-glow 2s ease-in-out infinite alternate}
+.orb.speaking .orb-ribbon-a{animation:orb-ribbon-drift 1.5s ease-in-out infinite alternate}
+.orb.speaking .orb-ribbon-b{animation:orb-ribbon-drift 1.9s ease-in-out infinite alternate-reverse}
+.orb.speaking .orb-particle{animation:orb-particle-glow .8s ease-in-out infinite alternate}
+@keyframes orb-ribbon-drift{from{transform:rotate(-31deg) scaleY(.66) translateY(-3px);opacity:.55}to{transform:rotate(-20deg) scaleY(.9) translateY(4px);opacity:1}}
+@keyframes orb-particle-glow{from{opacity:.45;filter:brightness(.8)}to{opacity:1;filter:brightness(1.6)}}
+@media(prefers-reduced-motion:reduce){.orb-ribbon,.orb-particle{animation:none!important}}
