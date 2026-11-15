@@ -248,7 +248,7 @@ async function describeImagesForTextModel(ctx: AuthContext, images: { file_name:
     content.push({ type: 'image_url', image_url: { url: `data:${img.mime_type};base64,${toBase64(new Uint8Array(await blob.arrayBuffer()))}` } })
   }
   if (content.length === 1) return ''
-  const response = await fetch(`${provider.base_url.replace(/\\/$/, '')}/chat/completions`, {
+  const response = await fetch(`${provider.base_url.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({ model: visionModel.model_key, messages: [{ role: 'user', content }], stream: false, max_tokens: 700, temperature: 0.2 }),
