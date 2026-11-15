@@ -5,7 +5,7 @@ import { corsHeaders, errorResponse, HttpError, json } from '../_shared/cors.ts'
 import { authenticate, audit, logUsage, rateLimit, type AuthContext } from '../_shared/supabase.ts'
 import { checkProviderLimits, loadModel, ProviderError, streamFromProvider, type ChatMessage, type ChatPart, type ModelRow } from '../_shared/providers.ts'
 import { renderUserContent, searchContext, SYSTEM_PROMPT, titleFrom, trimHistory, type AttachmentCtx } from '../_shared/prompt.ts'
-import { searchProvider, webSearch, type SearchResult } from '../_shared/search.ts'
+import { searchProvider, webSearch, imageSearch, type SearchResult, type SearchImageResult } from '../_shared/search.ts'
 import { callMemoryTask } from '../_shared/memory-task.ts'
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined
@@ -22,6 +22,7 @@ interface Body {
   messageId?: string
   attachmentIds?: string[]
   webSearch?: boolean
+  imageSearch?: boolean
 }
 
 function isTargetedAbuse(content: string): boolean {
@@ -53,7 +54,7 @@ function readBody(raw: any): Body {
   const ids = raw.attachmentIds ?? []
   if (!Array.isArray(ids) || ids.length > 5 || !ids.every((i: unknown) => typeof i === 'string' && UUID.test(i)))
     throw new HttpError(400, 'bad_request', 'Adjuntos inválidos (máximo 5).')
-  return { mode: raw.mode, conversationId: raw.conversationId, modelId: raw.modelId, content: raw.content?.trim(), messageId: raw.messageId, attachmentIds: ids, webSearch: !!raw.webSearch }
+  return { mode: raw.mode, conversationId: raw.conversationId, modelId: raw.modelId, content: raw.content?.trim(), messageId: raw.messageId, attachmentIds: ids, webSearch: !!raw.webSearch, imageSearch: !!raw.imageSearch }
 }
 
 Deno.serve(async (req) => {
@@ -83,6 +84,8 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
   const { model, provider, apiKey } = await loadModel(db, modelId)
   if (b.webSearch && !searchProvider())
     throw new HttpError(400, 'search_not_configured', 'La búsqueda web todavía no está configurada en el servidor.')
+  if (b.imageSearch && !Deno.env.get('TAVILY_API_KEY'))
+    throw new HttpError(400, 'image_search_not_configured', 'La búsqueda de imágenes requiere configurar TAVILY_API_KEY en el servidor.')
 
   await db.rpc('cr_sweep_stale_generations')
   const { count: active } = await db.from('cr_messages').select('id', { count: 'exact', head: true }).eq('conversation_id', conv.id).eq('status', 'generating')
@@ -152,6 +155,7 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
     let reservedTokens = 0
     let reservationId: string | null = null
     let sources: SearchResult[] = []
+    let imageResults: SearchImageResult[] = []
     let lastFlush = Date.now()
     let lastCancelCheck = Date.now()
     send({ type: 'meta', userMessage, assistantMessageId: asst.id, assistantSeq: asst.seq, assistantCreatedAt: asst.created_at })
@@ -168,6 +172,23 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
         } catch (e) {
           extraSystem = 'Se pidió búsqueda web pero FALLÓ: no tenés resultados. Respondé con tu conocimiento y aclaralo; no inventes fuentes ni enlaces.'
           send({ type: 'notice', message: 'La búsqueda web falló; la respuesta no incluye fuentes.' })
+          await logUsage(db, { userId, conversationId: conv.id, kind: 'search', status: 'error', errorCode: String((e as Error).message).slice(0, 60) })
+        }
+      }
+      if (b.imageSearch) {
+        send({ type: 'status', status: 'searching' })
+        try {
+          imageResults = await imageSearch(String((lastUser as any).content ?? ''), abort.signal)
+          if (imageResults.length) {
+            extraSystem += '\\n\\nResultados de búsqueda de imágenes (URLs externas y descripciones; no afirmes derechos de uso):\\n' +
+              imageResults.map((image, index) => (index + 1) + '. ' + image.description + ' — ' + image.url).join('\\n')
+            send({ type: 'notice', message: 'Encontré ' + imageResults.length + ' imágenes. Las agrego al final de la respuesta.' })
+          } else {
+            send({ type: 'notice', message: 'La búsqueda no encontró imágenes para esa consulta.' })
+          }
+          await logUsage(db, { userId, conversationId: conv.id, kind: 'search', status: 'ok' })
+        } catch (e) {
+          send({ type: 'notice', message: 'La búsqueda de imágenes falló. La respuesta seguirá sin imágenes.' })
           await logUsage(db, { userId, conversationId: conv.id, kind: 'search', status: 'error', errorCode: String((e as Error).message).slice(0, 60) })
         }
       }
@@ -207,6 +228,10 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
           }
         }
         if (status === 'done' && !full) { status = 'error'; errCode = 'empty_response'; errMsg = 'El modelo no devolvió contenido. Probá de nuevo o elegí otro modelo.' }
+        if (status === 'done' && imageResults.length) {
+          const markdown = imageResults.map((image) => { const alt = image.description.replace(/[\\[\\]\\r\\n]/g, ' ').slice(0, 120); return '![' + alt + '](<' + image.url + '>)' }).join('\\n\\n')
+          full += '\\n\\n### Imágenes encontradas\\n\\n' + markdown
+        }
       }
     } catch (e) {
       if (status !== 'cancelled') {
