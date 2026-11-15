@@ -14,6 +14,7 @@ const PATTERNS = [
   ['Secreto de cliente OAuth de Google', /GOCSPX-[A-Za-z0-9_-]{20,}/],
   ['Clave de Tavily', /tvly-[A-Za-z0-9_-]{20,}/],
   ['API key propia de Cut-real (crk_…)', /crk_[A-Za-z0-9_-]{43}/],
+  ['API key de Memory Task (mt_live_…)', /mt_live_[A-Za-z0-9_-]{40,}/],
   ['JWT (¿anon/service_role pegada?)', /eyJ[A-Za-z0-9_-]{15,}\.eyJ[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{10,}/],
   ['Clave privada', /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/],
   ['Token de GitHub', /gh[pousr]_[A-Za-z0-9]{30,}/],
@@ -21,7 +22,7 @@ const PATTERNS = [
 ]
 
 // Nombres de secretos que NUNCA deben aparecer en el código del navegador ni en el build.
-const FRONTEND_FORBIDDEN = [/SERVICE_ROLE/i, /service_role/, /GROQ_API_KEY/, /GEMINI_API_KEY/, /TAVILY_API_KEY/, /TTS_API_KEY/, /GOOGLE_CLIENT_SECRET/]
+const FRONTEND_FORBIDDEN = [/SERVICE_ROLE/i, /service_role/, /GROQ_API_KEY/, /GEMINI_API_KEY/, /TAVILY_API_KEY/, /TTS_API_KEY/, /GOOGLE_CLIENT_SECRET/, /MEMORY_TASK_API_KEY/, /MEMORY_TASK_IDENTITY_PRIVATE_JWK/]
 
 const found = []
 function walk(dir, visit) {
