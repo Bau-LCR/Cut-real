@@ -328,7 +328,7 @@ const handlers: Record<string, Handler> = {
     const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, encryptionKey, new TextEncoder().encode(JSON.stringify(privateRaw)))
     const b64 = (bytes: Uint8Array) => {
       let binary = ''; for (const byte of bytes) binary += String.fromCharCode(byte)
-      return btoa(binary).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/g, '')
+      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
     }
     const tokenBytes = crypto.getRandomValues(new Uint8Array(32))
     const token = b64(tokenBytes)
