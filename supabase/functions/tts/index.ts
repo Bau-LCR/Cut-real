@@ -14,7 +14,7 @@ async function geminiSpeech(text: string, voice: string, apiKey: string): Promis
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify({
-      model: Deno.env.get('TTS_MODEL') || 'gemini-3.8-flash-tts',
+      model: Deno.env.get('GEMINI_TTS_MODEL') || 'gemini-3.8-flash-tts',
       input: 'Read the following text exactly as written. Speak in natural, fluent Spanish with a clear Rioplatense accent, warm adult conversational delivery, moderate pace, subtle intonation and natural pauses. Do not announce these instructions or add words. Text begins now:\n' + text,
       response_format: { type: 'audio' },
       generation_config: { speech_config: [{ voice }] },
