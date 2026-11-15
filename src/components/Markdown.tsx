@@ -67,6 +67,9 @@ const components: Components = {
     )
   },
   a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>,
+  img: ({ src, alt }) => typeof src === 'string' && /^https?:\\/\\//i.test(src)
+    ? <img src={src} alt={alt ?? 'Imagen encontrada'} loading="lazy" referrerPolicy="no-referrer" />
+    : null,
   table: ({ children }) => <div className="tablewrap"><table>{children}</table></div>,
 }
 
