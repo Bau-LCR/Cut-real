@@ -8,7 +8,7 @@ import { useAuth } from '../store/auth'
 import { useUi } from '../store/ui'
 import { ArrowUp, File, Globe, ImageSearch, Mic, Paperclip, Stop, Waves, X } from './icons'
 
-interface Item { key: string; name: string; size: number; state: 'uploading' | 'ready' | 'error'; attachment?: Attachment; note?: string }
+interface Item { key: string; name: string; size: number; state: 'uploading' | 'ready' | 'error'; attachment?: Attachment; note?: string; previewUrl?: string }
 interface Props {
   convId?: string; generating: boolean; seed?: { t: string; n: number }
   onSubmit(text: string, attachments: Attachment[], webSearch: boolean, imageSearch: boolean): Promise<boolean>
@@ -29,6 +29,7 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
   const taRef = useRef<HTMLTextAreaElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const micRef = useRef<{ mic: MicSession; stop: () => void; done: Promise<Blob | null> } | null>(null)
+  const previewUrls = useRef(new Set<string>())
 
   useEffect(() => { setWeb(webDefault) }, [webDefault])
   useEffect(() => { if (seed) { setText(seed.t); taRef.current?.focus() } }, [seed])
@@ -36,7 +37,11 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
     const t = taRef.current; if (!t) return
     t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 220) + 'px'
   }, [text])
-  useEffect(() => () => micRef.current?.mic.close(), [])
+  useEffect(() => () => {
+    micRef.current?.mic.close()
+    for (const url of previewUrls.current) URL.revokeObjectURL(url)
+    previewUrls.current.clear()
+  }, [])
 
   const uploading = items.some((i) => i.state === 'uploading')
   const ready = items.filter((i) => i.state === 'ready').map((i) => i.attachment!)
@@ -50,7 +55,9 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
       const err = validateFile(f)
       if (err) { toast('error', err); continue }
       const key = crypto.randomUUID()
-      setItems((p) => [...p, { key, name: f.name, size: f.size, state: 'uploading' }])
+      const previewUrl = f.type.startsWith('image/') ? URL.createObjectURL(f) : undefined
+      if (previewUrl) previewUrls.current.add(previewUrl)
+      setItems((p) => [...p, { key, name: f.name, size: f.size, state: 'uploading', previewUrl }])
       uploadAttachment(f, me.userId, convId ?? null)
         .then(({ attachment, note }) => setItems((p) => p.map((i) => (i.key === key ? { ...i, state: 'ready', attachment, note } : i))))
         .catch((e) => { toast('error', (e as Error).message); setItems((p) => p.filter((i) => i.key !== key)) })
@@ -60,6 +67,7 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
 
   async function removeItem(i: Item) {
     setItems((p) => p.filter((x) => x.key !== i.key))
+    if (i.previewUrl) { URL.revokeObjectURL(i.previewUrl); previewUrls.current.delete(i.previewUrl) }
     if (i.attachment) {
       await supabase.from('cr_attachments').delete().eq('id', i.attachment.id)
       await supabase.storage.from('cr-attachments').remove([i.attachment.storage_path])
@@ -82,7 +90,11 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
     const draft = { text, items, web, images }
     setText(''); setItems([])
     const ok = await onSubmit(draft.text, ready, draft.web, draft.images)
-    if (!ok) { setText(draft.text); setItems(draft.items) }          // no se pierde lo escrito si falló
+    if (!ok) { setText(draft.text); setItems(draft.items) }
+    else {
+      for (const url of previewUrls.current) URL.revokeObjectURL(url)
+      previewUrls.current.clear()
+    }          // no se pierde lo escrito si falló
   }
 
   async function toggleRecording() {
@@ -108,8 +120,14 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
   return (
     <div className="composer">
       {items.length > 0 && (
-        <div className="chips attach">
-          {items.map((i) => (
+        <div className="attachment-previews" aria-label="Archivos seleccionados">
+          {items.map((i) => i.previewUrl ? (
+            <div className="attachment-preview-card" key={i.key} title={i.name}>
+              <img src={i.previewUrl} alt={i.name} />
+              <div className="attachment-preview-meta"><span>{i.name}</span><small>{i.state === 'uploading' ? 'Subiendo…' : i.attachment?.status === 'processed' ? 'Lista para enviar' : (i.note ?? 'Imagen adjunta')}</small></div>
+              <button className="icon-btn" onClick={() => removeItem(i)} aria-label={`Quitar ${i.name}`}><X className="sm" /></button>
+            </div>
+          ) : (
             <span key={i.key} className={`chip ${i.attachment && i.attachment.status !== 'processed' ? 'warn' : ''}`} title={i.note}>
               <File className="sm" /><span className="n">{i.name}</span>
               <small>{i.state === 'uploading' ? 'subiendo…' : i.attachment?.status === 'processed' ? `${formatBytes(i.size)} · leído` : (i.note ?? 'solo adjunto')}</small>
