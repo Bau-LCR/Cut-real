@@ -24,11 +24,13 @@ export function LegalPage() {
       <h2>7. Privacidad y seguridad</h2>
       <p>Cut-real puede procesar datos de cuenta, preferencias, conversaciones, archivos adjuntos, proyectos y registros técnicos de uso para prestar el servicio, mantener la seguridad y resolver errores. El acceso administrativo a información privada debe limitarse a necesidades legítimas, quedar registrado cuando la auditoría esté disponible y respetar la normativa aplicable.</p>
       <p>No cargues contraseñas, claves API, datos bancarios, documentos de identidad ni información sensible propia o de terceros. Las claves de proveedores deben mantenerse exclusivamente en secretos del servidor y nunca en el navegador ni en el código público.</p>
+      <h2>8. Límites de uso</h2>
+      <p>El chat puede aplicar un límite de referencia de 70.000 tokens por cuenta y día, calculado con los datos de uso que informa el proveedor o con estimaciones cuando esos datos no están disponibles. El cupo se renueva a las 00:00 UTC. Los límites de cada proveedor externo pueden ser distintos y prevalecen cuando sean más restrictivos.</p>
       <h2>8. Disponibilidad y cambios</h2>
       <p>El servicio se ofrece según la disponibilidad de la infraestructura y de los proveedores externos. Puede haber interrupciones, límites de uso o cambios de funciones. No se garantiza disponibilidad ininterrumpida ni que todos los modelos admitan todas las funciones.</p>
-      <h2>9. Consultas y solicitudes sobre datos</h2>
+      <h2>10. Consultas y solicitudes sobre datos</h2>
       <p>Para solicitar acceso, corrección o eliminación de datos, o para pedir la revisión de una medida de moderación, debe utilizarse el canal de contacto que el responsable del proyecto publique junto con estos términos. Ese dato de contacto debe completarse antes del lanzamiento público.</p>
-      <h2>10. Revisión de estas condiciones</h2>
+      <h2>11. Revisión de estas condiciones</h2>
       <p>Estas condiciones deben revisarse antes de cada lanzamiento importante y actualizarse cuando cambien los proveedores, las funciones, las prácticas de tratamiento de datos o la normativa aplicable.</p>
       <footer className="legal-footer"><Link to="/">Inicio de Cut-real</Link><span>Cut-real · Información del servicio</span></footer>
     </article>
