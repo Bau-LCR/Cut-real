@@ -77,11 +77,16 @@ function getDraftTitle(key: string, fallback: string) {
   try { const raw = localStorage.getItem(key); if (raw) { const parsed = JSON.parse(raw); if (parsed && typeof parsed.title === 'string') return parsed.title } } catch { /* ignorar formato antiguo */ }
   return fallback
 }
+function getDraftHtml(key: string, fallback: string) {
+  try { const raw = localStorage.getItem(key); if (raw) { const parsed = JSON.parse(raw); if (parsed && typeof parsed.html === 'string') return parsed.html } } catch { /* ignorar formato antiguo */ }
+  return fallback
+}
 
 function DocumentEditor({ id, title, content }: { id: string; title: string; content: string }) {
   const storageKey = `cutreal:document-draft:${id}`
   const [value, setValue] = useState(() => getDraft(storageKey, content))
   const [docTitle, setDocTitle] = useState(() => getDraftTitle(storageKey, title))
+  const [initialHtml] = useState(() => getDraftHtml(storageKey, markdownToHtml(getDraft(storageKey, content))))
   const [editing, setEditing] = useState(false)
   const [loading, setLoading] = useState<'pdf' | 'docx' | null>(null)
   const [error, setError] = useState('')
@@ -108,7 +113,7 @@ function DocumentEditor({ id, title, content }: { id: string; title: string; con
   function saveDraft() {
     const current = currentContent()
     try {
-      localStorage.setItem(storageKey, JSON.stringify({ title: docTitle, content: current }))
+      localStorage.setItem(storageKey, JSON.stringify({ title: docTitle, content: current, html: editorRef.current?.innerHTML ?? markdownToHtml(current) }))
       setSaved(true); setError('')
     } catch { setError('No se pudo guardar el borrador en este navegador. Descargá una copia para conservarlo.') }
   }
@@ -174,7 +179,7 @@ function DocumentEditor({ id, title, content }: { id: string; title: string; con
           {tool('Quitar formato','removeFormat','Limpiar formato')}
         </div>
       </div>
-      <div className="document-page-wrap"><div className="document-page" ref={editorRef} contentEditable suppressContentEditableWarning role="textbox" aria-label="Contenido editable del documento" aria-multiline="true" spellCheck onInput={() => { captureSelection(); setSaved(false) }} dangerouslySetInnerHTML={{ __html: markdownToHtml(value) }} /></div>
+      <div className="document-page-wrap"><div className="document-page" ref={editorRef} contentEditable suppressContentEditableWarning role="textbox" aria-label="Contenido editable del documento" aria-multiline="true" spellCheck onInput={() => { captureSelection(); setSaved(false) }} dangerouslySetInnerHTML={{ __html: initialHtml }} /></div>
       <div className="document-workspace-footer"><span>Los cambios se guardan localmente. La exportación crea un archivo Word o PDF nuevo.</span><button className="btn sm" onClick={saveDraft}>Guardar cambios</button></div>
     </div>}
   </section>
