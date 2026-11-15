@@ -1,10 +1,11 @@
-import { memo, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
 import { normalizeHtmlArtifacts, normalizeMath } from '../lib/markdown'
+import { callFn } from '../lib/functions'
 import { Check, Copy } from './icons'
 
 export function CopyButton({ text, label = 'Copiar' }: { text: string; label?: string }) {
@@ -52,6 +53,21 @@ function ChartBlock({ raw }: { raw: string }) {
   </figure>
 }
 
+function GeneratedImage({ id, alt }: { id: string; alt?: string }) {
+  const [url, setUrl] = useState('')
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    let active = true
+    callFn<{ url: string }>('generated-image', { id })
+      .then((result) => { if (active) setUrl(result.url) })
+      .catch(() => { if (active) setFailed(true) })
+    return () => { active = false }
+  }, [id])
+  if (failed) return <span className="generated-image-error">No se pudo cargar esta imagen</span>
+  if (!url) return <span className="generated-image-loading">Cargando imagen…</span>
+  return <img src={url} alt={alt ?? 'Imagen generada por Cut-real'} loading="lazy" referrerPolicy="no-referrer" />
+}
+
 const components: Components = {
   pre: ({ children }) => <>{children}</>,
   code({ className, children }) {
@@ -67,9 +83,11 @@ const components: Components = {
     )
   },
   a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>,
-  img: ({ src, alt }) => typeof src === 'string' && /^https?:\/\//i.test(src)
-    ? <img src={src} alt={alt ?? 'Imagen encontrada'} loading="lazy" referrerPolicy="no-referrer" />
-    : null,
+  img: ({ src, alt }) => {
+    if (typeof src !== 'string') return null
+    if (src.startsWith('cutreal-image:')) return <GeneratedImage id={src.slice('cutreal-image:'.length)} alt={alt} />
+    return /^https?:\/\//i.test(src) ? <img src={src} alt={alt ?? 'Imagen encontrada'} loading="lazy" referrerPolicy="no-referrer" /> : null
+  },
   table: ({ children }) => <div className="tablewrap"><table>{children}</table></div>,
 }
 
