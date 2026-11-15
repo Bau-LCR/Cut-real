@@ -15,12 +15,12 @@ Deno.serve(async (req) => {
     const title = body.title.trim().slice(0, 160), content = (typeof body.html === 'string' && body.html.trim() ? htmlToMarkdown(body.html.slice(0, 300000)) : body.content).trim()
     if (!title || !content || content.length > 300000) throw new HttpError(400, 'invalid_document', 'El documento está vacío o supera el límite permitido.')
     const safeTitle = title.replace(/[^\p{L}\p{N} ._-]/gu, '').slice(0, 100) || 'Documento'
-    if (body.format === 'pdf') return new Response(await makePdf(safeTitle, content), { headers: { ...corsHeaders(req), 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="documento.pdf"', 'Cache-Control': 'no-store' } })
-    return new Response(await makeDocx(safeTitle, content), { headers: { ...corsHeaders(req), 'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Content-Disposition': 'attachment; filename="documento.docx"', 'Cache-Control': 'no-store' } })
+    if (body.format === 'pdf') return new Response(toArrayBuffer(await makePdf(safeTitle, content)), { headers: { ...corsHeaders(req), 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="documento.pdf"', 'Cache-Control': 'no-store' } })
+    return new Response(toArrayBuffer(await makeDocx(safeTitle, content)), { headers: { ...corsHeaders(req), 'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Content-Disposition': 'attachment; filename="documento.docx"', 'Cache-Control': 'no-store' } })
   } catch (e) { return errorResponse(req, e) }
 })
 
-function clean(s: string) {
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {\n  const buffer = new ArrayBuffer(bytes.byteLength)\n  new Uint8Array(buffer).set(bytes)\n  return buffer\n}\nfunction clean(s: string) {
   return s.replace(/\*\*(.*?)\*\*/g, '$1').replace(/__(.*?)__/g, '$1').replace(/\*(.*?)\*/g, '$1')
     .replace(/\x60([^\x60]+)\x60/g, '$1').replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/[—–]/g, '-')
     .replace(/…/g, '...').replace(/[^\u0009\u000A\u000D\u0020-\u00FF]/g, '').trim()
@@ -122,7 +122,7 @@ async function makeDocx(title:string,md:string):Promise<Uint8Array>{
     if(b.kind==='number'){orderedIndex++;children.push(new Paragraph({children:[new TextRun({text:`${orderedIndex}. `}),...inlineRuns(b.raw)],spacing:{after:70}}));continue}
     orderedIndex=0
     if(b.kind[0]==='h'){const level=b.kind==='h1'?HeadingLevel.HEADING_1:b.kind==='h2'?HeadingLevel.HEADING_2:HeadingLevel.HEADING_3;children.push(new Paragraph({children:inlineRuns(b.raw),heading:level,spacing:{before:220,after:100},keepNext:true}))}
-    else if(b.kind==='bullet')children.push(new Paragraph({children:inlineRuns(b.raw),bullet:{indent:360},spacing:{after:70}}))
+    else if(b.kind==='bullet')children.push(new Paragraph({children:inlineRuns(b.raw),bullet:{level:0},spacing:{after:70}}))
     else if(b.kind==='quote')children.push(new Paragraph({children:inlineRuns(b.raw),indent:{left:420},spacing:{after:100}}))
     else children.push(new Paragraph({children:inlineRuns(b.raw),alignment:AlignmentType.JUSTIFIED,spacing:{after:120,line:300}}))
   }
