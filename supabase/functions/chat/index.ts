@@ -189,7 +189,7 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
       } else {
         reservationId = String(quota.reservation_id)
         send({ type: 'status', status: 'generating' })
-        for await (const ev of streamFromProvider({ provider, apiKey, model, messages, signal: abort.signal })) {
+        for await (const ev of streamFromProvider({ provider, apiKey, model, messages, maxTokens: 4096, signal: abort.signal })) {
           if (ev.delta) {
             full += ev.delta
             send({ type: 'delta', text: ev.delta })
@@ -232,7 +232,7 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
     await logUsage(db, {
       userId, conversationId: conv.id, providerId: provider.id, modelId: model.id, kind: 'chat',
       status: status === 'done' ? 'ok' : status === 'cancelled' ? 'cancelled' : 'error', errorCode: errCode,
-      promptTokens: usage?.prompt_tokens ?? estimatedPromptTokens, completionTokens: usage?.completion_tokens ?? Math.round(full.length / 4), latencyMs: Date.now() - t0,
+      promptTokens: reservationId ? (usage?.prompt_tokens ?? estimatedPromptTokens) : null, completionTokens: reservationId ? (usage?.completion_tokens ?? Math.round(full.length / 4)) : null, latencyMs: Date.now() - t0,
     })
   })()
   if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(run) // sigue aunque el cliente se desconecte
