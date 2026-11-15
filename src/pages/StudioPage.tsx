@@ -175,15 +175,15 @@ export function StudioPage() {
       const current = draftRef.current
       const codeWasManuallyEdited = JSON.stringify(active.last_ai_files ?? null) !== JSON.stringify(current)
       const currentCodeContext = codeWasManuallyEdited
-        ? 'ESTADO ACTUAL (el usuario modificó código desde la última respuesta; esta es la fuente de verdad):\\nindex.html:\\n' + current['index.html'] + '\\n\\nstyle.css:\\n' + current['style.css'] + '\\n\\nscript.js:\\n' + current['script.js']
+        ? 'ESTADO ACTUAL (el usuario modificó código desde la última respuesta; esta es la fuente de verdad):\nindex.html:\n' + current['index.html'] + '\n\nstyle.css:\n' + current['style.css'] + '\n\nscript.js:\n' + current['script.js']
         : 'El código actual coincide con la última versión que ya está en el historial. Usá ese historial como base y evitá repetir el código completo.'
       const request = [
         'MODO PROGRAMACIÓN DE CUT-REAL. Sos un ingeniero de software senior que continúa trabajando en ESTE proyecto, no empezás uno nuevo.',
         'INSTRUCCIÓN DEL USUARIO (continuación de lo anterior):\n' + prompt.trim(),
         'REGLAS DE CONTINUIDAD: conservá el objetivo, diseño, decisiones, nombres, estructura y funciones ya acordadas en el historial de esta conversación. Interpretá el pedido como una modificación incremental, salvo que el usuario pida explícitamente empezar de cero. No borres ni reemplaces funciones ajenas al cambio. Si pide corregir algo, diagnosticá el problema y modificá lo mínimo necesario. Para renders 3D, asegurate de incluir cámara, iluminación, geometría, materiales y un render loop visible.',
         'OPTIMIZACIÓN: devolvé únicamente los archivos que realmente cambien. No repitas archivos intactos ni explicaciones extensas. Usá encabezados exactos index.html, style.css y/o script.js y un bloque de código por archivo. Si no hace falta cambiar un archivo, omitilo.',
-        'ESTADO ACTUAL (fuente de verdad; prevalece sobre código antiguo del historial):\nindex.html:\n' + current['index.html'] + '\n\nstyle.css:\n' + current['style.css'] + '\n\nscript.js:\n' + current['script.js'],
-      ].join('\\n\\n')
+        currentCodeContext,
+      ].join('\n\n')
       const result = await chat.send(conversationId, request, { silent: true, ephemeral: true })
       if (!result.ok || !result.content) throw new Error(result.error || 'El modelo no devolvió código.')
       const files = parseGeneratedFiles(result.content, current)
