@@ -606,3 +606,23 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
 .legal-footer{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid var(--line);margin-top:28px;padding-top:16px;color:var(--muted);font-size:12px}
 @media(max-width:820px){.projects-page{padding:22px 14px 36px}.projects-layout{grid-template-columns:1fr}.projects-create,.projects-list{padding:16px}}
 @media(max-width:520px){.project-category-grid{grid-template-columns:1fr}.work-project-card{grid-template-columns:1fr}.work-project-card>.btn{justify-self:start}.legal-page{padding:10px}.legal-content{padding:20px 16px}.legal-top{margin-bottom:12px}}
+
+
+.chat-chart{margin:18px 0;padding:14px 12px 10px;border:1px solid var(--line);border-radius:12px;background:var(--graphite);max-width:100%;overflow:hidden}
+.chat-chart figcaption{font-weight:600;margin:0 0 8px 4px}
+.chat-chart svg{display:block;width:100%;height:auto;max-height:340px;overflow:visible}
+.chat-chart .chart-axis{stroke:var(--line-strong);stroke-width:1.2}
+.chat-chart .chart-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:3 4}
+.chat-chart .chart-tick,.chat-chart .chart-label{fill:var(--muted);font-size:11px}
+.chat-chart .chart-bar,.chat-chart .chart-dot{fill:var(--accent)}
+.chat-chart .chart-series-1{fill:var(--blue,#65a6e8);stroke:var(--blue,#65a6e8)}
+.chat-chart .chart-series-2{fill:var(--purple,#b18bea);stroke:var(--purple,#b18bea)}
+.chat-chart .chart-series-3{fill:var(--green,#70c7a0);stroke:var(--green,#70c7a0)}
+.chat-chart .chart-line{fill:none;stroke:var(--accent);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.chat-chart .chart-legend{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:4px;font-size:12px;color:var(--muted)}
+.chat-chart .chart-legend span{display:flex;align-items:center;gap:6px}
+.chat-chart .chart-legend i{display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--accent)}
+.chat-chart .chart-legend i.chart-series-1{background:var(--blue,#65a6e8)}
+.chat-chart .chart-legend i.chart-series-2{background:var(--purple,#b18bea)}
+.chat-chart .chart-legend i.chart-series-3{background:var(--green,#70c7a0)}
+@media(max-width:520px){.chat-chart{padding:10px 6px}.chat-chart .chart-tick{font-size:10px}.chat-chart .chart-label{font-size:10px}}
