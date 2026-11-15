@@ -4,7 +4,11 @@ import { authenticate, logUsage, rateLimit } from '../_shared/supabase.ts'
 
 const VOICES = new Set(['Kore','Puck','Charon','Aoede','Zephyr','Fenrir','Enceladus','Leda','Orus','Callirrhoe','Iapetus','Umbriel','Algieba','Despina','Erinome','Alnilam','Schedar','Gacrux','Achird','Sadachbia','Sadaltager','Sulafat'])
 
-function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {\n  const buffer = new ArrayBuffer(bytes.byteLength)\n  new Uint8Array(buffer).set(bytes)\n  return buffer\n}\n\nfunction decodeBase64(value: string): Uint8Array {
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength)
+  new Uint8Array(buffer).set(bytes)
+  return buffer
+}
   const binary = atob(value)
   return Uint8Array.from(binary, (char) => char.charCodeAt(0))
 }
