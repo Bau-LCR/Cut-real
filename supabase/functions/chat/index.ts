@@ -25,6 +25,12 @@ interface Body {
   imageSearch?: boolean
 }
 
+function shouldAutoImageSearch(content: unknown): boolean {
+  if (typeof content !== 'string') return false
+  const normalized = content.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase()
+  return /\\b(busca|buscame|buscar|encontra|encontrame|mostrame|mostra|muestrame)\\b.{0,80}\\b(imagen|imagenes|foto|fotos|fotografia|fotografias)\\b|\\b(imagenes|fotos|fotografias)\\b.{0,60}\\b(internet|web|online)\\b/i.test(normalized)
+}
+
 function isTargetedAbuse(content: string): boolean {
   const text = content.toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   return /\b(?:sos|eres|you are|you['’]re)\s+(?:un|una)?\s*(?:idiota|imbecil|inutil|estupido|estupida|basura|mierda|pedazo de mierda|forro|forra|pelotudo|pelotuda|hdp|hijo de puta|la concha de tu madre)\b|\b(?:ia|modelo|chatbot|asistente|qudreal|cut.?real)\b.{0,45}\b(?:idiota|imbecil|inutil|estupido|estupida|basura|mierda|pedazo de mierda|forro|forra|pelotudo|pelotuda|hdp|hijo de puta|la concha de tu madre)\b|\b(?:idiota|imbecil|inutil|estupido|estupida|basura|mierda|pedazo de mierda|forro|forra|pelotudo|pelotuda|hdp|hijo de puta|la concha de tu madre)\b.{0,35}\b(?:ia|modelo|chatbot|asistente|qudreal|cut.?real)\b/i.test(text)
@@ -54,7 +60,7 @@ function readBody(raw: any): Body {
   const ids = raw.attachmentIds ?? []
   if (!Array.isArray(ids) || ids.length > 5 || !ids.every((i: unknown) => typeof i === 'string' && UUID.test(i)))
     throw new HttpError(400, 'bad_request', 'Adjuntos inválidos (máximo 5).')
-  return { mode: raw.mode, conversationId: raw.conversationId, modelId: raw.modelId, content: raw.content?.trim(), messageId: raw.messageId, attachmentIds: ids, webSearch: !!raw.webSearch, imageSearch: !!raw.imageSearch }
+  return { mode: raw.mode, conversationId: raw.conversationId, modelId: raw.modelId, content: raw.content?.trim(), messageId: raw.messageId, attachmentIds: ids, webSearch: !!raw.webSearch, imageSearch: !!raw.imageSearch || (raw.mode === 'send' && shouldAutoImageSearch(raw.content)) }
 }
 
 Deno.serve(async (req) => {
@@ -160,7 +166,7 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
     let lastCancelCheck = Date.now()
     send({ type: 'meta', userMessage, assistantMessageId: asst.id, assistantSeq: asst.seq, assistantCreatedAt: asst.created_at })
     try {
-      let extraSystem = ''
+      let extraSystem = 'HERRAMIENTAS DE ESTA CONVERSACIÓN: Cut-real puede investigar en la web, buscar imágenes existentes en Internet, generar imágenes originales y crear documentos Word/PDF con ilustraciones. La búsqueda de imágenes se activa automáticamente cuando el usuario pide explícitamente buscar fotos o imágenes, o mediante el botón de imágenes. Diferenciá siempre búsqueda web de generación original. Si el servidor informa que una herramienta no está configurada o falla, no simules su uso.'
       if (b.webSearch) {
         send({ type: 'status', status: 'searching' })
         try {
