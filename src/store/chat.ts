@@ -153,6 +153,7 @@ export const useChat = create<ChatState>((set, get) => {
           }
           case 'sources': if (assistantId) patchMsg(convId, assistantId, { sources: ev.sources }); break
           case 'delta': if (assistantId) { content += ev.text; queueDelta(convId, assistantId, ev.text) } break
+          case 'replace': if (assistantId) { flush(convId); content = String(ev.text ?? ''); patchMsg(convId, assistantId, { content }) } break
           case 'notice': useUi.getState().toast('info', ev.message); break
           case 'done':
             flush(convId)
