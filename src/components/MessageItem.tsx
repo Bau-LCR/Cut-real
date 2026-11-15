@@ -11,14 +11,16 @@ import { Edit, File, Pause, Play, Refresh, Stop, Volume } from './icons'
 
 const DOCUMENT_RE = /\[\[CUTREAL_DOCUMENT:(pdf|docx)\|([^\]\r\n]{1,160})\]\]\s*([\s\S]*?)\s*\[\[\/CUTREAL_DOCUMENT\]\]/i
 
-function DocumentDownload({ format, title, content }: { format: 'pdf' | 'docx'; title: string; content: string }) {
-  const [loading, setLoading] = useState(false)
+function DocumentEditor({ title, content }: { title: string; content: string }) {
+  const [value, setValue] = useState(content)
+  const [editing, setEditing] = useState(false)
+  const [loading, setLoading] = useState<'pdf' | 'docx' | null>(null)
   const [error, setError] = useState('')
-  async function download() {
-    if (loading) return
-    setLoading(true); setError('')
+  async function download(format: 'pdf' | 'docx') {
+    if (loading || !value.trim()) return
+    setLoading(format); setError('')
     try {
-      const blob = await callFnBlob('generate-document', { format, title, content })
+      const blob = await callFnBlob('generate-document', { format, title, content: value })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -26,19 +28,32 @@ function DocumentDownload({ format, title, content }: { format: 'pdf' | 'docx'; 
       document.body.appendChild(a); a.click(); a.remove()
       window.setTimeout(() => URL.revokeObjectURL(url), 1500)
     } catch (e) { setError((e as Error).message || 'No se pudo generar el documento.') }
-    finally { setLoading(false) }
+    finally { setLoading(null) }
   }
-  return <div className="generated-document"><div><b>{title}</b><small>Documento {format.toUpperCase()} · listo para generar</small>{error && <small className="document-error">{error}</small>}</div><button className="btn primary sm" onClick={() => void download()} disabled={loading}>{loading ? 'Preparando…' : 'Descargar ' + format.toUpperCase()}</button></div>
+  return <section className="generated-document-editor">
+    <div className="generated-document"><div><b>{title}</b><small>Documento editable · PDF y Word</small>{error && <small className="document-error">{error}</small>}</div><div className="document-actions"><button className="btn sm" onClick={() => setEditing(v => !v)}>{editing ? 'Cerrar editor' : 'Editar'}</button><button className="btn primary sm" onClick={() => void download('pdf')} disabled={!!loading}>{loading === 'pdf' ? 'Preparando…' : 'Descargar PDF'}</button><button className="btn sm" onClick={() => void download('docx')} disabled={!!loading}>{loading === 'docx' ? 'Preparando…' : 'Descargar Word'}</button></div></div>
+    {editing && <div className="document-editor"><textarea className="field" value={value} onChange={e => setValue(e.target.value)} rows={14} aria-label="Editar contenido del documento" /><div className="document-preview"><b>Vista previa</b><Markdown text={value} /></div></div>}
+  </section>
 }
 
-const RATES = [1, 1.25, 1.5, 0.75]
-
-function SpeakControls({ msg }: { msg: Message }) {
-  const { activeId, paused, speak, pause, resume, stop } = useSpeech()
-  const voice = useAuth((s) => s.voice)
-  const saveSettings = useAuth((s) => s.saveSettings)
-  const active = activeId === msg.id
-  if (!active) return <button className="icon-btn" title="Escuchar respuesta" aria-label="Escuchar respuesta" onClick={() => speak(msg.id, msg.content)}><Volume /></button>
+function AttachmentDocument({ file }: { file: Attachment }) {
+  const [open, setOpen] = useState(false)
+  if (!file.extracted_text?.trim()) return null
+  return <div className="attachment-document"><button className="btn ghost sm" onClick={() => setOpen(v => !v)}>{open ? 'Cerrar editor' : 'Editar documento'}</function Chips({ list }: { list: Attachment[] }) {
+  return (
+    <div className="chips">
+      {list.map((a) => (
+        <div className="attachment-chip-wrap" key={a.id}>
+          <button className={`chip ${a.status !== 'processed' ? 'warn' : ''}`} onClick={() => openAttachment(a)} title="Abrir archivo">
+            <File className="sm" /><span className="n">{a.file_name}</span>
+            <small>{formatBytes(a.size_bytes)}{a.status === 'processed' ? ' · leído' : a.mime_type.startsWith('image/') ? ' · imagen' : ' · sin analizar'}</small>
+          </button>
+          {a.status === 'processed' && /.(pdf|docx)$/i.test(a.file_name) && <AttachmentDocument file={a} />}
+        </div>
+      ))}
+    </div>
+  )
+} respuesta" onClick={() => speak(msg.id, msg.content)}><Volume /></button>
   const nextRate = RATES[(RATES.indexOf(voice.rate) + 1) % RATES.length]
   return (
     <>
@@ -105,7 +120,7 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, busy, modelN
         {msg.content ? (() => {
           const artifact = !generating ? DOCUMENT_RE.exec(msg.content) : null
           const visible = artifact ? msg.content.replace(artifact[0], '').trim() : msg.content
-          return <>{visible && <Markdown text={visible} streaming={generating} />}{artifact && <DocumentDownload format={artifact[1].toLowerCase() as 'pdf' | 'docx'} title={artifact[2].trim()} content={artifact[3].trim()} />}</>
+          return <>{visible && <Markdown text={visible} streaming={generating} />}{artifact && <DocumentEditor title={artifact[2].trim()} content={artifact[3].trim()} />}</>
         })() : null}
         {msg.sources?.length ? (
           <div className="sources" aria-label="Fuentes">
