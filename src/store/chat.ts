@@ -202,7 +202,7 @@ export const useChat = create<ChatState>((set, get) => {
       const { data: models } = await supabase.from('cr_available_models').select('*').order('sort_order')
       const list = (models ?? []) as ModelInfo[]
       const pref = useAuth.getState().defaultModelId
-      set({ models: list, modelId: list.find((m) => m.id === pref)?.id ?? list[0]?.id ?? null })
+      set({ models: list, modelId: list.find((m) => m.id === pref)?.id ?? list.find((m) => m.model_key === 'openai/gpt-oss-20b')?.id ?? list[0]?.id ?? null })
       await get().loadConversations()
       channel?.unsubscribe()
       channel = supabase.channel(`cr-sync-${me.userId}`)
