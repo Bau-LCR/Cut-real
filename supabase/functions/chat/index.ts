@@ -255,7 +255,7 @@ async function buildMessages(ctx: AuthContext, convId: string, history: { id: st
   let imagesLeft = 4
   const lastImageUserId = [...trimmed].reverse().find((m) => m.role === 'user' && (byMsg.get(m.id) ?? []).some((a: any) => a.mime_type.startsWith('image/')))?.id
   const latestUserText = [...history].reverse().find((m) => m.role === 'user')?.content ?? ''
-  const crossChatContext = asksForPastChats(latestUserText)
+  const crossChatContext = asksForPastChats(latestUserText, history.length)
     ? await loadCrossChatContext(ctx, convId)
     : ''
   const out: ChatMessage[] = [{ role: 'system', content: [SYSTEM_PROMPT, extraSystem, crossChatContext].filter(Boolean).join('\n\n') }]
@@ -285,9 +285,13 @@ async function buildMessages(ctx: AuthContext, convId: string, history: { id: st
 
 
 /** La memoria entre chats se recupera solo cuando la persona la pide, para no gastar tokens en cada turno. */
-function asksForPastChats(text: string): boolean {
+function asksForPastChats(text: string, messageCount: number): boolean {
   const t = text.toLocaleLowerCase('es')
-  return /(resumen|resum[ií]|record[aá]|acord[aá]|historial|qu[eé] hablamos).{0,70}(otros chats|chats anteriores|conversaciones anteriores|mis chats|todos los chats)|(otros chats|chats anteriores|conversaciones anteriores|mis chats).{0,70}(resumen|record[aá]|acord[aá]|historial)/i.test(t)
+  const explicit = /(resumen|resum[ií]|record[aá]|acord[aá]|historial|qu[eé] hablamos).{0,70}(otros chats|chats anteriores|conversaciones anteriores|mis chats|todos los chats)|(otros chats|chats anteriores|conversaciones anteriores|mis chats).{0,70}(resumen|record[aá]|acord[aá]|historial)/i.test(t)
+  // En el arranque de un chat nuevo, reconocer pedidos breves de continuidad del proyecto,
+  // incluso si el dictado transcribió Cut-real como Q Tutorial / QtReal.
+  const continuity = messageCount <= 2 && /(cut.?real|q.?tutorial|q.?treal|continuemos|seguimos|retomemos|d[oó]nde quedamos|lo que ven[ií]amos|la actualizaci[oó]n)/i.test(t)
+  return explicit || continuity
 }
 
 async function loadCrossChatContext(ctx: AuthContext, currentConversationId: string): Promise<string> {
