@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { BrowserEngine, makeEngine, type SpeechEngine } from '../voice/engine'
+import { makeEngine, type SpeechEngine } from '../voice/engine'
 import { markdownToSpeech } from '../voice/speechText'
 import { useAuth } from './auth'
 import { useUi } from './ui'
@@ -7,7 +7,6 @@ import { useUi } from './ui'
 interface SpeechState { activeId: string | null; paused: boolean; speak(id: string, markdown: string): Promise<void>; pause(): void; resume(): void; stop(): void }
 let engine: SpeechEngine | null = null
 let engineKind = ''
-let callFallback: BrowserEngine | null = null
 const get = () => {
   const kind = useAuth.getState().voice.engine
   if (!engine || engineKind !== kind) { engine?.stop(); engine = makeEngine(kind); engineKind = kind }
@@ -22,11 +21,8 @@ export const useSpeech = create<SpeechState>((set, getState) => ({
     set({ activeId: id, paused: false })
     try { await get().speak(text, useAuth.getState().voice.rate, useAuth.getState().voice.voice_uri) }
     catch (e) {
-      useUi.getState().toast('error', (e as Error).message)
-      // Si el motor remoto falla (no configurado), se vuelve al motor del navegador sin cambiar la configuración guardada.
-      if (useAuth.getState().voice.engine === 'remote') {
-        try { engine = makeEngine('browser'); engineKind = 'remote'; await engine.speak(text, useAuth.getState().voice.rate, useAuth.getState().voice.voice_uri) } catch { /* sin voz disponible */ }
-      }
+      // No sustituir silenciosamente el proveedor externo por la voz del navegador.
+      useUi.getState().toast('error', (e as Error).message || 'No se pudo generar la voz externa.')
     } finally { if (getState().activeId === id) set({ activeId: null, paused: false }) }
   },
   pause() { get().pause(); set({ paused: true }) },
@@ -40,11 +36,7 @@ export async function speakAndWait(markdown: string) {
   if (!text) return
   const voice = useAuth.getState().voice
   try { await get().speak(text, voice.rate, voice.voice_uri) }
-  catch (error) {
-    if (voice.engine !== 'remote') throw error
-    callFallback ??= new BrowserEngine()
-    await callFallback.speak(text, voice.rate, undefined)
-  }
+  catch (error) { throw error }
 }
 /** En llamada usamos la voz natural del navegador y respetamos la voz elegida en Configuración. */
 export async function speakCallAndWait(markdown: string, onActivity?: (level: number) => void) {
@@ -52,10 +44,6 @@ export async function speakCallAndWait(markdown: string, onActivity?: (level: nu
   if (!text) return
   const voice = useAuth.getState().voice
   try { await get().speak(text, voice.rate, voice.voice_uri, onActivity) }
-  catch (error) {
-    if (voice.engine !== 'remote') throw error
-    callFallback ??= new BrowserEngine()
-    await callFallback.speak(text, voice.rate, undefined, onActivity)
-  }
+  catch (error) { throw error }
 }
-export const stopSpeaking = () => { engine?.stop(); callFallback?.stop() }
+export const stopSpeaking = () => { engine?.stop() }
