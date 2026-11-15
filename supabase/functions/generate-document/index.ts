@@ -68,10 +68,10 @@ async function makeDocx(title:string,md:string):Promise<Uint8Array>{
   for(const b of parse(md)){
     if(b.kind[0]==='h'){const level=b.kind==='h1'?HeadingLevel.HEADING_1:b.kind==='h2'?HeadingLevel.HEADING_2:HeadingLevel.HEADING_3;children.push(new Paragraph({text:b.text,heading:level,spacing:{before:220,after:100},keepNext:true}))}
     else if(b.kind==='bullet')children.push(new Paragraph({text:b.text,bullet:{indent:360},spacing:{after:70}}))
-    else if(b.kind==='number')children.push(new Paragraph({text:b.text,numbering:{reference:'doc-numbering',level:0},spacing:{after:70}}))
+    else if(b.kind==='number')children.push(new Paragraph({text:b.text,spacing:{after:70}}))
     else if(b.kind==='quote')children.push(new Paragraph({children:[new TextRun({text:b.text,italics:true,color:'596273'})],indent:{left:420},spacing:{after:100}}))
     else children.push(new Paragraph({text:b.text,alignment:AlignmentType.JUSTIFIED,spacing:{after:120,line:300}}))
   }
-  const doc=new Document({title,creator:'Cut-real',numbering:{config:[{reference:'doc-numbering',levels:[{level:0,format:'decimal',text:'%1.',alignment:'start',style:{paragraph:{indent:{left:720,hanging:360}}}}]}]},sections:[{properties:{page:{margin:{top:1440,right:1440,bottom:1440,left:1440}}},footers:{default:new Footer({children:[new Paragraph({children:[new TextRun({text:'Generado con Cut-real',size:16,color:'7A8190'})],alignment:AlignmentType.CENTER})]})},children}]})
+  const doc=new Document({title,creator:'Cut-real',sections:[{properties:{page:{margin:{top:1440,right:1440,bottom:1440,left:1440}}},footers:{default:new Footer({children:[new Paragraph({children:[new TextRun({text:'Generado con Cut-real',size:16,color:'7A8190'})],alignment:AlignmentType.CENTER})]})},children}]})
   return new Uint8Array(await Packer.toBuffer(doc))
 }
