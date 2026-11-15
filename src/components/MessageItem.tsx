@@ -130,7 +130,8 @@ function DocumentEditor({ id, title, content }: { id: string; title: string; con
     if (loading || !current.trim()) return
     setLoading(format); setError('')
     try {
-      const blob = await callFnBlob('generate-document', { format, title: docTitle.trim() || 'Documento', content: current })
+      const html = editorRef.current?.innerHTML ?? markdownToHtml(current)
+      const blob = await callFnBlob('generate-document', { format, title: docTitle.trim() || 'Documento', content: current, html })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
