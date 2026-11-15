@@ -85,7 +85,7 @@ export function Settings() {
         <div className="grid2">
           <div><label className="lbl" htmlFor="eng">Motor de voz</label>
             <select id="eng" className="field" value={voice.engine} onChange={(e) => { const engine = e.target.value as 'browser' | 'remote'; guard(saveSettings({ voice: { ...voice, engine, voice_uri: engine === 'remote' ? 'Kore' : '' } })) }}>
-              <option value="browser">Navegador (sin costo)</option><option value="remote">Proveedor externo (si el servidor lo tiene)</option>
+              <option value="browser">Navegador (sin costo)</option><option value="remote">Proveedor externo (Gemini TTS)</option>
             </select></div>
           <div><label className="lbl" htmlFor="rate">Velocidad de lectura</label>
             <select id="rate" className="field" value={voice.rate} onChange={(e) => guard(saveSettings({ voice: { ...voice, rate: Number(e.target.value) } }))}>
@@ -114,7 +114,7 @@ export function Settings() {
             <option value="Gacrux">Gacrux · madura</option>
             <option value="Sulafat">Sulafat · cálida</option>
           </select>
-          <p className="hint">Usa Gemini TTS en el servidor para una lectura más expresiva. La voz y el texto se procesan en el proveedor configurado.</p>
+          <p className="hint">Usa Gemini 3.8 Flash TTS en el servidor. La voz elegida se envía al proveedor y, si falla, se muestra el error en lugar de cambiar silenciosamente a la voz del navegador.</p>
         </div>}
                 <button className="btn sm" onClick={() => void useSpeech.getState().speak('settings-test', 'Hola. Soy Cut-real. Esta es mi voz.')}>Probar voz</button>
 
