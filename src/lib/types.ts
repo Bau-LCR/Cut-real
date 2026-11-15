@@ -12,4 +12,4 @@ export interface Attachment {
   size_bytes: number; status: 'processed' | 'attached_only' | 'failed'; extracted_text?: string | null
 }
 export interface VoiceSettings { rate: number; auto_read: boolean; engine: 'browser' | 'remote'; voice_uri?: string }
-export interface Me { userId: string; email: string | null; display_name: string | null; avatar_url: string | null; role: Role; suspended: boolean }
+export interface Me { userId: string; email: string | null; display_name: string | null; avatar_url: string | null; role: Role; suspended: boolean; access_status: 'pending' | 'approved' | 'rejected'; suspended_reason: string | null }
