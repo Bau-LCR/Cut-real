@@ -28,7 +28,7 @@ jobs:
           deno-version: v2.x
       - name: Type-check Edge Functions
         run: |
-          deno check \
+          deno check --node-modules-dir=auto \
             supabase/functions/chat/index.ts \
             supabase/functions/admin/index.ts \
             supabase/functions/api/index.ts \
