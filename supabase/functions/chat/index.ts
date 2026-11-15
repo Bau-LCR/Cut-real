@@ -228,7 +228,11 @@ async function buildMessages(ctx: AuthContext, convId: string, history: { id: st
   const budget = { left: 60_000 }
   let imagesLeft = 4
   const lastImageUserId = [...trimmed].reverse().find((m) => m.role === 'user' && (byMsg.get(m.id) ?? []).some((a: any) => a.mime_type.startsWith('image/')))?.id
-  const out: ChatMessage[] = [{ role: 'system', content: [SYSTEM_PROMPT, extraSystem].filter(Boolean).join('\n\n') }]
+  const latestUserText = [...history].reverse().find((m) => m.role === 'user')?.content ?? ''
+  const crossChatContext = asksForPastChats(latestUserText)
+    ? await loadCrossChatContext(ctx, convId)
+    : ''
+  const out: ChatMessage[] = [{ role: 'system', content: [SYSTEM_PROMPT, extraSystem, crossChatContext].filter(Boolean).join('\n\n') }]
   for (const m of trimmed) {
     if (m.role === 'assistant') { out.push({ role: 'assistant', content: m.content }); continue }
     const files = (byMsg.get(m.id) ?? []) as (AttachmentCtx & { storage_path: string })[]
@@ -251,6 +255,40 @@ async function buildMessages(ctx: AuthContext, convId: string, history: { id: st
     out.push({ role: 'user', content: parts })
   }
   return out
+}
+
+
+/** La memoria entre chats se recupera solo cuando la persona la pide, para no gastar tokens en cada turno. */
+function asksForPastChats(text: string): boolean {
+  const t = text.toLocaleLowerCase('es')
+  return /(resumen|resum[ií]|record[aá]|acord[aá]|historial|qu[eé] hablamos).{0,70}(otros chats|chats anteriores|conversaciones anteriores|mis chats|todos los chats)|(otros chats|chats anteriores|conversaciones anteriores|mis chats).{0,70}(resumen|record[aá]|acord[aá]|historial)/i.test(t)
+}
+
+async function loadCrossChatContext(ctx: AuthContext, currentConversationId: string): Promise<string> {
+  const { data: conversations } = await ctx.db.from('cr_conversations')
+    .select('id, title, last_message_at')
+    .eq('user_id', ctx.userId).eq('is_ephemeral', false)
+    .neq('id', currentConversationId)
+    .order('last_message_at', { ascending: false }).limit(20)
+  if (!conversations?.length) return '[Memoria entre chats: no hay otras conversaciones guardadas para esta cuenta.]'
+  const ids = conversations.map((c: any) => c.id)
+  const { data: messages } = await ctx.db.from('cr_messages')
+    .select('conversation_id, role, content, created_at')
+    .eq('user_id', ctx.userId).in('conversation_id', ids)
+    .in('status', ['done', 'cancelled', 'interrupted'])
+    .order('created_at', { ascending: false }).limit(80)
+  const grouped = new Map<string, any[]>()
+  for (const m of messages ?? []) {
+    const rows = grouped.get(m.conversation_id) ?? []
+    if (rows.length < 2) grouped.set(m.conversation_id, [...rows, m])
+  }
+  const sections = conversations.map((conv: any) => {
+    const rows = (grouped.get(conv.id) ?? []).reverse()
+    if (!rows.length) return ''
+    return 'Conversación: ' + conv.title + ' (' + new Date(conv.last_message_at).toLocaleDateString('es-AR') + ')\n' +
+      rows.map((m: any) => (m.role === 'user' ? 'Usuario: ' : 'Cut-real: ') + String(m.content ?? '').slice(0, 700)).join('\n')
+  }).filter(Boolean)
+  return '[MEMORIA DE OTRAS CONVERSACIONES DEL MISMO USUARIO — contexto recuperado bajo pedido. Se muestran hasta 20 conversaciones recientes y hasta 2 mensajes recientes por conversación; puede no ser el historial completo. Usá esto para resumir o continuar, sin inventar lo que no aparece.]\n\n' + sections.join('\n\n')
 }
 
 
