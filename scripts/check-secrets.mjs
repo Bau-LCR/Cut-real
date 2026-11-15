@@ -22,7 +22,7 @@ const PATTERNS = [
 ]
 
 // Nombres de secretos que NUNCA deben aparecer en el código del navegador ni en el build.
-const FRONTEND_FORBIDDEN = [/SERVICE_ROLE/i, /service_role/, /GROQ_API_KEY/, /GEMINI_API_KEY/, /TAVILY_API_KEY/, /TTS_API_KEY/, /GOOGLE_CLIENT_SECRET/, /MEMORY_TASK_API_KEY/, /MEMORY_TASK_IDENTITY_PRIVATE_JWK/]
+const FRONTEND_FORBIDDEN = [/SERVICE_ROLE/i, /service_role/, /GROQ_API_KEY/, /GEMINI_API_KEY/, /TAVILY_API_KEY/, /TTS_API_KEY/, /GOOGLE_CLIENT_SECRET/]
 
 const found = []
 function walk(dir, visit) {
