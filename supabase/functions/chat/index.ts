@@ -213,8 +213,10 @@ async function buildMessages(ctx: AuthContext, convId: string, history: { id: st
     const images = files.filter((f) => f.mime_type.startsWith('image/'))
     if (!images.length) { out.push({ role: 'user', content: text }); continue }
     if (!model.supports_vision) {
-      text = `${images.map((i) => `[Imagen adjunta: ${i.file_name} — este modelo no puede ver imágenes; no la describas.]`).join('\n')}\n\n${text}`
-      out.push({ role: 'user', content: text }); continue
+      const visualNotes = await describeImagesForTextModel(ctx, images.slice(0, 3))
+      const note = visualNotes || images.map((i) => `No se pudo analizar la imagen ${i.file_name}.`).join(' ')
+      out.push({ role: 'user', content: `${text}\n\n[Análisis visual realizado por un modelo multimodal auxiliar]\n${note}\n[Fin del análisis visual]` })
+      continue
     }
     const parts: ChatPart[] = [{ type: 'text', text: text || 'Describí la imagen adjunta.' }]
     for (const img of images) {
@@ -226,6 +228,34 @@ async function buildMessages(ctx: AuthContext, convId: string, history: { id: st
     out.push({ role: 'user', content: parts })
   }
   return out
+}
+
+
+/** Puente de visión: los modelos de texto reciben un análisis visual de Qwen cuando el usuario adjunta imágenes. */
+async function describeImagesForTextModel(ctx: AuthContext, images: { file_name: string; mime_type: string; storage_path: string }[]): Promise<string> {
+  if (!images.length) return ''
+  const { data: visionModel } = await ctx.db.from('cr_models').select('model_key, provider_id, enabled').eq('model_key', 'qwen/qwen3.8-27b').eq('enabled', true).maybeSingle()
+  if (!visionModel) return ''
+  const { data: provider } = await ctx.db.from('cr_providers').select('base_url, api_key_env, enabled').eq('id', visionModel.provider_id).maybeSingle()
+  if (!provider?.enabled) return ''
+  const apiKey = Deno.env.get(provider.api_key_env)
+  if (!apiKey) return ''
+  await rateLimit(ctx.db, `vision:${ctx.userId}`, 12)
+  const content: any[] = [{ type: 'text', text: 'Analizá las imágenes adjuntas con precisión. Identificá objetos, animales, texto visible, escena, colores y relaciones espaciales relevantes para responder al usuario. Separá observaciones seguras de inferencias. Si no podés identificar algo, decilo. Respondé en español claro y conciso, sin inventar.' }]
+  for (const img of images.slice(0, 3)) {
+    const { data: blob } = await ctx.db.storage.from('cr-attachments').download(img.storage_path)
+    if (!blob || blob.size > MAX_IMAGE_BYTES) continue
+    content.push({ type: 'image_url', image_url: { url: `data:${img.mime_type};base64,${toBase64(new Uint8Array(await blob.arrayBuffer()))}` } })
+  }
+  if (content.length === 1) return ''
+  const response = await fetch(`${provider.base_url.replace(/\\/$/, '')}/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({ model: visionModel.model_key, messages: [{ role: 'user', content }], stream: false, max_tokens: 700, temperature: 0.2 }),
+  })
+  if (!response.ok) { await response.body?.cancel(); return '' }
+  const payload = await response.json().catch(() => null)
+  return typeof payload?.choices?.[0]?.message?.content === 'string' ? payload.choices[0].message.content.slice(0, 5000) : ''
 }
 
 function toBase64(bytes: Uint8Array): string {
