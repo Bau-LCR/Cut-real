@@ -16,7 +16,7 @@ npx supabase login
 npx supabase link --project-ref TU_REFERENCE_ID
 npm run db:push
 ```
-**Opción B (sin CLI):** en el dashboard → **SQL Editor → New query**, ejecutá todos los archivos de `supabase/migrations/` en orden lexicográfico (por fecha y hora del nombre), sin saltear ninguno. La lista actual llega hasta `20261115000300_daily_token_quota.sql`; incluye integraciones, modelos, proyectos, memoria, visión auxiliar, acceso aprobado y el límite diario de tokens. Si el repositorio recibe migraciones nuevas, también deben ejecutarse en ese mismo orden.
+**Opción B (sin CLI):** en el dashboard → **SQL Editor → New query**, ejecutá todos los archivos de `supabase/migrations/` en orden lexicográfico (por fecha y hora del nombre), sin saltear ninguno. La lista actual llega hasta `20261115000400_memory_task_record_scopes.sql`; incluye integraciones, modelos, proyectos, memoria, visión auxiliar, acceso aprobado y el límite diario de tokens. Si el repositorio recibe migraciones nuevas, también deben ejecutarse en ese mismo orden.
 
 Todas las tablas propias llevan prefijo `cr_`, así que conviven con otras apps (p. ej. Memory Task) en el mismo proyecto.
 
