@@ -347,7 +347,7 @@ const handlers: Record<string, Handler> = {
     if (integration?.status !== 'enabled') throw new HttpError(409, 'integration_disabled', 'Primero habilitá Memory Task en Integraciones.')
     const { data: grant } = await ctx.db.from('cr_integration_grants').select('scopes')
       .eq('integration_id', integration.id).eq('user_id', ctx.userId).is('revoked_at', null).maybeSingle()
-    if (!grant?.scopes?.includes('conversations:write')) {
+    if (!grant?.scopes?.includes('records:write')) {
       throw new HttpError(403, 'integration_not_authorized', 'Primero autorizá Memory Task desde Configuración → Integraciones autorizadas y concedé records:write.')
     }
     const title = text(p.title, 'El título', 1, 120)
