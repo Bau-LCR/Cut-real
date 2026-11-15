@@ -362,7 +362,7 @@ function MemoryTaskPanel({ integration }: { integration: any }) {
         <textarea className="field" rows={6} maxLength={20000} value={content} onChange={(e) => setContent(e.target.value)} placeholder="Escribí aquí la información que querés almacenar en Memory Task." />
         <div className="row end"><span className="hint">{content.length}/20000 caracteres</span><button className="btn primary" disabled={busy || !status?.configured || !status?.authorized || integration?.status !== 'enabled' || !title.trim() || !content.trim()} onClick={() => void send()}>Enviar y guardar</button></div>
         {integration?.status !== 'enabled' && <p className="hint">Habilitá primero la integración Memory Task en la lista de integraciones.</p>}
-        {integration?.status === 'enabled' && status?.configured && !status?.authorized && <p className="hint">Para enviar notas desde esta pantalla, autorizá Memory Task desde Configuración → Integraciones autorizadas y marcá conversations:write.</p>}
+        {integration?.status === 'enabled' && status?.configured && !status?.authorized && <p className="hint">Para enviar notas desde esta pantalla, autorizá Memory Task desde Configuración → Integraciones autorizadas y marcá records:write.</p>}
       </div>
     </div>
   )
