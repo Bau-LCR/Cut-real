@@ -447,3 +447,84 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
 @keyframes orb-orbit-a{from{transform:rotate(-28deg) scaleY(.78)}to{transform:rotate(332deg) scaleY(.78)}}
 @keyframes orb-orbit-b{from{transform:rotate(48deg) scaleY(.56)}to{transform:rotate(-312deg) scaleY(.56)}}
 @media(prefers-reduced-motion:reduce){.orb-ribbon,.orb-particle,.orb-halo{animation:none!important}}
+
+
+/* Editor de documentos: controles táctiles y espacio útil en móviles */
+@media (max-width: 640px) {
+  .document-workspace {
+    inset: 0;
+    border-radius: 0;
+    max-height: 100dvh;
+    max-height: 100vh;
+  }
+  .document-workspace-top {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 9px;
+    padding: 10px 12px;
+  }
+  .document-workspace-top .document-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    gap: 7px;
+  }
+  .document-workspace-top .document-actions .btn {
+    min-width: 0;
+    min-height: 40px;
+    padding: 7px 5px;
+    font-size: 11px;
+  }
+  .document-ribbon {
+    display: flex;
+    flex-wrap: nowrap;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px;
+    gap: 8px;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+  }
+  .document-tool-group {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    padding: 0 3px;
+  }
+  .document-ribbon button {
+    min-width: 40px;
+    min-height: 38px;
+  }
+  .document-ribbon select {
+    min-width: 104px;
+    min-height: 38px;
+    max-width: 135px;
+  }
+  .document-page-wrap {
+    padding: 10px 8px;
+  }
+  .document-page {
+    min-height: 68vh;
+    padding: 22px 16px;
+    overflow-wrap: anywhere;
+  }
+  .document-workspace-footer {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 9px 12px;
+  }
+  .document-workspace-footer .btn {
+    min-height: 40px;
+  }
+}
+@media (max-width: 380px) {
+  .document-workspace-top .document-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+  .document-title-input {
+    font-size: 15px;
+  }
+  .document-ribbon select {
+    min-width: 92px;
+  }
+}
