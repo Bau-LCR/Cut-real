@@ -1,6 +1,8 @@
 name: Edge Functions
 
 on:
+  push:
+    branches: [feature/automatic-memory-task-pairing]
   pull_request:
     paths:
       - 'supabase/functions/**'
