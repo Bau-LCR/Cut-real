@@ -381,8 +381,40 @@ function Integrations() {
             <label className="lbl">Permisos que esta integración puede solicitar</label>
             <div className="chk">{SCOPES.map((s) => <label key={s}><input type="checkbox" checked={i.allowed_scopes.includes(s)} onChange={(e) => save(i, { allowed_scopes: e.target.checked ? [...i.allowed_scopes, s] : i.allowed_scopes.filter((x: string) => x !== s) })} />{s}</label>)}</div>
           </div>
-          {i.slug === 'memory-task' && <MemoryTaskPanel integration={i} />}
         </div>))}
+    </>
+  )
+}
+
+
+function MemoryTaskTab() {
+  const toast = useUi((s) => s.toast)
+  const { data, err, reload } = useAdmin<any>('integrations.list')
+  const integration = data?.integrations.find((item: any) => item.slug === 'memory-task')
+  const toggle = async () => {
+    if (!integration) return
+    try {
+      await act('integrations.save', {
+        id: integration.id,
+        status: integration.status === 'enabled' ? 'disabled' : 'enabled',
+        allowed_scopes: integration.allowed_scopes,
+      })
+      toast('info', integration.status === 'enabled' ? 'Integración deshabilitada.' : 'Integración habilitada.')
+      void reload()
+    } catch (e) { toast('error', (e as Error).message) }
+  }
+  return (
+    <>
+      <Err e={err} />
+      {integration ? <>
+        <div className="panel">
+          <div className="row"><h3 style={{ margin: 0 }}>Memory Task</h3><span className="grow" /><span className={`badge ${integration.status === 'enabled' ? 'ok' : 'bad'}`}>{integration.status === 'enabled' ? 'habilitada' : 'deshabilitada'}</span>
+            <button className="btn sm" onClick={() => void toggle()}>{integration.status === 'enabled' ? 'Deshabilitar' : 'Habilitar'}</button>
+          </div>
+          <p className="hint">Configurá la conexión de Cut-real con tu cuenta de Memory Task, comprobá las credenciales y enviá información de prueba.</p>
+        </div>
+        <MemoryTaskPanel integration={integration} />
+      </> : data ? <div className="notice error">No se encontró la integración Memory Task en la configuración de Cut-real. Revisá la migración de datos iniciales.</div> : <p className="hint">Cargando integración…</p>}
     </>
   )
 }
@@ -401,7 +433,7 @@ function Audit() {
   )
 }
 
-const TABS = [['overview', 'Resumen', Overview], ['users', 'Usuarios', Users], ['providers', 'Proveedores y modelos', Providers], ['keys', 'API keys', Keys], ['integrations', 'Integraciones', Integrations], ['audit', 'Auditoría', Audit]] as const
+const TABS = [['overview', 'Resumen', Overview], ['users', 'Usuarios', Users], ['providers', 'Proveedores y modelos', Providers], ['keys', 'API keys', Keys], ['integrations', 'Integraciones', Integrations], ['memory-task', 'Memory Task', MemoryTaskTab], ['audit', 'Auditoría', Audit]] as const
 
 export default function Admin() {
   const nav = useNavigate()
