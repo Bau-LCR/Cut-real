@@ -98,7 +98,7 @@ export function VoiceMode({ ensureConv, onClose }: { ensureConv(): Promise<strin
     <div className="voice" role="dialog" aria-modal="true" aria-label="Conversación por voz">
       <header><span>Conversación por voz</span><button className="icon-btn" onClick={onClose} aria-label="Cerrar modo voz"><X /></button></header>
       <div className="stage">
-        <div className={`orb ${phase === 'thinking' || phase === 'transcribing' ? 'thinking' : phase}`} style={{ ['--voice-level' as string]: phase === 'speaking' ? voiceLevel : 0 }} aria-hidden="true"><span className="orb-ring" /><span className="orb-halo" /><span className="orb-core" /><span className="orb-highlight" /></div>
+        <div className={`orb ${phase === 'thinking' || phase === 'transcribing' ? 'thinking' : phase}`} style={{ ['--voice-level' as string]: phase === 'speaking' ? voiceLevel : 0 }} aria-hidden="true"><span className="orb-ring" /><span className="orb-halo" /><span className="orb-ribbon orb-ribbon-a" /><span className="orb-ribbon orb-ribbon-b" /><span className="orb-core" /><span className="orb-highlight" /><span className="orb-particle orb-particle-a" /><span className="orb-particle orb-particle-b" /><span className="orb-particle orb-particle-c" /></div>
         <div className="state" role="status">{LABEL[phase]}</div>
         {err && <div className="notice error" role="alert" style={{ maxWidth: 440 }}><div className="grow">{err}</div></div>}
       </div>
