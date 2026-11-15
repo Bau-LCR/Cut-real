@@ -16,11 +16,9 @@ npx supabase login
 npx supabase link --project-ref TU_REFERENCE_ID
 npm run db:push
 ```
-**Opción B (sin CLI):** en el dashboard → **SQL Editor → New query**, pegá y ejecutá **en este orden**:
-1. `supabase/migrations/20260101000000_cutreal_init.sql`
-2. `supabase/migrations/20260101000100_cutreal_seed.sql`
+**Opción B (sin CLI):** en el dashboard → **SQL Editor → New query**, ejecutá todos los archivos de `supabase/migrations/` en orden lexicográfico (por fecha y hora del nombre), sin saltear ninguno. La lista actual llega hasta `20261115000300_daily_token_quota.sql`; incluye integraciones, modelos, proyectos, memoria, visión auxiliar, acceso aprobado y el límite diario de tokens. Si el repositorio recibe migraciones nuevas, también deben ejecutarse en ese mismo orden.
 
-Todas las tablas llevan prefijo `cr_`, así que conviven con otras apps (p. ej. Memory Task) en el mismo proyecto.
+Todas las tablas propias llevan prefijo `cr_`, así que conviven con otras apps (p. ej. Memory Task) en el mismo proyecto.
 
 ## 3. Configurar Google OAuth
 1. https://console.cloud.google.com → crear/elegir proyecto → **APIs & Services → OAuth consent screen** (tipo External, completá nombre y correo).
