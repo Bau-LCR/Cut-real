@@ -44,7 +44,9 @@ export function ProjectsPage() {
     if (!userId || !name.trim() || !objective.trim() || creating) return
     setCreating(true)
     try {
-      await useChat.getState().init()\n      if (!useChat.getState().modelId) throw new Error('No hay un modelo disponible. Revisá la configuración antes de crear el proyecto.')\n      const conversationId = await useChat.getState().createConversation(false)
+      await useChat.getState().init()
+      if (!useChat.getState().modelId) throw new Error('No hay un modelo disponible. Revisá la configuración antes de crear el proyecto.')
+      const conversationId = await useChat.getState().createConversation(false)
       const { data, error } = await supabase.from('cr_work_projects').insert({
         user_id: userId, conversation_id: conversationId, name: name.trim().slice(0, 120), category, objective: objective.trim().slice(0, 6000),
       }).select('*').single()
