@@ -205,6 +205,7 @@ async function buildMessages(ctx: AuthContext, convId: string, history: { id: st
 
   const budget = { left: 60_000 }
   let imagesLeft = 4
+  const lastImageUserId = [...trimmed].reverse().find((m) => m.role === 'user' && (byMsg.get(m.id) ?? []).some((a: any) => a.mime_type.startsWith('image/')))?.id
   const out: ChatMessage[] = [{ role: 'system', content: [SYSTEM_PROMPT, extraSystem].filter(Boolean).join('\n\n') }]
   for (const m of trimmed) {
     if (m.role === 'assistant') { out.push({ role: 'assistant', content: m.content }); continue }
@@ -213,8 +214,8 @@ async function buildMessages(ctx: AuthContext, convId: string, history: { id: st
     const images = files.filter((f) => f.mime_type.startsWith('image/'))
     if (!images.length) { out.push({ role: 'user', content: text }); continue }
     if (!model.supports_vision) {
-      const visualNotes = await describeImagesForTextModel(ctx, images.slice(0, 3))
-      const note = visualNotes || images.map((i) => `No se pudo analizar la imagen ${i.file_name}.`).join(' ')
+      const visualNotes = m.id === lastImageUserId ? await describeImagesForTextModel(ctx, images.slice(0, 3)).catch(() => '') : ''
+      const note = visualNotes || (m.id === lastImageUserId ? images.map((i) => `No se pudo analizar la imagen ${i.file_name}.`).join(' ') : 'Imagen adjunta en un turno anterior; no se volvió a procesar en esta respuesta.')
       out.push({ role: 'user', content: `${text}\n\n[Análisis visual realizado por un modelo multimodal auxiliar]\n${note}\n[Fin del análisis visual]` })
       continue
     }
