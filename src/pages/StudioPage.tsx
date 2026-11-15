@@ -6,6 +6,7 @@ import { useAuth } from '../store/auth'
 import { useUi } from '../store/ui'
 import { useChat } from '../store/chat'
 import { MicSession, micErrorMessage, transcribe } from '../voice/recorder'
+import { Mic } from '../components/icons'
 
 type CodeFiles = { 'index.html': string; 'style.css': string; 'script.js': string }
 interface Project { id: string; name: string; files: CodeFiles; code_conversation_id?: string | null; updated_at: string }
@@ -13,19 +14,19 @@ const EMPTY: CodeFiles = { 'index.html': '<!doctype html>\n<html lang="es">\n<he
 const FILES = ['index.html', 'style.css', 'script.js'] as const
 function parseGeneratedFiles(content: string, base: CodeFiles): CodeFiles | null {
   const result: Partial<CodeFiles> = {}
-  const headings = [...content.matchAll(/(?:^|\\n)\\s*(?:#{1,4}\\s*)?(?:\\*\\*)?(index\\.html|style\\.css|script\\.js)(?:\\*\\*)?\\s*:?[ \\t]*\\n/gi)]
+  const headings = [...content.matchAll(/(?:^|\n)\s*(?:#{1,4}\s*)?(?:\*\*)?(index\.html|style\.css|script\.js)(?:\*\*)?\s*:?[ \t]*\n/gi)]
   if (headings.length >= 1) headings.forEach((match, index) => {
     const name = match[1].toLowerCase() as keyof CodeFiles
     const start = (match.index ?? 0) + match[0].length
     const end = index + 1 < headings.length ? (headings[index + 1].index ?? content.length) : content.length
     const section = content.slice(start, end).trim()
-    const fence = section.match(/\\x60\\x60\\x60[^\\n]*\\n([\\s\\S]*?)\\x60\\x60\\x60/)
+    const fence = section.match(/\x60{3}[^\n]*\n([\s\S]*?)\x60{3}/)
     result[name] = (fence?.[1] ?? section).trim()
   })
-  const fences = [...content.matchAll(/\\x60\\x60\\x60([^\\n]*)\\n([\\s\\S]*?)\\x60\\x60\\x60/g)]
+  const fences = [...content.matchAll(/\x60{3}([^\n]*)\n([\s\S]*?)\x60{3}/g)]
   for (const fence of fences) {
     const label = (fence[1] + content.slice(Math.max(0, (fence.index ?? 0) - 100), fence.index ?? 0)).toLowerCase()
-    const name = /index\\.html|html/.test(label) ? 'index.html' : /style\\.css|css/.test(label) ? 'style.css' : /script\\.js|javascript|\\bjs\\b/.test(label) ? 'script.js' : null
+    const name = /index\.html|html/.test(label) ? 'index.html' : /style\.css|css/.test(label) ? 'style.css' : /script\.js|javascript|\bjs\b/.test(label) ? 'script.js' : null
     if (name && result[name] == null) result[name] = fence[2].trim()
   }
   if (fences.length === 3 && !Object.keys(result).length) {
@@ -174,10 +175,10 @@ export function StudioPage() {
       const current = draftRef.current
       const request = [
         'MODO PROGRAMACIÓN DE CUT-REAL. Sos un ingeniero de software senior que continúa trabajando en ESTE proyecto, no empezás uno nuevo.',
-        'INSTRUCCIÓN DEL USUARIO (continuación de lo anterior):\\n' + prompt.trim(),
+        'INSTRUCCIÓN DEL USUARIO (continuación de lo anterior):\n' + prompt.trim(),
         'REGLAS DE CONTINUIDAD: conservá el objetivo, diseño, decisiones, nombres, estructura y funciones ya acordadas en el historial de esta conversación. Interpretá el pedido como una modificación incremental, salvo que el usuario pida explícitamente empezar de cero. No borres ni reemplaces funciones ajenas al cambio. Si pide corregir algo, diagnosticá el problema y modificá lo mínimo necesario. Para renders 3D, asegurate de incluir cámara, iluminación, geometría, materiales y un render loop visible.',
         'OPTIMIZACIÓN: devolvé únicamente los archivos que realmente cambien. No repitas archivos intactos ni explicaciones extensas. Usá encabezados exactos index.html, style.css y/o script.js y un bloque de código por archivo. Si no hace falta cambiar un archivo, omitilo.',
-        'ESTADO ACTUAL (fuente de verdad; prevalece sobre código antiguo del historial):\\nindex.html:\\n' + current['index.html'] + '\\n\\nstyle.css:\\n' + current['style.css'] + '\\n\\nscript.js:\\n' + current['script.js'],
+        'ESTADO ACTUAL (fuente de verdad; prevalece sobre código antiguo del historial):\nindex.html:\n' + current['index.html'] + '\n\nstyle.css:\n' + current['style.css'] + '\n\nscript.js:\n' + current['script.js'],
       ].join('\\n\\n')
       const result = await chat.send(conversationId, request, { silent: true, ephemeral: true })
       if (!result.ok || !result.content) throw new Error(result.error || 'El modelo no devolvió código.')
