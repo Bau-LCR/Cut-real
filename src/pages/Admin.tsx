@@ -283,7 +283,7 @@ function MemoryTaskPanel({ integration }: { integration: any }) {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url; a.download = 'memory-task-secrets.env'; a.click()
-    URL.revokeObjectURL(url)
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
     toast('info', 'Archivo generado. Guardalo dentro del repositorio de Cut-real y ejecutá el comando indicado abajo.')
   }
   const send = async () => {
