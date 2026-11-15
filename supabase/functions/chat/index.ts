@@ -229,8 +229,10 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
         }
         if (status === 'done' && !full) { status = 'error'; errCode = 'empty_response'; errMsg = 'El modelo no devolvió contenido. Probá de nuevo o elegí otro modelo.' }
         if (status === 'done' && imageResults.length) {
-          const markdown = imageResults.map((image) => { const alt = image.description.replace(/[\[\]\r\n]/g, ' ').slice(0, 120); return '![' + alt + '](<' + image.url + '>)' }).join('\n\n')
-          full += '\n\n### Imágenes encontradas\n\n' + markdown
+          const markdown = imageResults.map((image) => { const alt = image.description.replace(/[\[\]\r\n]/g, ' ').slice(0, 120); return '![' + alt + '](<' + image.url + '>)\\n[Ver imagen original](<' + image.url + '>)' }).join('\n\n')
+          const imageBlock = '\n\n### Imágenes encontradas\n\n' + markdown
+          full += imageBlock
+          send({ type: 'delta', text: imageBlock })
         }
       }
     } catch (e) {
