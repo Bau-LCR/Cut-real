@@ -58,8 +58,8 @@ function readBody(raw: any): Body {
   if (raw.content != null && (typeof raw.content !== 'string' || raw.content.length > MAX_CONTENT))
     throw new HttpError(400, 'content_too_long', `El mensaje no puede superar ${MAX_CONTENT} caracteres.`)
   const ids = raw.attachmentIds ?? []
-  if (!Array.isArray(ids) || ids.length > 5 || !ids.every((i: unknown) => typeof i === 'string' && UUID.test(i)))
-    throw new HttpError(400, 'bad_request', 'Adjuntos inválidos (máximo 5).')
+  if (!Array.isArray(ids) || ids.length > 10 || !ids.every((i: unknown) => typeof i === 'string' && UUID.test(i)))
+    throw new HttpError(400, 'bad_request', 'Adjuntos inválidos (máximo 10).')
   return { mode: raw.mode, conversationId: raw.conversationId, modelId: raw.modelId, content: raw.content?.trim(), messageId: raw.messageId, attachmentIds: ids, webSearch: !!raw.webSearch, imageSearch: !!raw.imageSearch || (raw.mode === 'send' && shouldAutoImageSearch(raw.content)) }
 }
 
@@ -91,7 +91,7 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
   if (b.webSearch && !searchProvider())
     throw new HttpError(400, 'search_not_configured', 'La búsqueda web todavía no está configurada en el servidor.')
   if (b.imageSearch && !Deno.env.get('TAVILY_API_KEY') && !Deno.env.get('BRAVE_API_KEY'))
-    throw new HttpError(400, 'image_search_not_configured', 'La búsqueda de imágenes requiere configurar TAVILY_API_KEY en el servidor.')
+    throw new HttpError(400, 'image_search_not_configured', 'La búsqueda de imágenes requiere configurar TAVILY_API_KEY o BRAVE_API_KEY en el servidor.')
 
   await db.rpc('cr_sweep_stale_generations')
   const { count: active } = await db.from('cr_messages').select('id', { count: 'exact', head: true }).eq('conversation_id', conv.id).eq('status', 'generating')
@@ -253,7 +253,7 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
         if (status === 'done' && !full && !imageResults.length) { status = 'error'; errCode = 'empty_response'; errMsg = 'El modelo no devolvió contenido. Probá de nuevo o elegí otro modelo.' }
         if (status === 'done' && imageResults.length) {
           if (!full) full = 'Encontré estas imágenes relacionadas con tu búsqueda:'
-          const markdown = imageResults.map((image) => { const alt = image.description.replace(/[\[\]\r\n]/g, ' ').slice(0, 120); return '![' + alt + '](<' + image.url + '>)\n[Ver imagen y su página de origen](<' + image.pageUrl + '>)' }).join('\n\n')
+          const markdown = imageResults.map((image) => { const alt = image.description.replace(/[\[\]\r\n]/g, ' ').slice(0, 120); return '![' + alt + '](<' + image.url + '>)' }).join('\n\n')
           const imageBlock = '\n\n### Imágenes encontradas\n\n' + markdown
           full += imageBlock
           send({ type: 'delta', text: imageBlock })
@@ -353,7 +353,7 @@ async function buildMessages(ctx: AuthContext, convId: string, history: { id: st
   for (const a of atts ?? []) byMsg.set(a.message_id, [...(byMsg.get(a.message_id) ?? []), a])
 
   const budget = { left: 60_000 }
-  let imagesLeft = 4
+  let imagesLeft = 10
   const lastImageUserId = [...trimmed].reverse().find((m) => m.role === 'user' && (byMsg.get(m.id) ?? []).some((a: any) => a.mime_type.startsWith('image/')))?.id
   const latestUserText = [...history].reverse().find((m) => m.role === 'user')?.content ?? ''
   const crossChatContext = asksForPastChats(latestUserText, history.length)
@@ -368,7 +368,7 @@ async function buildMessages(ctx: AuthContext, convId: string, history: { id: st
     const images = files.filter((f) => f.mime_type.startsWith('image/'))
     if (!images.length) { out.push({ role: 'user', content: text }); continue }
     if (!model.supports_vision) {
-      const visualNotes = m.id === lastImageUserId ? await describeImagesForTextModel(ctx, images.slice(0, 3)).catch(() => '') : ''
+      const visualNotes = m.id === lastImageUserId ? await describeImagesForTextModel(ctx, images.slice(0, 10)).catch(() => '') : ''
       const note = visualNotes || (m.id === lastImageUserId ? images.map((i) => `No se pudo analizar la imagen ${i.file_name}. El puente visual Qwen no devolvió un análisis válido; probá con una imagen JPG/PNG de menos de 4 MB o verificá el proveedor Groq.`).join(' ') : 'Imagen adjunta en un turno anterior; no se volvió a procesar en esta respuesta.')
       out.push({ role: 'user', content: `${text}\n\n[Análisis visual realizado por un modelo multimodal auxiliar]\n${note}\n[Fin del análisis visual]` })
       continue
