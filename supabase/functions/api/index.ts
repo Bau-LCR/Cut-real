@@ -17,6 +17,9 @@ Deno.serve(async (req) => {
     const { data: key } = await db.from('cr_api_keys').select('*').eq('key_hash', await sha256Hex(secret)).maybeSingle()
     if (!key || key.revoked_at || (key.expires_at && new Date(key.expires_at) < new Date()))
       throw new HttpError(401, 'invalid_api_key', 'API key inválida, revocada o vencida.')
+    if (!key.created_by) throw new HttpError(403, 'access_pending', 'Esta API key no está vinculada a una cuenta autorizada.')
+    const { data: keyOwner } = await db.from('cr_user_roles').select('role, suspended, access_status').eq('user_id', key.created_by).maybeSingle()
+    if (!keyOwner || keyOwner.suspended || (keyOwner.role !== 'owner' && keyOwner.access_status !== 'approved')) throw new HttpError(403, 'access_pending', 'La cuenta propietaria de esta API key no tiene acceso autorizado.')
     await rateLimit(db, `key:${key.id}`, key.rate_limit_per_minute)
     db.from('cr_api_keys').update({ last_used_at: new Date().toISOString() }).eq('id', key.id).then(() => {})
 
