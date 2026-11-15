@@ -58,21 +58,24 @@ function parse(s: string) {
     return make('p', t)
   }).filter((x): x is {kind:string;text:string;raw:string} => !!x && !!x.text)
 }
-function inlineRuns(value: string) {
-  const runs: TextRun[] = []
+function inlineSegments(value: string) {
+  const runs: { text: string; bold?: boolean; italic?: boolean; underline?: boolean; strike?: boolean; code?: boolean }[] = []
   const token = /(\*\*[^*]+\*\*|__[^_]+__|~~[^~]+~~|\*[^*]+\*|`[^`]+`)/g
   let cursor = 0
   for (const match of value.matchAll(token)) {
     const index = match.index ?? 0
-    if (index > cursor) runs.push(new TextRun({ text: clean(value.slice(cursor, index)) }))
+    if (index > cursor) runs.push({ text: clean(value.slice(cursor, index)) })
     const item = match[0]
     const bold = item.startsWith('**'), underline = item.startsWith('__'), strike = item.startsWith('~~'), code = item.startsWith('`')
     const text = item.slice(bold || underline || strike ? 2 : 1, -(bold || underline || strike ? 2 : 1))
-    runs.push(new TextRun({ text: clean(text), bold, italics: !bold && !underline && !strike && !code, underline: underline ? {} : undefined, strike, font: code ? 'Consolas' : undefined }))
+    runs.push({ text: clean(text), bold, italic: !bold && !underline && !strike && !code, underline, strike, code })
     cursor = index + item.length
   }
-  if (cursor < value.length) runs.push(new TextRun({ text: clean(value.slice(cursor)) }))
-  return runs.length ? runs : [new TextRun({ text: clean(value) })]
+  if (cursor < value.length) runs.push({ text: clean(value.slice(cursor)) })
+  return runs.length ? runs : [{ text: clean(value) }]
+}
+function inlineRuns(value: string) {
+  return inlineSegments(value).map(run => new TextRun({ text: run.text, bold: run.bold, italics: run.italic, underline: run.underline ? {} : undefined, strike: run.strike, font: run.code ? 'Consolas' : undefined }))
 }
 async function makePdf(title: string, md: string): Promise<Uint8Array> {
   const pdf = await PDFDocument.create(), regular = await pdf.embedFont(StandardFonts.Helvetica), bold = await pdf.embedFont(StandardFonts.HelveticaBold), italic = await pdf.embedFont(StandardFonts.HelveticaOblique)
@@ -86,16 +89,26 @@ async function makePdf(title: string, md: string): Promise<Uint8Array> {
     if(line)lines.push(line)
     for(const l of lines){if(y<65)next();page.drawText(l,{x:M+indent,y,size,font,color});y-=size+5}
   }
+  const drawRich=(raw:string,baseFont:any,size:number,color=rgb(.16,.18,.22),indent=0)=>{
+    const tokens=inlineSegments(raw).flatMap(run=>(run.text.match(/\s+|\S+/g)||[]).map(text=>({text,bold:run.bold,italic:run.italic,code:run.code})))
+    let line:{text:string;font:any;width:number}[]=[];let lineWidth=0
+    const flush=()=>{if(!line.length)return;if(y<65)next();let x=M+indent;for(const part of line){page.drawText(part.text,{x,y,size,font:part.font,color});x+=part.width}y-=size+5;line=[];lineWidth=0}
+    for(const token of tokens){const font=token.bold?bold:token.italic?italic:token.code?regular:baseFont;const width=font.widthOfTextAtSize(token.text,size)
+      if(lineWidth+width>max-indent&&line.length)flush()
+      line.push({text:token.text,font,width});lineWidth+=width
+    }
+    flush()
+  }
   page.drawText(title,{x:M,y,size:23,font:bold,color:rgb(.06,.18,.42),maxWidth:max});y-=38
   page.drawLine({start:{x:M,y},end:{x:W-M,y},thickness:1,color:rgb(.12,.34,.72)});y-=28
   let orderedIndex=0
   for(const b of parse(md)){
-    if(b.kind==='number'){orderedIndex++;draw(`${orderedIndex}. ${b.text}`,regular,10.5,undefined,14);y-=5;continue}
+    if(b.kind==='number'){orderedIndex++;drawRich(`${orderedIndex}. ${b.raw}`,regular,10.5,undefined,14);y-=5;continue}
     orderedIndex=0
-    if(b.kind[0]==='h'){y-=8;draw(b.text,bold,b.kind==='h1'?17:b.kind==='h2'?14:12,rgb(.08,.22,.43));y-=5}
-    else if(b.kind==='bullet'||b.kind==='number')draw((b.kind==='bullet'?'•  ':'-  ')+b.text,regular,10.5,undefined,14)
-    else if(b.kind==='quote')draw(b.text,italic,10.5,rgb(.35,.38,.43),18)
-    else draw(b.text,regular,10.5,undefined,b.kind==='table'?8:0)
+    if(b.kind[0]==='h'){y-=8;drawRich(b.raw,bold,b.kind==='h1'?17:b.kind==='h2'?14:12,rgb(.08,.22,.43));y-=5}
+    else if(b.kind==='bullet')drawRich('•  '+b.raw,regular,10.5,undefined,14)
+    else if(b.kind==='quote')drawRich(b.raw,italic,10.5,rgb(.35,.38,.43),18)
+    else drawRich(b.raw,regular,10.5,undefined,b.kind==='table'?8:0)
     y-=5
   }
   const pages=pdf.getPages()
@@ -104,11 +117,13 @@ async function makePdf(title: string, md: string): Promise<Uint8Array> {
 }
 async function makeDocx(title:string,md:string):Promise<Uint8Array>{
   const children:Paragraph[]=[new Paragraph({text:title,heading:HeadingLevel.TITLE,spacing:{after:280}}),new Paragraph({children:[new TextRun({text:'CUT-REAL',bold:true,color:'315B9B',size:18})],spacing:{after:240}})]
+  let orderedIndex=0
   for(const b of parse(md)){
+    if(b.kind==='number'){orderedIndex++;children.push(new Paragraph({children:[new TextRun({text:`${orderedIndex}. `}),...inlineRuns(b.raw)],spacing:{after:70}}));continue}
+    orderedIndex=0
     if(b.kind[0]==='h'){const level=b.kind==='h1'?HeadingLevel.HEADING_1:b.kind==='h2'?HeadingLevel.HEADING_2:HeadingLevel.HEADING_3;children.push(new Paragraph({children:inlineRuns(b.raw),heading:level,spacing:{before:220,after:100},keepNext:true}))}
     else if(b.kind==='bullet')children.push(new Paragraph({children:inlineRuns(b.raw),bullet:{indent:360},spacing:{after:70}}))
-    else if(b.kind==='number')children.push(new Paragraph({children:[new TextRun({text:'• ' }),...inlineRuns(b.raw)],spacing:{after:70}}))
-    else if(b.kind==='quote')children.push(new Paragraph({children:inlineRuns(b.raw).map(run => run),indent:{left:420},spacing:{after:100}}))
+    else if(b.kind==='quote')children.push(new Paragraph({children:inlineRuns(b.raw),indent:{left:420},spacing:{after:100}}))
     else children.push(new Paragraph({children:inlineRuns(b.raw),alignment:AlignmentType.JUSTIFIED,spacing:{after:120,line:300}}))
   }
   const doc=new Document({title,creator:'Cut-real',sections:[{properties:{page:{margin:{top:1440,right:1440,bottom:1440,left:1440}}},footers:{default:new Footer({children:[new Paragraph({children:[new TextRun({text:'Generado con Cut-real',size:16,color:'7A8190'})],alignment:AlignmentType.CENTER})]})},children}]})
