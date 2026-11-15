@@ -38,7 +38,7 @@ export function ProjectsPage() {
     setProjects((data ?? []) as WorkProject[])
     setLoading(false)
   }
-  useEffect(() => { void load() }, [userId])
+  useEffect(() => { void useChat.getState().init(); void load() }, [userId])
 
   async function create() {
     if (!userId || !name.trim() || !objective.trim() || creating) return
