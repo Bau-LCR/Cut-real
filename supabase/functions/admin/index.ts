@@ -33,6 +33,7 @@ function decodeB64url(value: string): Uint8Array {
   const padded = base64 + '='.repeat((4 - base64.length % 4) % 4)
   return Uint8Array.from(atob(padded), c => c.charCodeAt(0))
 }
+// Credentials are encrypted at rest with AES-GCM; the derived key and plaintext never leave this server function.
 async function decryptMemoryTaskSecret(ciphertext: string, ivText: string): Promise<string> {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   if (!serviceRoleKey) throw new HttpError(500, 'integration_config_error', 'No está disponible la clave de cifrado del servidor.')
