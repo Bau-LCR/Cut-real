@@ -20,7 +20,7 @@ async function geminiSpeech(text: string, voice: string, apiKey: string): Promis
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify({
       model: Deno.env.get('GEMINI_TTS_MODEL') || 'gemini-3.8-flash-tts',
-      input: [{ type: 'user_input', content: [{ type: 'text', text, annotations: [{ type: 'speech_metadata', style: 'Speak the text exactly as written in fluent natural Spanish with a clear Rioplatense accent, warm conversational delivery, moderate pace, expressive but subtle intonation, and natural pauses. Do not add or omit words.' }] }] }],
+      input: [{ type: 'user_input', content: [{ type: 'text', text, annotations: [{ type: 'speech_metadata', language: 'es-AR', style: 'Speak the text exactly as written in fluent natural Spanish with a clear Rioplatense accent, warm conversational delivery, moderate pace, expressive but subtle intonation, and natural pauses. Do not add or omit words.' }] }] }],
       response_format: { type: 'audio' },
       generation_config: { speech_config: [{ voice }] },
     }),
