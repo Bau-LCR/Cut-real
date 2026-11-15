@@ -47,7 +47,7 @@ export async function imageSearch(query: string, signal?: AbortSignal): Promise<
   const payload = await response.json()
   return (Array.isArray(payload.images) ? payload.images : []).slice(0, 8).flatMap((item: any) => {
     const url = typeof item?.url === 'string' ? item.url : ''
-    if (!/^https?:\\/\\//i.test(url)) return []
+    if (!/^https?:\/\//i.test(url)) return []
     return [{ url, description: String(item.description ?? 'Imagen encontrada en la web').slice(0, 240) }]
   })
 }
