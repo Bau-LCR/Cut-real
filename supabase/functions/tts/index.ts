@@ -4,7 +4,7 @@ import { authenticate, logUsage, rateLimit } from '../_shared/supabase.ts'
 
 const VOICES = new Set(['Kore','Puck','Charon','Aoede','Zephyr','Fenrir','Enceladus','Leda','Orus','Callirrhoe','Iapetus','Umbriel','Algieba','Despina','Erinome','Alnilam','Schedar','Gacrux','Achird','Sadachbia','Sadaltager','Sulafat'])
 
-function decodeBase64(value: string): Uint8Array {
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {\n  const buffer = new ArrayBuffer(bytes.byteLength)\n  new Uint8Array(buffer).set(bytes)\n  return buffer\n}\n\nfunction decodeBase64(value: string): Uint8Array {
   const binary = atob(value)
   return Uint8Array.from(binary, (char) => char.charCodeAt(0))
 }
@@ -29,7 +29,7 @@ async function geminiSpeech(text: string, voice: string, apiKey: string): Promis
     ?? payload?.output?.find((part: any) => part?.type === 'audio')?.data
     ?? payload?.steps?.flatMap((step: any) => step?.content ?? []).find((part: any) => part?.type === 'audio')?.data
   if (typeof audio !== 'string' || !audio.length) throw new HttpError(502, 'tts_empty_audio', 'El proveedor no devolvió audio. Probá de nuevo.')
-  return new Response(decodeBase64(audio), { headers: { 'Content-Type': 'audio/wav' } })
+  return new Response(toArrayBuffer(decodeBase64(audio)), { headers: { 'Content-Type': 'audio/wav' } })
 }
 
 async function compatibleSpeech(text: string, voice: string): Promise<Response> {
