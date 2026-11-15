@@ -9,21 +9,21 @@ import { CopyButton, Markdown } from './Markdown'
 import { callFnBlob } from '../lib/functions'
 import { Edit, File, Pause, Play, Refresh, Stop, Volume } from './icons'
 
-const DOCUMENT_RE = /\\[\\[CUTREAL_DOCUMENT:(pdf|docx)\\|([^\\]\\r\\n]{1,160})\\]\\]\\s*([\\s\\S]*?)\\s*\\[\\[\\/CUTREAL_DOCUMENT\\]\\]/i
+const DOCUMENT_RE = /\[\[CUTREAL_DOCUMENT:(pdf|docx)\|([^\]\r\n]{1,160})\]\]\s*([\s\S]*?)\s*\[\[\/CUTREAL_DOCUMENT\]\]/i
 
 function escapeHtml(value: string) {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 }
 function markdownToHtml(markdown: string) {
-  const lines = markdown.replace(/\\r/g, '').split('\\n')
+  const lines = markdown.replace(/\r/g, '').split('\n')
   const out: string[] = []
   let list: 'ul' | 'ol' | null = null
-  const inline = (s: string) => escapeHtml(s).replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>').replace(/(^|[^*])\\*(?!\\s)(.+?)\\*(?!\\*)/g, '$1<em>$2</em>').replace(/__(.+?)__/g, '<u>$1</u>').replace(/\\x60([^\\x60]+)\\x60/g, '<code>$1</code>')
+  const inline = (s: string) => escapeHtml(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/(^|[^*])\*(?!\s)(.+?)\*(?!\*)/g, '$1<em>$2</em>').replace(/__(.+?)__/g, '<u>$1</u>').replace(/\x60([^\x60]+)\x60/g, '<code>$1</code>')
   const closeList = () => { if (list) { out.push(`</${list}>`); list = null } }
   for (const line of lines) {
     const t = line.trim()
-    const bullet = t.match(/^[-*+]\\s+(.+)/)
-    const number = t.match(/^\\d+[.)]\\s+(.+)/)
+    const bullet = t.match(/^[-*+]\s+(.+)/)
+    const number = t.match(/^\d+[.)]\s+(.+)/)
     if (bullet || number) {
       const next = bullet ? 'ul' : 'ol'
       if (list !== next) { closeList(); list = next; out.push(`<${list}>`) }
@@ -31,9 +31,9 @@ function markdownToHtml(markdown: string) {
     } else {
       closeList()
       if (!t) continue
-      const heading = t.match(/^(#{1,3})\\s+(.+)/)
+      const heading = t.match(/^(#{1,3})\s+(.+)/)
       if (heading) { const level = heading[1].length; out.push(`<h${level}>${inline(heading[2])}</h${level}>`) }
-      else if (/^>\\s?/.test(t)) out.push(`<blockquote>${inline(t.replace(/^>\\s?/, ''))}</blockquote>`)
+      else if (/^>\s?/.test(t)) out.push(`<blockquote>${inline(t.replace(/^>\s?/, ''))}</blockquote>`)
       else out.push(`<p>${inline(t)}</p>`)
     }
   }
@@ -50,19 +50,19 @@ function htmlToMarkdown(html: string) {
       case 'STRONG': case 'B': return `**${inner}**`
       case 'EM': case 'I': return `*${inner}*`
       case 'U': return `__${inner}__`
-      case 'BR': return '\\n'
+      case 'BR': return '\n'
       case 'CODE': return `\x60${inner}\x60`
-      case 'LI': return `- ${inner.trim()}\\n`
-      case 'BLOCKQUOTE': return inner.split('\\n').filter(Boolean).map(x => `> ${x}`).join('\\n') + '\\n\\n'
-      case 'H1': return `# ${inner.trim()}\\n\\n`
-      case 'H2': return `## ${inner.trim()}\\n\\n`
-      case 'H3': return `### ${inner.trim()}\\n\\n`
-      case 'P': case 'DIV': return inner.trim() ? inner.trim() + '\\n\\n' : ''
-      case 'UL': case 'OL': return inner + '\\n'
+      case 'LI': return `- ${inner.trim()}\n`
+      case 'BLOCKQUOTE': return inner.split('\n').filter(Boolean).map(x => `> ${x}`).join('\n') + '\n\n'
+      case 'H1': return `# ${inner.trim()}\n\n`
+      case 'H2': return `## ${inner.trim()}\n\n`
+      case 'H3': return `### ${inner.trim()}\n\n`
+      case 'P': case 'DIV': return inner.trim() ? inner.trim() + '\n\n' : ''
+      case 'UL': case 'OL': return inner + '\n'
       default: return inner
     }
   }
-  return Array.from(doc.body.childNodes).map(inline).join('').replace(/\\n{3,}/g, '\\n\\n').trim()
+  return Array.from(doc.body.childNodes).map(inline).join('').replace(/\n{3,}/g, '\n\n').trim()
 }
 function getDraft(key: string, fallback: string) {
   try { return localStorage.getItem(key) ?? fallback } catch { return fallback }
@@ -98,7 +98,7 @@ function DocumentEditor({ id, title, content }: { id: string; title: string; con
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = title.replace(/[^\\p{L}\\p{N}._-]+/gu, '_').slice(0, 70) + '.' + format
+      a.download = title.replace(/[^\p{L}\p{N}._-]+/gu, '_').slice(0, 70) + '.' + format
       document.body.appendChild(a); a.click(); a.remove()
       window.setTimeout(() => URL.revokeObjectURL(url), 1500)
     } catch (e) { setError((e as Error).message || 'No se pudo generar el documento.') }
@@ -132,7 +132,7 @@ function DocumentEditor({ id, title, content }: { id: string; title: string; con
 function AttachmentDocument({ file }: { file: Attachment }) {
   const [open, setOpen] = useState(false)
   if (!file.extracted_text?.trim()) return null
-  return <div className="attachment-document"><button className="btn ghost sm" onClick={() => setOpen(v => !v)}>{open ? 'Cerrar editor' : 'Editar documento'}</button>{open && <DocumentEditor id={file.id} title={file.file_name.replace(/\\.(pdf|docx)$/i, '') || 'Documento editado'} content={file.extracted_text} />}</div>
+  return <div className="attachment-document"><button className="btn ghost sm" onClick={() => setOpen(v => !v)}>{open ? 'Cerrar editor' : 'Editar documento'}</button>{open && <DocumentEditor id={file.id} title={file.file_name.replace(/\.(pdf|docx)$/i, '') || 'Documento editado'} content={file.extracted_text} />}</div>
 }
 
 const RATES = [1, 1.25, 1.5, 0.75]
@@ -162,7 +162,7 @@ function Chips({ list }: { list: Attachment[] }) {
             <File className="sm" /><span className="n">{a.file_name}</span>
             <small>{formatBytes(a.size_bytes)}{a.status === 'processed' ? ' · leído' : a.mime_type.startsWith('image/') ? ' · imagen' : ' · sin analizar'}</small>
           </button>
-          {a.status === 'processed' && /\\.(pdf|docx)$/i.test(a.file_name) && <AttachmentDocument file={a} />}
+          {a.status === 'processed' && /\.(pdf|docx)$/i.test(a.file_name) && <AttachmentDocument file={a} />}
         </div>
       ))}
     </div>
