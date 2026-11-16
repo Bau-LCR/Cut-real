@@ -279,12 +279,21 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
     if (cur?.status === 'cancelled') status = 'cancelled'
     await db.from('cr_messages').update({ content: full, status, error: errMsg, updated_at: new Date().toISOString() }).eq('id', asst.id)
     await db.from('cr_conversations').update({ last_message_at: new Date().toISOString() }).eq('id', conv.id)
-    if (reservationId) {
-      const actualTokens = Math.max(1, (usage?.prompt_tokens ?? estimatedPromptTokens) + (usage?.completion_tokens ?? Math.ceil(full.length / 4)))
-      const { error: finalizeError } = await db.rpc('cr_finalize_daily_tokens', {
-        p_user_id: userId, p_reservation_id: reservationId, p_actual_tokens: actualTokens,
-      })
-      if (finalizeError) console.error('daily token reservation finalization failed', finalizeError.message)
+    const actualTokens = Math.max(1, (usage?.prompt_tokens ?? estimatedPromptTokens) + (usage?.completion_tokens ?? Math.ceil(full.length / 4)))
+    if (status === 'done') {
+      const { error: messageUsageError } = await db.from('cr_messages').update({ token_usage: actualTokens }).eq('id', asst.id)
+      if (messageUsageError) console.error('message token usage save failed', messageUsageError.message)
+      if (reservationId) {
+        const { error: finalizeError } = await db.rpc('cr_finalize_daily_tokens', {
+          p_user_id: userId, p_reservation_id: reservationId, p_actual_tokens: actualTokens,
+        })
+        if (finalizeError) console.error('daily token reservation finalization failed', finalizeError.message)
+      } else if (ctx.role === 'admin' || ctx.role === 'owner') {
+        const { error: recordError } = await db.rpc('cr_record_unlimited_daily_tokens', {
+          p_user_id: userId, p_actual_tokens: actualTokens,
+        })
+        if (recordError) console.error('unlimited account usage record failed', recordError.message)
+      }
     }
     send({ type: 'done', status, error: errMsg, errorCode: errCode })
     try { controller.close() } catch { /* cliente ya desconectado */ }
