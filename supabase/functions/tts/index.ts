@@ -64,8 +64,8 @@ Deno.serve(async (req) => {
     if (!input) throw new HttpError(400, 'bad_request', 'Falta el texto.')
     const voice = typeof body?.voice === 'string' && VOICES.has(body.voice) ? body.voice : (Deno.env.get('TTS_VOICE') || 'Kore')
     const geminiKey = Deno.env.get('GEMINI_API_KEY')
-    // Si Gemini está configurado, priorizarlo aunque haya quedado un TTS_PROVIDER=openai antiguo.
-    const provider = (geminiKey ? 'gemini' : (Deno.env.get('TTS_PROVIDER') || 'gemini')).toLowerCase()
+    // Cut-real usa Gemini para la voz externa seleccionable; no depender de un TTS_PROVIDER antiguo.
+    const provider = 'gemini'
     const t0 = Date.now()
     let audio: Response
     if (provider === 'gemini') {
