@@ -15,67 +15,65 @@ const FILES = ['index.html', 'style.css', 'script.js'] as const
 function parseGeneratedFiles(content: string, base: CodeFiles): CodeFiles | null {
   const source = content.replace(/^\uFEFF/, '').trim()
   if (!source) return null
-  const fenceMarkers = source.match(/\x60{3,}/g) ?? []
-  if (fenceMarkers.length % 2 !== 0) return null // respuesta truncada: no reemplazar archivos incompletos
-
-  // Algunos modelos responden con JSON estructurado: también lo aceptamos.
-  try {
-    const parsed = JSON.parse(source.replace(/^\x60{3}(?:json)?\s*/i, '').replace(/\s*\x60{3}$/, ''))
-    const files = parsed?.files && typeof parsed.files === 'object' ? parsed.files : parsed
-    const jsonResult: Partial<CodeFiles> = {}
-    for (const name of FILES) {
-      if (typeof files?.[name] === 'string' && files[name].trim()) jsonResult[name] = files[name].trim()
-    }
-    if (Object.keys(jsonResult).length) return { ...base, ...jsonResult }
-  } catch { /* No era JSON; seguimos con Markdown. */ }
+  const fenceTokens = source.match(/\x60{3,}/g) ?? []
+  if (fenceTokens.length % 2 !== 0) return null
 
   const result: Partial<CodeFiles> = {}
-  const headingPattern = /(?:^|\n)\s{0,3}(?:#{1,6}\s*)?(?:\*\*|__|\x60)?\s*(index\.html|style\.css|script\.js)\s*(?:\*\*|__|\x60)?\s*:?[ \t]*(?=\n|$)/gi
+  const cleanCode = (value: string) => value.trim()
+    .replace(/^\x60{3}[a-z0-9_+-]*\s*/i, '')
+    .replace(/\s*\x60{3}$/, '')
+    .trim()
+
+  try {
+    const jsonText = source.replace(/^\x60{3}(?:json)?\s*/i, '').replace(/\s*\x60{3}$/, '')
+    const parsed = JSON.parse(jsonText)
+    const files = parsed?.files && typeof parsed.files === 'object' ? parsed.files : parsed
+    for (const name of FILES) {
+      if (typeof files?.[name] === 'string' && files[name].trim()) result[name] = files[name].trim()
+    }
+    if (Object.keys(result).length) return { ...base, ...result }
+  } catch { /* no es JSON */ }
+
+  const headingPattern = /(?:^|\n)\s{0,3}(?:#{1,6}\s*)?(?:\*\*|__|\x60)?\s*(?:archivo\s*:\s*)?(index\.html|style\.css|styles\.css|script\.js|javascript\.js)\s*(?:\([^)]*\))?\s*(?:\*\*|__|\x60)?\s*:?[ \t]*(?=\n|$)/gi
   const headings = [...source.matchAll(headingPattern)]
   for (let i = 0; i < headings.length; i++) {
     const heading = headings[i]
-    const name = heading[1].toLowerCase() as keyof CodeFiles
-    const startAt = (heading.index ?? 0) + heading[0].length
-    const endAt = i + 1 < headings.length ? (headings[i + 1].index ?? source.length) : source.length
-    const section = source.slice(startAt, endAt).trim()
+    const rawName = heading[1].toLowerCase()
+    const name: keyof CodeFiles = rawName === 'styles.css' ? 'style.css' : rawName === 'javascript.js' ? 'script.js' : rawName as keyof CodeFiles
+    const from = (heading.index ?? 0) + heading[0].length
+    const to = i + 1 < headings.length ? (headings[i + 1].index ?? source.length) : source.length
+    const section = source.slice(from, to).trim()
     const fence = section.match(/\x60{3,}[^\n]*\n([\s\S]*?)\x60{3,}/)
-    const code = (fence?.[1] ?? section).trim()
+    const code = cleanCode(fence?.[1] ?? section)
     if (code && !/^(?:omitido|sin cambios|no se modifica)\.?$/i.test(code)) result[name] = code
   }
 
-  // Respaldo: detectar archivos por el lenguaje del bloque o por su contenido.
-  const fences = [...source.matchAll(/\x60{3,}([^\n]*)\n([\s\S]*?)(?:\x60{3,}|$)/g)]
+  const fences = [...source.matchAll(/\x60{3,}([^\n]*)\n([\s\S]*?)\x60{3,}/g)]
   for (const fence of fences) {
     const code = fence[2].trim()
     if (!code) continue
-    const before = source.slice(Math.max(0, (fence.index ?? 0) - 360), fence.index ?? 0)
+    const before = source.slice(Math.max(0, (fence.index ?? 0) - 240), fence.index ?? 0)
     const label = (before + ' ' + fence[1]).toLowerCase()
     let name: keyof CodeFiles | null = null
-    if (/index\.html|\bhtml\b/.test(label) || /^<!doctype\s+html|^<html\b/i.test(code)) name = 'index.html'
-    else if (/style\.css|\bcss\b/.test(label) || /^(?:@import|@media|:root|html\s*\{|body\s*\{|[.#][\w-]+\s*\{)/i.test(code)) name = 'style.css'
-    else if (/script\.js|javascript|\bjs\b/.test(label)) name = 'script.js'
+    if (/index\.html/.test(label) || /\bhtml\b/.test(fence[1]) || /^<!doctype\s+html|^<html\b/i.test(code)) name = 'index.html'
+    else if (/style\.css|styles\.css/.test(label) || /\bcss\b/.test(fence[1])) name = 'style.css'
+    else if (/script\.js|javascript\.js/.test(label) || /\bjavascript\b|\bjs\b/.test(fence[1])) name = 'script.js'
     if (name && result[name] == null) result[name] = code
   }
 
-  // Si los tres bloques vienen sin etiquetas, solo inferimos el orden cuando hay tres.
-  if (fences.length === 3) {
-    const unassigned = FILES.filter((name) => result[name] == null)
-    const unlabelled = fences.filter((fence) => {
-      const before = source.slice(Math.max(0, (fence.index ?? 0) - 360), fence.index ?? 0)
-      return !/index\.html|style\.css|script\.js|\bhtml\b|\bcss\b|javascript|\bjs\b/i.test(before + ' ' + fence[1])
-    })
-    if (unlabelled.length === 3 && unassigned.length === 3) {
-      result['index.html'] = unlabelled[0][2].trim()
-      result['style.css'] = unlabelled[1][2].trim()
-      result['script.js'] = unlabelled[2][2].trim()
-    }
+  if (!Object.keys(result).length) {
+    const rawHtml = source.match(/(?:<!doctype\s+html[\s\S]*|<html\b[\s\S]*)/i)?.[0]?.trim()
+    if (rawHtml && /<\/html\s*>/i.test(rawHtml) && /<body\b/i.test(rawHtml)) result['index.html'] = rawHtml
   }
 
   if (!Object.keys(result).length) return null
-  // Nunca aceptar una respuesta claramente truncada o texto explicativo como archivo.
-  for (const [name, code] of Object.entries(result)) {
-    if (!code.trim() || /(?:\.\.\.|\[\.\.\.\]|código restante omitido|rest of code)/i.test(code.slice(-500))) return null
+  for (const [name, raw] of Object.entries(result)) {
+    const code = raw?.trim() ?? ''
+    if (!code || /(?:\[\.\.\.\]|código restante omitido|rest of code|TODO:\s*insert)/i.test(code.slice(-700))) return null
     if (name === 'index.html' && !/<(?:!doctype|html|head|body|main|div|section|canvas)\b/i.test(code)) return null
+    if (name === 'index.html' && /<!doctype\s+html/i.test(code) && !/<\/html\s*>/i.test(code)) return null
+    if (name === 'style.css' && !/[{}]/.test(code)) return null
+    if (name === 'script.js' && !/[;{}()=]/.test(code)) return null
   }
   return { ...base, ...result }
 }
@@ -254,7 +252,7 @@ export function StudioPage() {
         'MODO PROGRAMACIÓN DE CUT-REAL. Sos un ingeniero de software senior que continúa trabajando en ESTE proyecto, no empezás uno nuevo.',
         'INSTRUCCIÓN DEL USUARIO (continuación de lo anterior):\n' + prompt.trim(),
         'REGLAS DE CONTINUIDAD: conservá objetivo, diseño, decisiones, nombres, estructura y funciones existentes. El pedido es incremental salvo que el usuario pida empezar de cero. No reemplaces funciones ajenas al cambio. Para cada archivo modificado devolvé el ARCHIVO COMPLETO, nunca fragmentos, diffs, puntos suspensivos ni marcadores de omisión. No inventes archivos ni cambies nombres. Para gráficos, creá SVG/Canvas real y adaptable (no un gráfico Markdown): ejes, etiquetas legibles, escala correcta, leyenda cuando corresponda, datos fieles y resize. Para 3D, incluí cámara, iluminación, geometría, materiales, canvas con tamaño visible y render loop; cargá Three.js solo si es necesario.',
-        'FORMATO OBLIGATORIO: respondé con encabezados exactos `index.html`, `style.css` o `script.js`; debajo de cada encabezado, un único bloque de código con el lenguaje correcto (html/css/javascript). Incluí solo los archivos modificados, pero cada archivo incluido debe estar completo y listo para reemplazar el anterior. No pongas código de dos archivos en un mismo bloque. Si no hay cambios, explicalo sin bloques. No agregues introducciones largas.',
+        'FORMATO DE ENTREGA: preferí los tres archivos separados con encabezados exactos `index.html`, `style.css` y `script.js`, cada uno completo en su bloque (html/css/javascript). PERO si el proyecto puede funcionar de forma autocontenida, también podés entregar un único `index.html` completo con CSS y JavaScript embebidos: encabezado `index.html` y bloque html. No entregues un único bloque que mezcle archivos separados. Se aceptan encabezados Archivo: index.html y etiquetas de lenguaje. Incluí solo archivos modificados, completos y ejecutables; nada de diffs, puntos suspensivos ni omisiones. No uses frameworks ni dependencias externas salvo que el usuario las pida y la vista previa pueda ejecutarlas.',
         currentCodeContext,
       ].join('\n\n')
       const result = await chat.send(conversationId, request, { silent: true, ephemeral: true })
