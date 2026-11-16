@@ -42,7 +42,7 @@ export function VoiceMode({ ensureConv, onClose }: { ensureConv(): Promise<strin
       catch (e) { c.fatal = true; setErr((e as Error).message); setPhase('error'); return }
       while (!c.dead) {
         setPhase('listening'); setErr(null)
-        const rec = mic.record({ vad: true, silenceMs: 1300, signal: c.abort.signal })
+        const rec = mic.record({ vad: true, silenceMs: 750, signal: c.abort.signal })
         c.stopRec = rec.stop
         const blob = await rec.done
         if (c.dead) break
@@ -59,10 +59,9 @@ export function VoiceMode({ ensureConv, onClose }: { ensureConv(): Promise<strin
         if (text.trim().length < 2) continue
         const me = useAuth.getState().me
         if (callSessionId && me) {
-          const { error: userLogError } = await supabase.from('cr_call_turns').insert({
+          void supabase.from('cr_call_turns').insert({
             session_id: callSessionId, user_id: me.userId, seq: turnSeq++, role: 'user', content: text.trim(),
-          })
-          if (userLogError) setErr('No se pudo guardar tu intervención en el historial de llamadas.')
+          }).then(({ error }) => { if (error && !c.dead) setErr('No se pudo guardar tu intervención en el historial de llamadas.') })
         }
         setPhase('thinking')
         try {
@@ -70,15 +69,14 @@ export function VoiceMode({ ensureConv, onClose }: { ensureConv(): Promise<strin
           const res = await useChat.getState().send(id, text, { silent: true, ephemeral: true })
           if (!res.ok) { setErr(res.error ?? 'No se pudo obtener la respuesta.'); setPhase('error'); await sleep(2800); continue }
           if (c.dead || !res.content) continue
-          if (callSessionId && me) {
-            const { error: assistantLogError } = await supabase.from('cr_call_turns').insert({
-              session_id: callSessionId, user_id: me.userId, seq: turnSeq++, role: 'assistant', content: res.content.trim(),
-            })
-            if (assistantLogError) setErr('No se pudo guardar la respuesta en el historial de llamadas.')
-          }
           setPhase('speaking')
+          if (callSessionId && me) {
+            void supabase.from('cr_call_turns').insert({
+              session_id: callSessionId, user_id: me.userId, seq: turnSeq++, role: 'assistant', content: res.content.trim(),
+            }).then(({ error }) => { if (error && !c.dead) setErr('No se pudo guardar la respuesta en el historial de llamadas.') })
+          }
           const barge = new AbortController()
-          const speaking = speakCallAndWait(res.content, (level) => { if (!c.dead) setVoiceLevelState(level) }).catch(() => {})
+          const speaking = speakCallAndWait(res.content, (level) => { if (!c.dead) setVoiceLevelState(level) }).catch((error) => { if (!c.dead) { setErr((error as Error).message || 'No se pudo reproducir la respuesta.'); setPhase('error') } })
           const interrupted = mic.waitForVoice(barge.signal).then((v) => v)
           const first = await Promise.race([interrupted.then((v) => (v ? 'barge' : 'wait')), speaking.then(() => 'done')])
           barge.abort()
