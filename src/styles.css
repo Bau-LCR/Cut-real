@@ -668,3 +668,24 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
   background: var(--accent, #668cff);
   transition: width .25s ease;
 }
+
+
+/* Programación: métricas de tokens, vista previa expandible y controles táctiles. */
+.codegen-usage{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:8px 11px;border:1px solid var(--line);border-radius:9px;background:var(--graphite);color:var(--muted);font-size:11px}
+.codegen-usage b{color:var(--text);font-variant-numeric:tabular-nums}
+.codegen-usage small{color:var(--faint);font-size:10px}
+.preview-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.preview-panel:fullscreen,.preview-panel.preview-fullscreen{position:fixed;inset:0;z-index:2000;width:100vw;height:100dvh;min-height:0;border:0;border-radius:0;background:var(--graphite)}
+.preview-panel:fullscreen iframe,.preview-panel.preview-fullscreen iframe{flex:1;width:100%;height:100%;min-height:0}
+.preview-panel:fullscreen .preview-panel-head{flex:none;padding:10px 14px}
+@media(max-width:620px){
+  .codegen-usage{align-items:flex-start;gap:5px 12px;padding:9px;font-size:10px}
+  .codegen-usage small{flex-basis:100%;line-height:1.4}
+  .preview-actions{width:100%;justify-content:flex-start}
+  .preview-actions .btn{min-height:38px}
+  .preview-panel-head{align-items:flex-start;flex-direction:column}
+  .preview-panel iframe{min-height:380px}
+  .preview-panel:fullscreen .preview-panel-head{padding:8px 10px}
+  .preview-panel:fullscreen .preview-actions{flex-wrap:nowrap;overflow-x:auto}
+  .preview-panel:fullscreen .preview-actions .btn{white-space:nowrap;flex:none}
+}
