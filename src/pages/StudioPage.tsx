@@ -15,6 +15,8 @@ const FILES = ['index.html', 'style.css', 'script.js'] as const
 function parseGeneratedFiles(content: string, base: CodeFiles): CodeFiles | null {
   const source = content.replace(/^\uFEFF/, '').trim()
   if (!source) return null
+  const fenceMarkers = source.match(/\x60{3,}/g) ?? []
+  if (fenceMarkers.length % 2 !== 0) return null // respuesta truncada: no reemplazar archivos incompletos
 
   // Algunos modelos responden con JSON estructurado: también lo aceptamos.
   try {
