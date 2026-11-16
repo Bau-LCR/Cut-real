@@ -63,11 +63,13 @@ Deno.serve(async (req) => {
     const input = typeof body?.text === 'string' ? body.text.trim().slice(0, 4000) : ''
     if (!input) throw new HttpError(400, 'bad_request', 'Falta el texto.')
     const voice = typeof body?.voice === 'string' && VOICES.has(body.voice) ? body.voice : (Deno.env.get('TTS_VOICE') || 'Kore')
-    const provider = (Deno.env.get('TTS_PROVIDER') || (Deno.env.get('GEMINI_API_KEY') ? 'gemini' : 'openai')).toLowerCase()
+    const geminiKey = Deno.env.get('GEMINI_API_KEY')
+    // Si Gemini está configurado, priorizarlo aunque haya quedado un TTS_PROVIDER=openai antiguo.
+    const provider = (geminiKey ? 'gemini' : (Deno.env.get('TTS_PROVIDER') || 'gemini')).toLowerCase()
     const t0 = Date.now()
     let audio: Response
     if (provider === 'gemini') {
-      const key = Deno.env.get('GEMINI_API_KEY')
+      const key = geminiKey
       if (!key) throw new HttpError(501, 'tts_not_configured', 'Falta GEMINI_API_KEY en los secretos del servidor.')
       audio = await geminiSpeech(input, voice, key)
     } else if (provider === 'openai') {
