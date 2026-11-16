@@ -21,6 +21,8 @@ export function Settings() {
   const [availableIntegrations, setAvailableIntegrations] = useState<AvailableIntegration[]>([])
   const [selectedScopes, setSelectedScopes] = useState<Record<string, string[]>>({})
   const [browserVoices, setBrowserVoices] = useState<SpeechSynthesisVoice[]>([])
+  const [tokenUsage, setTokenUsage] = useState<{ used: number; limit: number | null; unlimited: boolean; resets_at: string } | null>(null)
+  const [usageClock, setUsageClock] = useState(Date.now())
 
   const loadGrants = async () => {
     const [{ data: g, error: grantError }, { data: i, error: integrationError }] = await Promise.all([
@@ -42,6 +44,17 @@ export function Settings() {
     })
   }
   useEffect(() => { void loadGrants().catch((e) => toast('error', (e as Error).message)) }, [])
+  useEffect(() => {
+    let active = true
+    const loadUsage = async () => {
+      const { data, error } = await supabase.rpc('cr_get_my_token_usage')
+      if (!active) return
+      if (!error && data) setTokenUsage(data as { used: number; limit: number | null; unlimited: boolean; resets_at: string })
+    }
+    void loadUsage()
+    const refresh = window.setInterval(() => { void loadUsage(); setUsageClock(Date.now()) }, 30000)
+    return () => { active = false; window.clearInterval(refresh) }
+  }, [])
   useEffect(() => {
     if (typeof speechSynthesis === 'undefined') return
     const loadVoices = () => setBrowserVoices(speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith('es')))
@@ -65,6 +78,19 @@ export function Settings() {
       <div className="modal" role="dialog" aria-modal="true" aria-label="Configuración">
         <h2>Configuración <button className="icon-btn" onClick={() => setSettings(false)} aria-label="Cerrar"><X /></button></h2>
         <p className="hint">{me?.email}</p>
+        <section className="panel" aria-label="Uso de tokens">
+          <h3>Uso de tokens</h3>
+          {tokenUsage ? <>
+            <div className="row"><strong>{tokenUsage.used.toLocaleString('es-AR')} tokens</strong><span className="grow" /><span className="hint">{tokenUsage.unlimited ? 'Sin límite diario' : 'de ' + (tokenUsage.limit ?? 70000).toLocaleString('es-AR')}</span></div>
+            {!tokenUsage.unlimited && <div className="usage-meter" role="progressbar" aria-valuenow={Math.min(100, Math.round(tokenUsage.used / (tokenUsage.limit ?? 70000) * 100))} aria-valuemin={0} aria-valuemax={100}>
+              <span style={{ width: Math.min(100, tokenUsage.used / (tokenUsage.limit ?? 70000) * 100) + '%' }} />
+            </div>}
+            <p className="hint">{tokenUsage.unlimited
+              ? 'Tu cuenta administrativa no tiene un límite diario interno. El consumo se sigue registrando.'
+              : 'Consumo acumulado de hoy en todos tus chats. Se renueva en ' + (() => { const ms = Math.max(0, new Date(tokenUsage.resets_at).getTime() - usageClock); const h = Math.floor(ms / 3600000); const m = Math.floor((ms % 3600000) / 60000); return h + ' h ' + m + ' min' })() + ' (00:00 UTC).'}
+            </p>
+          </> : <p className="hint">Cargando consumo de tokens…</p>}
+        </section>
 
         <h3>Perfil</h3>
         <div className="row">
