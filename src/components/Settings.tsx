@@ -84,7 +84,7 @@ export function Settings() {
         <h3>Voz</h3>
         <div className="grid2">
           <div><label className="lbl" htmlFor="eng">Motor de voz</label>
-            <select id="eng" className="field" value={voice.engine} onChange={(e) => { const engine = e.target.value as 'browser' | 'remote'; guard(saveSettings({ voice: { ...voice, engine, voice_uri: engine === 'remote' ? 'Kore' : '' } })) }}>
+            <select id="eng" className="field" value={voice.engine} onChange={(e) => { const engine = e.target.value as 'browser' | 'remote'; guard(saveSettings({ voice: { ...voice, engine, voice_uri: engine === 'remote' ? 'Puck' : '' } })) }}>
               <option value="browser">Navegador (sin costo)</option><option value="remote">Proveedor externo (Gemini TTS)</option>
             </select></div>
           <div><label className="lbl" htmlFor="rate">Velocidad de lectura</label>
@@ -104,9 +104,9 @@ export function Settings() {
         </div>}
         {voice.engine === 'remote' && <div>
           <label className="lbl" htmlFor="remote-voice">Voz natural de Cut-real</label>
-          <select id="remote-voice" className="field" value={voice.voice_uri || 'Kore'} onChange={(e) => guard(saveSettings({ voice: { ...voice, voice_uri: e.target.value } }))}>
+          <select id="remote-voice" className="field" value={voice.voice_uri || 'Puck'} onChange={(e) => guard(saveSettings({ voice: { ...voice, voice_uri: e.target.value } }))}>
+            <option value="Puck">Puck · animada (predeterminada)</option>
             <option value="Kore">Kore · firme y clara</option>
-            <option value="Puck">Puck · animada</option>
             <option value="Charon">Charon · informativa</option>
             <option value="Aoede">Aoede · ligera</option>
             <option value="Zephyr">Zephyr · brillante</option>
@@ -114,7 +114,7 @@ export function Settings() {
             <option value="Gacrux">Gacrux · madura</option>
             <option value="Sulafat">Sulafat · cálida</option>
           </select>
-          <p className="hint">Usa Gemini 3.8 Flash TTS en el servidor. La voz elegida se envía al proveedor y, si falla, se muestra el error en lugar de cambiar silenciosamente a la voz del navegador.</p>
+          <p className="hint">Usa Gemini 3.8 Flash TTS en el servidor. Puck es la voz predeterminada. Si el proveedor falla, Cut-real intenta usar la voz del dispositivo como respaldo (Raúl si está disponible).</p>
         </div>}
                 <button className="btn sm" onClick={() => void useSpeech.getState().speak('settings-test', 'Hola. Soy Cut-real. Esta es mi voz.')}>Probar voz</button>
 
