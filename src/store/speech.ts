@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { makeEngine, type SpeechEngine } from '../voice/engine'
+import { BrowserEngine, makeEngine, type SpeechEngine } from '../voice/engine'
 import { markdownToSpeech } from '../voice/speechText'
 import { useAuth } from './auth'
 import { useUi } from './ui'
@@ -21,8 +21,12 @@ export const useSpeech = create<SpeechState>((set, getState) => ({
     set({ activeId: id, paused: false })
     try { await get().speak(text, useAuth.getState().voice.rate, useAuth.getState().voice.voice_uri) }
     catch (e) {
-      // No sustituir silenciosamente el proveedor externo por la voz del navegador.
-      useUi.getState().toast('error', (e as Error).message || 'No se pudo generar la voz externa.')
+      try {
+        await new BrowserEngine().speak(text, useAuth.getState().voice.rate)
+        useUi.getState().toast('info', 'La voz principal no respondió; se utilizó la voz de respaldo del dispositivo (Raúl si está disponible).')
+      } catch {
+        useUi.getState().toast('error', (e as Error).message || 'No se pudo reproducir la respuesta.')
+      }
     } finally { if (getState().activeId === id) set({ activeId: null, paused: false }) }
   },
   pause() { get().pause(); set({ paused: true }) },
@@ -36,7 +40,10 @@ export async function speakAndWait(markdown: string) {
   if (!text) return
   const voice = useAuth.getState().voice
   try { await get().speak(text, voice.rate, voice.voice_uri) }
-  catch (error) { throw error }
+  catch {
+    await new BrowserEngine().speak(text, voice.rate)
+    useUi.getState().toast('info', 'La voz Puck no respondió; se utilizó la voz de respaldo del dispositivo (Raúl si está disponible).')
+  }
 }
 /** En llamada usamos la voz natural del navegador y respetamos la voz elegida en Configuración. */
 export async function speakCallAndWait(markdown: string, onActivity?: (level: number) => void) {
@@ -44,6 +51,9 @@ export async function speakCallAndWait(markdown: string, onActivity?: (level: nu
   if (!text) return
   const voice = useAuth.getState().voice
   try { await get().speak(text, voice.rate, voice.voice_uri, onActivity) }
-  catch (error) { throw error }
+  catch {
+    await new BrowserEngine().speak(text, voice.rate, undefined, onActivity)
+    useUi.getState().toast('info', 'Puck no respondió; se utilizó la voz de respaldo del dispositivo (Raúl si está disponible).')
+  }
 }
 export const stopSpeaking = () => { engine?.stop() }
