@@ -206,18 +206,25 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
         : message.content.reduce((sum: number, part: any) => sum + (part.type === 'text' ? String(part.text ?? '').length : 4800), 0)), 0)
       estimatedPromptTokens = Math.max(1, Math.ceil(promptChars / 4))
       reservedTokens = estimatedPromptTokens + Math.min(Number(model.max_output_tokens ?? 4096), 4096)
-      const { data: quota, error: quotaError } = await db.rpc('cr_reserve_daily_tokens', {
-        p_user_id: userId, p_tokens: reservedTokens, p_limit: 70000,
-      })
-      if (quotaError) throw new Error('No se pudo verificar el límite diario de tokens.')
-      if (!quota?.allowed) {
-        status = 'error'
-        errCode = 'daily_token_limit'
-        const reset = quota?.resets_at ? new Date(quota.resets_at).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'UTC' }) + ' UTC' : 'el próximo día UTC'
-        errMsg = `Alcanzaste el límite de 70.000 tokens de Cut-real para hoy. Tu cupo se renueva el ${reset}. No se inició una nueva llamada al modelo.`
-        send({ type: 'notice', message: errMsg })
-      } else {
-        reservationId = String(quota.reservation_id)
+      // Las cuentas con rol privilegiado (admin/owner) no consumen el cupo diario interno.
+      // El rol proviene de cr_user_roles, releído por authenticate() en el servidor; nunca del cliente.
+      const isPrivileged = ctx.role === 'admin' || ctx.role === 'owner'
+      if (!isPrivileged) {
+        const { data: quota, error: quotaError } = await db.rpc('cr_reserve_daily_tokens', {
+          p_user_id: userId, p_tokens: reservedTokens, p_limit: 70000,
+        })
+        if (quotaError) throw new Error('No se pudo verificar el límite diario de tokens.')
+        if (!quota?.allowed) {
+          status = 'error'
+          errCode = 'daily_token_limit'
+          const reset = quota?.resets_at ? new Date(quota.resets_at).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'UTC' }) + ' UTC' : 'el próximo día UTC'
+          errMsg = `Alcanzaste el límite de 70.000 tokens de Cut-real para hoy. Tu cupo se renueva el ${reset}. No se inició una nueva llamada al modelo.`
+          send({ type: 'notice', message: errMsg })
+        } else {
+          reservationId = String(quota.reservation_id)
+        }
+      }
+      if (isPrivileged || reservationId) {
         send({ type: 'status', status: 'generating' })
         for await (const ev of streamFromProvider({ provider, apiKey, model, messages, maxTokens: 4096, signal: abort.signal })) {
           if (ev.delta) {
@@ -284,7 +291,7 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
     await logUsage(db, {
       userId, conversationId: conv.id, providerId: provider.id, modelId: model.id, kind: 'chat',
       status: status === 'done' ? 'ok' : status === 'cancelled' ? 'cancelled' : 'error', errorCode: errCode,
-      promptTokens: reservationId ? (usage?.prompt_tokens ?? estimatedPromptTokens) : null, completionTokens: reservationId ? (usage?.completion_tokens ?? Math.round(full.length / 4)) : null, latencyMs: Date.now() - t0,
+      promptTokens: (usage?.prompt_tokens ?? estimatedPromptTokens) || null, completionTokens: (usage?.completion_tokens ?? Math.round(full.length / 4)) || null, latencyMs: Date.now() - t0,
     })
   })()
   if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(run) // sigue aunque el cliente se desconecte
