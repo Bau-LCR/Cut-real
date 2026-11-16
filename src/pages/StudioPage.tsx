@@ -149,6 +149,19 @@ export function StudioPage() {
   }
 
   useEffect(() => { void useChat.getState().init(); void loadProjects() }, [userId])
+  useEffect(() => {
+    const conversationId = active?.code_conversation_id
+    if (!conversationId) { setLastGenerationTokens(null); setProjectTokenUsage(0); return }
+    let cancelled = false
+    void supabase.from('cr_messages').select('token_usage, seq').eq('conversation_id', conversationId).eq('role', 'assistant').not('token_usage', 'is', null).order('seq', { ascending: false }).then(({ data }) => {
+      if (cancelled) return
+      const usages = (data ?? []).map((row: any) => Number(row.token_usage) || 0)
+      setLastGenerationTokens(usages[0] ?? null)
+      setProjectTokenUsage(usages.reduce((sum, value) => sum + value, 0))
+    })
+    return () => { cancelled = true }
+  }, [active?.code_conversation_id])
+
   useEffect(() => () => dictationRef.current?.mic.close(), [])
 
   async function ensureProjectConversation(project: Project): Promise<string> {
@@ -248,7 +261,7 @@ export function StudioPage() {
       if (!files) throw new Error('La respuesta no incluyó ningún archivo válido. No se modificó el proyecto.')
       setDraft(files)
       draftRef.current = files
-      const updatedProject = { ...active, files, last_ai_files: files }
+      const updatedProject = { ...active, code_conversation_id: conversationId, files, last_ai_files: files }
       setActive(updatedProject)
       setProjects((items) => items.map((item) => item.id === active.id ? updatedProject : item))
       const { error: snapshotError } = await supabase.from('cr_code_projects').update({ last_ai_files: files }).eq('id', active.id)
