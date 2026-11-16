@@ -48,7 +48,7 @@ export async function imageSearch(query: string, signal?: AbortSignal): Promise<
       if (!response.ok) throw new Error('image_search_http_' + response.status)
       const payload = await response.json()
       const results = (Array.isArray(payload.results) ? payload.results : []).slice(0, 8).flatMap((item: any) => {
-        const url = typeof item?.properties?.url === 'string' ? item.properties.url : item?.thumbnail?.src
+        const url = typeof item?.thumbnail?.src === 'string' ? item.thumbnail.src : item?.properties?.url
         const pageUrl = typeof item?.url === 'string' ? item.url : ''
         if (typeof url !== 'string' || !(url.startsWith('https://') || url.startsWith('http://'))) return []
         const description = [item.title, item.source].filter((value) => typeof value === 'string' && value.trim()).join(' · ') || 'Imagen encontrada en Internet'
