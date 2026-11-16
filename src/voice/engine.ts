@@ -10,7 +10,7 @@ export interface SpeechEngine {
 }
 
 // ---- Identidad de voz: grave, mecánica, clara. Original (no imita ninguna voz protegida). ----
-export const VOICE_PROFILE = { pitch: 1, rateScale: 1, preferredNames: /diego|jorge|juan|pablo|enrique|carlos|male|masculin|andres|antonio|miguel/i }
+export const VOICE_PROFILE = { pitch: 1, rateScale: 1, preferredNames: /raul|raúl|diego|jorge|juan|pablo|enrique|carlos|male|masculin|andres|andrés|antonio|miguel/i }
 
 function pickSpanishVoice(voiceURI?: string): SpeechSynthesisVoice | null {
   const allVoices = speechSynthesis.getVoices()
