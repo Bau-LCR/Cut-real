@@ -16,7 +16,7 @@ interface AuthState {
 let started = false
 export const useAuth = create<AuthState>((set, get) => ({
   session: null, me: null, ready: false, error: null,
-  voice: { rate: 1, auto_read: false, engine: 'browser', voice_uri: '' }, webSearchDefault: false, defaultModelId: null, privacyAck: false,
+  voice: { rate: 1, auto_read: false, engine: 'remote', voice_uri: 'Puck' }, webSearchDefault: false, defaultModelId: null, privacyAck: false,
 
   init() {
     if (started) return
@@ -40,11 +40,17 @@ export const useAuth = create<AuthState>((set, get) => ({
           supabase.from('cr_user_settings').select('default_model_id, web_search_default, voice, privacy_notice_ack_at').eq('user_id', session.user.id).maybeSingle(),
         ])
 
+        const loadedVoice = { ...get().voice, ...(s?.voice ?? {}) }
+        // Kore era el valor inicial anterior; migrarlo a Puck como nueva voz predeterminada.
+        if (loadedVoice.engine === 'remote' && (!loadedVoice.voice_uri || loadedVoice.voice_uri === 'Kore')) loadedVoice.voice_uri = 'Puck'
         set({
           session, ready: true, error: null,
           me: { userId: session.user.id, email: p?.email ?? session.user.email ?? null, display_name: p?.display_name ?? null, avatar_url: p?.avatar_url ?? null, role: ens.role, suspended: ens.suspended, access_status: ens.access_status ?? 'pending', suspended_reason: ens.suspended_reason ?? null },
-          voice: { ...get().voice, ...(s?.voice ?? {}) }, webSearchDefault: !!s?.web_search_default, defaultModelId: s?.default_model_id ?? null, privacyAck: !!s?.privacy_notice_ack_at,
+          voice: loadedVoice, webSearchDefault: !!s?.web_search_default, defaultModelId: s?.default_model_id ?? null, privacyAck: !!s?.privacy_notice_ack_at,
         })
+        if (s?.voice && JSON.stringify(s.voice) !== JSON.stringify(loadedVoice)) {
+          void supabase.from('cr_user_settings').update({ voice: loadedVoice }).eq('user_id', session.user.id)
+        }
       } catch (e) {
         console.error('[Cut-real] Error al cargar la cuenta:', e)
         set({ session, me: null, ready: true, error: 'No se pudo conectar con Supabase para cargar tu cuenta. Comprobá la conexión y la configuración del proyecto.' })
