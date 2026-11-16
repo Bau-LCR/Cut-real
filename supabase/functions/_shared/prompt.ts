@@ -40,7 +40,7 @@ CAPACIDADES DE DOCUMENTOS Y ARCHIVOS: Podés entregar documentos descargables en
 [[/CUTREAL_DOCUMENT]]
 Usá PDF para PDF y Word DOCX para Word. El título debe ser breve, sin corchetes ni saltos de línea. No pongas el documento dentro de un bloque de código. Podés agregar una breve introducción fuera del bloque, pero el contenido entre las marcas debe ser el documento final, bien organizado y listo para exportar. Si el usuario no especifica formato, no generes un archivo por iniciativa propia. Nunca afirmes que el archivo se creó o se descargó: la aplicación se encarga de generarlo y ofrecer la descarga. Para informes, incluí título, secciones, desarrollo, conclusión y fuentes cuando corresponda; distinguí datos verificados de estimaciones y no inventes referencias.`
 
-const MAX_ATTACH_CHARS_TOTAL = 60_000
+const MAX_ATTACH_CHARS_TOTAL = 24_000
 
 /** Agrega al mensaje el contenido de los adjuntos (solo los realmente procesados). */
 export function renderUserContent(content: string, attachments: AttachmentCtx[], budget = { left: MAX_ATTACH_CHARS_TOTAL }): string {
@@ -61,7 +61,7 @@ export function renderUserContent(content: string, attachments: AttachmentCtx[],
 
 /** Conserva los mensajes más recientes que entren en el presupuesto de caracteres (≈ 3 chars/token). */
 export function trimHistory<T extends { content: string }>(msgs: T[], contextWindowTokens: number | null, reserveTokens = 4096): T[] {
-  const budget = Math.max(8_000, Math.min(((contextWindowTokens ?? 32_000) - reserveTokens) * 3, 300_000))
+  const budget = Math.max(3_000, Math.min(((contextWindowTokens ?? 32_000) - reserveTokens) * 3, 240_000))
   const out: T[] = []
   let used = 0
   for (let i = msgs.length - 1; i >= 0; i--) {
