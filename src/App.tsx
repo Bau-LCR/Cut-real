@@ -8,6 +8,7 @@ import { LandingPage } from './pages/LandingPage'
 import { StudioPage } from './pages/StudioPage'
 import { CallsPage } from './pages/CallsPage'
 import { ProjectsPage } from './pages/ProjectsPage'
+import { SimulationPage } from './pages/SimulationPage'
 import { LegalPage } from './pages/LegalPage'
 import { useAuth } from './store/auth'
 
@@ -50,6 +51,7 @@ export default function App() {
         <Route path="/admin" element={<Guard admin><Suspense fallback={<Splash />}><Admin /></Suspense></Guard>} />
         <Route path="/studio" element={<Guard><StudioPage /></Guard>} />
         <Route path="/projects" element={<Guard><ProjectsPage /></Guard>} />
+        <Route path="/simulation" element={<Guard><SimulationPage /></Guard>} />
         <Route path="/legal" element={<LegalPage />} />
         <Route path="/calls" element={<Guard><CallsPage /></Guard>} />
         <Route path="/c/:id" element={<Guard><ChatPage /></Guard>} />
