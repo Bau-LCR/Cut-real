@@ -50,10 +50,16 @@ export async function speakCallAndWait(markdown: string, onActivity?: (level: nu
   const text = markdownToSpeech(markdown)
   if (!text) return
   const voice = useAuth.getState().voice
+  // En llamadas priorizamos respuesta inmediata y sin una segunda petición de red.
+  // Gemini TTS queda disponible como preferencia explícita en Configuración.
+  if ((voice.call_engine ?? 'browser') === 'browser') {
+    await new BrowserEngine().speak(text, voice.rate, undefined, onActivity)
+    return
+  }
   try { await get().speak(text, voice.rate, voice.voice_uri, onActivity) }
   catch {
     await new BrowserEngine().speak(text, voice.rate, undefined, onActivity)
-    useUi.getState().toast('info', 'Puck no respondió; se utilizó la voz de respaldo del dispositivo (Raúl si está disponible).')
+    useUi.getState().toast('info', 'Gemini no respondió; se utilizó la voz del dispositivo como respaldo.')
   }
 }
 export const stopSpeaking = () => { engine?.stop() }
