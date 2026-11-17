@@ -27,22 +27,22 @@ interface Body {
 
 function normalizeToolIntent(content: unknown): string {
   return typeof content === 'string'
-    ? content.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase()
+    ? content.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
     : ''
 }
 
 function shouldExplicitlyRequestDocument(content: unknown): boolean {
   const text = normalizeToolIntent(content)
   if (!text) return false
-  const artifact = /\\b(pdf|word|docx|documento|documentos|archivo descargable|informe|reporte|diapositivas|powerpoint|presentacion)\\b/i.test(text)
-  const action = /\\b(crea|crear|genera|generar|prepara|preparar|arma|armar|redacta|redactar|exporta|exportar|descarga|descargar|haceme|hace|necesito|quiero|elabora|elaborar)\\b/i.test(text)
+  const artifact = /\b(pdf|word|docx|documento|documentos|archivo descargable|informe|reporte|diapositivas|powerpoint|presentacion)\b/i.test(text)
+  const action = /\b(crea|crear|genera|generar|prepara|preparar|arma|armar|redacta|redactar|exporta|exportar|descarga|descargar|haceme|hace|necesito|quiero|elabora|elaborar)\b/i.test(text)
   return artifact && action
 }
 
 function shouldExplicitlyRequestImage(content: unknown): boolean {
   const text = normalizeToolIntent(content)
   if (!text) return false
-  return /\\b(crea|crear|genera|generar|dibuja|dibujar|diseña|disenar|ilustra|ilustrar|haz|hace|haceme|mostra|mostrame)\\b.{0,90}\\b(imagen|imagenes|ilustracion|ilustraciones|grafico|grafica|visual)\\b|\\b(imagen|imagenes|ilustracion|ilustraciones)\\b.{0,70}\\b(original|generada|generar|crear|dibuja|diseña)\\b/i.test(text)
+  return /\b(crea|crear|genera|generar|dibuja|dibujar|diseña|disenar|ilustra|ilustrar|haz|hace|haceme|mostra|mostrame)\b.{0,90}\b(imagen|imagenes|ilustracion|ilustraciones|grafico|grafica|visual)\b|\b(imagen|imagenes|ilustracion|ilustraciones)\b.{0,70}\b(original|generada|generar|crear|dibuja|diseña)\b/i.test(text)
 }
 
 function shouldAutoImageSearch(content: unknown): boolean {
@@ -265,10 +265,10 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
         const requestText = (lastUser as any).content
         const allowDocumentGeneration = shouldExplicitlyRequestDocument(requestText)
         const allowImageGeneration = shouldExplicitlyRequestImage(requestText) ||
-          (allowDocumentGeneration && /\\b(imagen|imagenes|ilustracion|ilustraciones)\\b/i.test(normalizeToolIntent(requestText)))
+          (allowDocumentGeneration && /\b(imagen|imagenes|ilustracion|ilustraciones)\b/i.test(normalizeToolIntent(requestText)))
 
         if (status === 'done' && !allowImageGeneration && full.includes('[[CUTREAL_GENERATE_IMAGE:')) {
-          full = full.replace(/\\[\\[CUTREAL_GENERATE_IMAGE:\\s*([^|\\]]+)\\s*\\|\\s*([^\\]]+)\\]\\]/g, '$2')
+          full = full.replace(/\[\[CUTREAL_GENERATE_IMAGE:\s*([^|\]]+)\s*\|\s*([^\]]+)\]\]/g, '$2')
           send({ type: 'replace', text: full })
         }
         if (status === 'done' && allowImageGeneration && full.includes('[[CUTREAL_GENERATE_IMAGE:')) {
