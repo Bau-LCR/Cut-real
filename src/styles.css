@@ -715,3 +715,41 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
 .simulation-note{margin-top:14px;color:var(--muted);font-size:11px;line-height:1.55}
 @media(max-width:900px){.simulation-layout{grid-template-columns:1fr}.gravity-canvas{height:54vh;min-height:320px}.simulation-controls{grid-template-columns:1fr 1fr}}
 @media(max-width:600px){.simulation-page{padding:20px 12px 32px}.gravity-canvas{height:46vh;min-height:280px}.simulation-controls{grid-template-columns:1fr}.simulation-card{padding:15px}.simulation-visual-controls{gap:10px}.simulation-visual-controls label{width:100%;justify-content:space-between}.simulation-visual-controls input[type=range]{width:55%}}
+
+
+/* Simulación gravitatoria 3D: escena libre, objetos manipulables y panel de propiedades. */
+.sim3d-layout{grid-template-columns:minmax(0,1.6fr) minmax(320px,.8fr);align-items:start}
+.sim3d-visual{display:grid;grid-template-rows:auto minmax(420px,1fr) auto auto}
+.sim3d-stage-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line);background:var(--graphite)}
+.sim3d-stage-head>div{display:grid;gap:3px}.sim3d-stage-head b{font:600 14px var(--display)}.sim3d-stage-head span{font-size:11px;color:var(--muted)}
+.sim3d-canvas{height:min(68vh,760px);min-height:420px;cursor:grab;touch-action:none;user-select:none}
+.sim3d-camera-help{display:flex;gap:8px 16px;flex-wrap:wrap;padding:10px 15px;border-top:1px solid var(--line);color:var(--muted);font-size:11px}
+.sim3d-camera-help b{color:var(--text)}
+.sim3d-visual-controls{border-top:1px solid var(--line);background:var(--graphite)}
+.sim3d-visual-controls label:first-child{flex:1;min-width:220px}.sim3d-visual-controls input[type=range]{width:min(240px,45%)}
+.sim3d-controls{gap:12px}
+.sim3d-card{padding:15px}
+.sim3d-card-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.sim3d-card-title h2{margin:3px 0 0}
+.sim3d-object-list{display:grid;gap:6px;max-height:210px;overflow:auto}
+.sim3d-object{display:grid;grid-template-columns:10px minmax(0,1fr) auto;align-items:center;gap:9px;width:100%;padding:9px;border:1px solid var(--line);border-radius:9px;background:var(--slate);color:var(--text);text-align:left;cursor:pointer}
+.sim3d-object.active{border-color:var(--blue-bright);background:rgba(45,105,210,.15)}
+.sim3d-object>i{width:9px;height:9px;border-radius:50%;box-shadow:0 0 10px currentColor}
+.sim3d-object>span{display:grid;gap:2px;min-width:0}.sim3d-object b{font-size:12px;overflow-wrap:anywhere}.sim3d-object small{font-size:10px;color:var(--muted)}
+.sim3d-object>small{white-space:nowrap}
+.sim3d-presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.sim3d-presets>span{flex-basis:100%;font-size:10px;color:var(--muted)}
+.sim3d-property{display:grid;grid-template-columns:1fr auto;gap:4px 10px;margin-top:13px}
+.sim3d-property label,.sim3d-position-head>b{font-size:12px;color:var(--muted)}
+.sim3d-property>b{font:600 12px var(--mono);color:#b9d6ff}
+.sim3d-property input{grid-column:1/-1;width:100%;margin:3px 0 0}
+.sim3d-name{width:100%;margin-top:5px}
+.sim3d-position-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+.sim3d-position-head small{font-size:10px;color:var(--muted)}
+.sim3d-position-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:8px}
+.sim3d-position-grid label{display:grid;gap:4px;color:var(--muted);font-size:11px}
+.sim3d-position-grid input{width:100%;min-width:0;padding:7px 6px;border:1px solid var(--line-strong);border-radius:7px;background:var(--slate);color:var(--text);font:12px var(--mono)}
+.sim3d-color-label{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:13px;color:var(--muted);font-size:12px}
+.sim3d-color-label input{width:42px;height:30px;padding:2px;border:1px solid var(--line-strong);border-radius:7px;background:var(--slate)}
+@media(max-width:900px){.sim3d-layout{grid-template-columns:1fr}.sim3d-canvas{height:58vh;min-height:360px}.sim3d-controls{grid-template-columns:1fr 1fr}.sim3d-controls>.simulation-card:last-child{grid-column:1/-1}}
+@media(max-width:600px){.sim3d-visual{grid-template-rows:auto minmax(320px,1fr) auto auto}.sim3d-canvas{height:48vh;min-height:320px}.sim3d-controls{grid-template-columns:1fr}.sim3d-controls>.simulation-card:last-child{grid-column:auto}.sim3d-stage-head{padding:10px 12px}.sim3d-camera-help{gap:7px 12px;padding:9px 11px}.sim3d-visual-controls label:first-child{width:100%;justify-content:space-between}.sim3d-position-grid{gap:5px}}

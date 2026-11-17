@@ -23,6 +23,7 @@ interface Body {
   attachmentIds?: string[]
   webSearch?: boolean
   imageSearch?: boolean
+  taskMode?: 'programming'
 }
 
 function normalizeToolIntent(content: unknown): string {
@@ -81,7 +82,7 @@ function readBody(raw: any): Body {
   const ids = raw.attachmentIds ?? []
   if (!Array.isArray(ids) || ids.length > 10 || !ids.every((i: unknown) => typeof i === 'string' && UUID.test(i)))
     throw new HttpError(400, 'bad_request', 'Adjuntos inválidos (máximo 10).')
-  return { mode: raw.mode, conversationId: raw.conversationId, modelId: raw.modelId, content: raw.content?.trim(), messageId: raw.messageId, attachmentIds: ids, webSearch: !!raw.webSearch, imageSearch: !!raw.imageSearch || (raw.mode === 'send' && shouldAutoImageSearch(raw.content)) }
+  return { mode: raw.mode, conversationId: raw.conversationId, modelId: raw.modelId, content: raw.content?.trim(), messageId: raw.messageId, attachmentIds: ids, webSearch: !!raw.webSearch, imageSearch: !!raw.imageSearch || (raw.mode === 'send' && shouldAutoImageSearch(raw.content)), taskMode: raw.taskMode === 'programming' ? 'programming' : undefined }
 }
 
 Deno.serve(async (req) => {
@@ -226,7 +227,11 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
         ? message.content.length
         : message.content.reduce((sum: number, part: any) => sum + (part.type === 'text' ? String(part.text ?? '').length : 4800), 0)), 0)
       estimatedPromptTokens = Math.max(1, Math.ceil(promptChars / 4))
-      reservedTokens = estimatedPromptTokens + Math.min(Number(model.max_output_tokens ?? 4096), 4096)
+      // Programación necesita espacio para entregar archivos completos; el chat normal conserva su límite habitual.
+      const maxOutputTokens = b.taskMode === 'programming'
+        ? Math.min(Number(model.max_output_tokens ?? 8192), 8192)
+        : Math.min(Number(model.max_output_tokens ?? 4096), 4096)
+      reservedTokens = estimatedPromptTokens + maxOutputTokens
       // Las cuentas con rol privilegiado (admin/owner) no consumen el cupo diario interno.
       // El rol proviene de cr_user_roles, releído por authenticate() en el servidor; nunca del cliente.
       const isPrivileged = ctx.role === 'admin' || ctx.role === 'owner'
@@ -247,7 +252,7 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
       }
       if (isPrivileged || reservationId) {
         send({ type: 'status', status: 'generating' })
-        for await (const ev of streamFromProvider({ provider, apiKey, model, messages, maxTokens: 4096, signal: abort.signal })) {
+        for await (const ev of streamFromProvider({ provider, apiKey, model, messages, maxTokens: maxOutputTokens, signal: abort.signal })) {
           if (ev.delta) {
             full += ev.delta
             send({ type: 'delta', text: ev.delta })

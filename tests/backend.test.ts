@@ -18,6 +18,10 @@ describe('parseOpenAIStream', () => {
     expect(ev.at(-1)?.usage).toEqual({ prompt_tokens: 5, completion_tokens: 2 })
     expect(ev.at(-1)?.finish).toBe('stop')
   })
+  it('procesa el último evento aunque el proveedor cierre sin salto de línea', async () => {
+    const ev = await collect(streamOf(['data: {"choices":[{"delta":{"content":"respuesta final"}}]}']))
+    expect(ev).toEqual([{ delta: 'respuesta final' }])
+  })
   it('ignora JSON inválido sin romper', async () => {
     const ev = await collect(streamOf(['data: {roto\n\ndata: {"choices":[{"delta":{"content":"ok"}}]}\n\n']))
     expect(ev).toEqual([{ delta: 'ok' }])

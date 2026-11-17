@@ -22,19 +22,52 @@ export function classifyProviderStatus(status: number): ProviderError {
   return new ProviderError('provider_unavailable', 'El proveedor no está disponible en este momento.')
 }
 
+async function retryDelay(ms: number, signal: AbortSignal): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+    const onAbort = () => {
+      clearTimeout(timer)
+      reject(new DOMException('La solicitud fue cancelada.', 'AbortError'))
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
+}
+
+async function fetchProviderResponse(url: string, init: RequestInit, signal: AbortSignal): Promise<Response> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (signal.aborted) throw new DOMException('La solicitud fue cancelada.', 'AbortError')
+    try {
+      const res = await fetch(url, { ...init, signal })
+      if (res.ok && res.body) return res
+      const retryable = (res.status >= 500 && res.status <= 599) || (res.ok && !res.body)
+      await res.body?.cancel().catch(() => {})
+      if (!retryable || attempt === 2) throw classifyProviderStatus(res.status)
+    } catch (error) {
+      if (signal.aborted || error instanceof ProviderError || (error as Error)?.name === 'AbortError') throw error
+      if (attempt === 2) {
+        throw new ProviderError('provider_unavailable', 'El proveedor no respondió después de tres intentos. Probá nuevamente en unos segundos.')
+      }
+    }
+    await retryDelay(350 * (attempt + 1), signal)
+  }
+  throw new ProviderError('provider_unavailable', 'El proveedor no respondió después de tres intentos. Probá nuevamente en unos segundos.')
+}
+
 const openAICompatible: ProviderAdapter = {
   async *stream({ provider, apiKey, model, messages, maxTokens, temperature, signal }) {
-    const res = await fetch(`${provider.base_url.replace(/\/$/, '')}/chat/completions`, {
-      method: 'POST', signal,
+    const res = await fetchProviderResponse(`${provider.base_url.replace(/\/$/, '')}/chat/completions`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: model.model_key, messages, stream: true, stream_options: { include_usage: true },
         max_tokens: Math.min(maxTokens ?? model.max_output_tokens ?? 4096, model.max_output_tokens ?? 4096),
         temperature: temperature ?? 0.7,
       }),
-    })
-    if (!res.ok || !res.body) { await res.body?.cancel(); throw classifyProviderStatus(res.status) }
-    yield* parseOpenAIStream(res.body)
+    }, signal)
+    yield* parseOpenAIStream(res.body!)
   },
 }
 const ADAPTERS: Record<string, ProviderAdapter> = { openai_compatible: openAICompatible }
