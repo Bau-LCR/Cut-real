@@ -25,6 +25,26 @@ interface Body {
   imageSearch?: boolean
 }
 
+function normalizeToolIntent(content: unknown): string {
+  return typeof content === 'string'
+    ? content.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase()
+    : ''
+}
+
+function shouldExplicitlyRequestDocument(content: unknown): boolean {
+  const text = normalizeToolIntent(content)
+  if (!text) return false
+  const artifact = /\\b(pdf|word|docx|documento|documentos|archivo descargable|informe|reporte|diapositivas|powerpoint|presentacion)\\b/i.test(text)
+  const action = /\\b(crea|crear|genera|generar|prepara|preparar|arma|armar|redacta|redactar|exporta|exportar|descarga|descargar|haceme|hace|necesito|quiero|elabora|elaborar)\\b/i.test(text)
+  return artifact && action
+}
+
+function shouldExplicitlyRequestImage(content: unknown): boolean {
+  const text = normalizeToolIntent(content)
+  if (!text) return false
+  return /\\b(crea|crear|genera|generar|dibuja|dibujar|diseña|disenar|ilustra|ilustrar|haz|hace|haceme|mostra|mostrame)\\b.{0,90}\\b(imagen|imagenes|ilustracion|ilustraciones|grafico|grafica|visual)\\b|\\b(imagen|imagenes|ilustracion|ilustraciones)\\b.{0,70}\\b(original|generada|generar|crear|dibuja|diseña)\\b/i.test(text)
+}
+
 function shouldAutoImageSearch(content: unknown): boolean {
   if (typeof content !== 'string') return false
   const normalized = content.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
@@ -242,7 +262,16 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
             if (cur?.status === 'cancelled') { status = 'cancelled'; abort.abort(); break }
           }
         }
-        if (status === 'done' && full.includes('[[CUTREAL_GENERATE_IMAGE:')) {
+        const requestText = (lastUser as any).content
+        const allowDocumentGeneration = shouldExplicitlyRequestDocument(requestText)
+        const allowImageGeneration = shouldExplicitlyRequestImage(requestText) ||
+          (allowDocumentGeneration && /\\b(imagen|imagenes|ilustracion|ilustraciones)\\b/i.test(normalizeToolIntent(requestText)))
+
+        if (status === 'done' && !allowImageGeneration && full.includes('[[CUTREAL_GENERATE_IMAGE:')) {
+          full = full.replace(/\\[\\[CUTREAL_GENERATE_IMAGE:\\s*([^|\\]]+)\\s*\\|\\s*([^\\]]+)\\]\\]/g, '$2')
+          send({ type: 'replace', text: full })
+        }
+        if (status === 'done' && allowImageGeneration && full.includes('[[CUTREAL_GENERATE_IMAGE:')) {
           try {
             const result = await generateOriginalImages(ctx, conv.id, full)
             full = result.content
@@ -258,6 +287,11 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
           }
         }
         if (status === 'done' && !full && !imageResults.length) { status = 'error'; errCode = 'empty_response'; errMsg = 'El modelo no devolvió contenido. Probá de nuevo o elegí otro modelo.' }
+        if (status === 'done' && !allowDocumentGeneration && full.includes('[[CUTREAL_DOCUMENT:')) {
+          full = full.replace(/\\[\\[CUTREAL_DOCUMENT:(?:pdf|docx)\\|[^\\]\\r\\n]{1,160}\\]\\]\\s*([\\s\\S]*?)\\s*\\[\\[\\/CUTREAL_DOCUMENT\\]\\]/gi, '$1')
+          send({ type: 'replace', text: full })
+          send({ type: 'notice', message: 'No se creó ningún archivo porque no lo habías solicitado. La explicación quedó como respuesta normal.' })
+        }
         if (status === 'done' && imageResults.length) {
           if (!full) full = 'Encontré estas imágenes relacionadas con tu búsqueda:'
           const markdown = imageResults.map((image) => { const alt = image.description.replace(/[\[\]\r\n]/g, ' ').slice(0, 120); return '![' + alt + '](' + image.url + ')' }).join('\n\n')
