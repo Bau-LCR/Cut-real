@@ -6,7 +6,7 @@ import { useAuth } from '../store/auth'
 import { useChat } from '../store/chat'
 import { useUi } from '../store/ui'
 
-type Category = 'investigacion' | 'presentacion' | 'documento' | 'diseno' | 'programacion' | 'datos' | 'multimedia' | 'otro'
+type Category = 'investigacion' | 'presentacion' | 'documento' | 'diseno' | 'programacion' | 'datos' | 'multimedia' | 'simulacion' | 'otro'
 interface WorkProject { id: string; name: string; category: Category; objective: string; conversation_id: string | null; created_at: string; updated_at: string }
 const categories: { value: Category; label: string; description: string }[] = [
   { value: 'investigacion', label: 'Investigación', description: 'Buscar información, comparar fuentes y elaborar conclusiones.' },
@@ -16,6 +16,7 @@ const categories: { value: Category; label: string; description: string }[] = [
   { value: 'programacion', label: 'Programación y videojuegos', description: 'Aplicaciones, sitios, prototipos y juegos.' },
   { value: 'datos', label: 'Datos y gráficos', description: 'Tablas, cálculos, análisis y visualizaciones.' },
   { value: 'multimedia', label: 'Multimedia', description: 'Guiones, audio y planificación de contenido audiovisual.' },
+  { value: 'simulacion', label: 'Simulación científica', description: 'Modelos interactivos, parámetros físicos, cálculos y gráficos.' },
   { value: 'otro', label: 'Otro proyecto', description: 'Una idea que todavía no encaja en una categoría.' },
 ]
 
@@ -60,7 +61,7 @@ export function ProjectsPage() {
         'Nombre: ' + name.trim(),
         'Categoría elegida: ' + selected.label + '. ' + selected.description,
         'Objetivo e idea inicial: ' + objective.trim(),
-        'Tu tarea: ayudame a convertir esta idea en un resultado concreto. Primero analizá lo que pedí y detectá qué dato esencial falta. Si hay ambigüedades relevantes, haceme UNA pregunta clara por vez. Ejemplo: si digo "presentación", preguntá si necesito diapositivas PowerPoint, una presentación visual de imágenes o un guion, en vez de asumir. Cuando tengas información suficiente, proponé un plan breve y empezá a producir el entregable apropiado usando solo las capacidades y herramientas que realmente estén disponibles. Conservá decisiones, archivos, avances y contexto en esta conversación; tratá los pedidos posteriores como continuación del mismo proyecto salvo que indique lo contrario. No afirmes haber creado archivos, buscado en la web o generado imágenes si no lo hiciste.',
+        'Tu tarea: convertí esta idea en un resultado concreto y mantené este chat separado como espacio de trabajo del proyecto. Primero detectá qué dato esencial falta y hacé como máximo UNA pregunta clara por vez. Después proponé un plan breve y trabajá por entregables incrementales. Adaptá el resultado a la categoría: Investigación = informe estructurado con fuentes verificables, citas, tablas y visuales solo si aportan; Documento = contenido listo para exportar cuando se pida archivo; Programación y videojuegos = archivos completos y vista previa ejecutable; Multimedia = guion, storyboard, plan audiovisual y recursos solicitados; Presentación = estructura de diapositivas con notas y recursos visuales; Diseño = propuestas visuales y variantes; Datos = tablas, cálculos y gráficos basados en datos reales; Simulación científica = controles, modelo matemático explícito, unidades, supuestos, gráficos y visualización interactiva; Otro = elegí el formato que mejor represente la idea y explicá por qué. No generes PDF, Word, imágenes ni audio salvo que el usuario lo pida o el objetivo lo exija explícitamente. No afirmes haber creado archivos, buscado en la web o generado imágenes si no lo hiciste. Conservá decisiones, archivos y avances en esta conversación y tratá los pedidos posteriores como continuación del mismo proyecto salvo que indique lo contrario.',
       ].join('\n\n')
       setProjects((old) => [data as WorkProject, ...old])
       void useChat.getState().send(conversationId, kickoff, { silent: false })
