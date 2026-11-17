@@ -100,7 +100,10 @@ function DocumentPreview({ title, content }: { title: string; content: string })
           <aside className="document-preview-panel" role="dialog" aria-modal="true" aria-label={'Vista previa de ' + title} onClick={e => e.stopPropagation()}>
             <header className="document-preview-header">
               <div><b>{title}</b><small>{format === 'pdf' ? 'PDF original · vista previa' : 'Word · vista orientativa de solo lectura'}</small></div>
-              <button className="btn sm" onClick={closePreview}>Cerrar</button>
+              <div className="document-preview-header-actions">
+                {format === 'pdf' && pdfUrl && <a className="btn sm" href={pdfUrl} target="_blank" rel="noreferrer">Abrir PDF</a>}
+                <button className="btn sm" onClick={closePreview}>Cerrar</button>
+              </div>
             </header>
             <div className="document-preview-content">
               {format === 'pdf' && pdfUrl
