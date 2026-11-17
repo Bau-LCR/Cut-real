@@ -128,6 +128,14 @@ export function Settings() {
           </select>
           <p className="hint">Las voces del navegador dependen de Windows, Chrome y los paquetes de idioma instalados.</p>
         </div>}
+        <div>
+          <label className="lbl" htmlFor="call-engine">Voz durante las llamadas</label>
+          <select id="call-engine" className="field" value={voice.call_engine ?? 'browser'} onChange={(e) => guard(saveSettings({ voice: { ...voice, call_engine: e.target.value as 'browser' | 'remote' } }))}>
+            <option value="browser">Dispositivo · rápida y sin consumo de API</option>
+            <option value="remote">Gemini · voz natural, puede tardar más y consumir cuota</option>
+          </select>
+          <p className="hint">La opción del dispositivo evita esperar una segunda generación de audio después de la respuesta. La voz natural de Gemini sigue disponible si la preferís.</p>
+        </div>
         {voice.engine === 'remote' && <div>
           <label className="lbl" htmlFor="remote-voice">Voz natural de Cut-real</label>
           <select id="remote-voice" className="field" value={voice.voice_uri || 'Puck'} onChange={(e) => guard(saveSettings({ voice: { ...voice, voice_uri: e.target.value } }))}>
