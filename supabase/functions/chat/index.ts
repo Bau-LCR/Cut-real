@@ -35,15 +35,15 @@ function shouldExplicitlyRequestDocument(content: unknown): boolean {
   const text = normalizeToolIntent(content)
   if (!text) return false
   const artifact = '(?:pdf|word|docx|documento|documentos|archivo descargable|informe|reporte|diapositivas|powerpoint|presentacion)'
-  const create = new RegExp('\\\\b(?:crea|crear|genera|generar|prepara|preparar|arma|armar|redacta|redactar|exporta|exportar|descarga|descargar|haceme|hace|haga|elabora|elaborar)\\\\b.{0,50}\\\\b' + artifact + '\\\\b', 'i')
-  const request = new RegExp('\\\\b(?:necesito|quiero)\\\\b.{0,35}\\\\b(?:un|una|el|la)?\\\\s*' + artifact + '\\\\b', 'i')
+  const create = new RegExp('\\b(?:crea|crear|genera|generar|prepara|preparar|arma|armar|redacta|redactar|exporta|exportar|descarga|descargar|haceme|hace|haga|elabora|elaborar)\\b.{0,50}\\b' + artifact + '\\b', 'i')
+  const request = new RegExp('\\b(?:necesito|quiero)\\b.{0,35}\\b(?:un|una|el|la)?\\s*' + artifact + '\\b', 'i')
   return create.test(text) || request.test(text)
 }
 
 function shouldExplicitlyRequestImage(content: unknown): boolean {
   const text = normalizeToolIntent(content)
   if (!text) return false
-  return /\\b(?:crea|crear|genera|generar|dibuja|dibujar|disena|disenar|ilustra|ilustrar|haz|hace|haceme|mostra|mostrame)\\b.{0,90}\\b(?:imagen|imagenes|ilustracion|ilustraciones)\\b|\\b(?:imagen|imagenes|ilustracion|ilustraciones)\\b.{0,70}\\b(?:original|generada|generar|crear|dibuja|disena)\\b/i.test(text)
+  return /\b(?:crea|crear|genera|generar|dibuja|dibujar|disena|disenar|ilustra|ilustrar|haz|hace|haceme|mostra|mostrame)\b.{0,90}\b(?:imagen|imagenes|ilustracion|ilustraciones)\b|\b(?:imagen|imagenes|ilustracion|ilustraciones)\b.{0,70}\b(?:original|generada|generar|crear|dibuja|disena)\b/i.test(text)
 }
 
 function shouldAutoImageSearch(content: unknown): boolean {
