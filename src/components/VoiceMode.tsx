@@ -42,7 +42,7 @@ export function VoiceMode({ ensureConv, onClose }: { ensureConv(): Promise<strin
       catch (e) { c.fatal = true; setErr((e as Error).message); setPhase('error'); return }
       while (!c.dead) {
         setPhase('listening'); setErr(null)
-        const rec = mic.record({ vad: true, silenceMs: 750, signal: c.abort.signal })
+        const rec = mic.record({ vad: true, silenceMs: 600, signal: c.abort.signal })
         c.stopRec = rec.stop
         const blob = await rec.done
         if (c.dead) break
