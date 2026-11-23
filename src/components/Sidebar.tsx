@@ -5,7 +5,6 @@ import type { Conversation } from '../lib/types'
 import { useAuth } from '../store/auth'
 import { useChat } from '../store/chat'
 import { useUi } from '../store/ui'
-import { supabase } from '../lib/supabase'
 import { Edit, LogOut, More, Pin, Plus, Search, Settings, Shield, Trash } from './icons'
 
 function ConvItem({ c, active, onOpen }: { c: Conversation; active: boolean; onOpen(): void }) {
@@ -56,17 +55,8 @@ export function Sidebar({ activeId }: { activeId?: string }) {
   const setSettings = useUi((s) => s.setSettings)
   const [q, setQ] = useState('')
   const [menu, setMenu] = useState(false)
-  const [projectConversationIds, setProjectConversationIds] = useState<string[]>([])
-
-  useEffect(() => {
-    let active = true
-    void supabase.from('cr_work_projects').select('conversation_id').eq('user_id', me.userId).not('conversation_id', 'is', null)
-      .then(({ data }) => { if (active) setProjectConversationIds((data ?? []).map((row: any) => row.conversation_id).filter(Boolean)) })
-    return () => { active = false }
-  }, [me.userId])
-
   useEffect(() => { const t = setTimeout(() => void search(q), 250); return () => clearTimeout(t) }, [q, search])
-  const list = (searchResults ?? conversations).filter((c) => !projectConversationIds.includes(c.id))
+  const list = searchResults ?? conversations
   const groups = groupConversations(list)
   const close = () => setSidebar(false)
   const initials = (me.display_name ?? me.email ?? '?').slice(0, 1).toUpperCase()
@@ -78,7 +68,6 @@ export function Sidebar({ activeId }: { activeId?: string }) {
         <div className="brand"><img src={`${import.meta.env.BASE_URL}brand/Logo_Original.png`} alt="" />Cut-real <b>2</b></div>
         <div className="side-actions">
           <button className="btn" onClick={() => { nav('/'); close() }}><Plus className="sm" />Nueva conversación</button>
-          <button className="btn" onClick={() => { nav('/projects'); close() }}><span className="studio-nav-icon" aria-hidden="true">✦</span>Proyectos</button>
           <button className="btn" onClick={() => { nav('/studio'); close() }}><span className="studio-nav-icon" aria-hidden="true">{'</>'}</span>Programación</button>
           <button className="btn" onClick={() => { nav('/simulation'); close() }}><span className="studio-nav-icon" aria-hidden="true">◎</span>Simulación</button>
           <button className="btn" onClick={() => { nav('/calls'); close() }}><span className="studio-nav-icon" aria-hidden="true">◷</span>Registro de llamadas</button>
