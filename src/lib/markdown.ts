@@ -1,31 +1,33 @@
-/** Muchos modelos escriben matemáticas con \( \) y \[ \]; remark-math espera $ y $$. Se omite el código. */
+/** Normaliza delimitadores LaTeX para remark-math sin anidar fórmulas ni tocar código. */
 export function normalizeMath(md: string): string {
   return md.split(/(\x60{3}[\s\S]*?\x60{3}|\x60[^\x60\n]+\x60)/g).map((part, i) => {
     if (i % 2 === 1) return part
-    let value = part
-      .replace(/\\\[([\s\S]+?)\\\]/g, (_match, math: string) => '\n$$\n' + math + '\n$$\n')
-      .replace(/\\\(([\s\S]+?)\\\)/g, (_match, math: string) => '$' + math + '$')
-
-    // Los modelos a veces entregan entornos LaTeX sin delimitadores matemáticos.
+    const displayBlocks: string[] = []
+    let value = part.replace(/\\\[([\s\S]+?)\\\]/g, (_match, math: string) => {
+      const token = '@@CUTREAL_DISPLAY_' + displayBlocks.length + '@@'
+      displayBlocks.push('\n$$\n' + math + '\n$$\n')
+      return token
+    })
+    value = value.replace(/\\\(([\s\S]+?)\\\)/g, (_match, math: string) => '$' + math + '$')
     value = value.replace(
       /\\begin\{(aligned|gathered|cases|matrix|pmatrix|bmatrix)\}[\s\S]*?\\end\{\1\}/g,
       (block) => '\n$$\n' + block + '\n$$\n',
     )
-
+    value = value.replace(/@@CUTREAL_DISPLAY_(\d+)@@/g, (_match, index: string) => displayBlocks[Number(index)] ?? '')
     let inDisplayMath = false
     return value.split('\n').map((line) => {
       const trimmed = line.trim()
-      if (trimmed === '$') {
+      if (trimmed === '$$') {
         inDisplayMath = !inDisplayMath
         return line
       }
       if (!trimmed || inDisplayMath) return line
-      // Elimina únicamente el artefacto aislado "undefined"; no altera código ni frases.
       if (/^undefined[.!]?$/.test(trimmed)) return ''
       const hasLatex = /\\(?:frac|dfrac|tfrac|boxed|sqrt|lim|sum|int|cdot|qquad|text|mathrm|begin)\b/.test(trimmed)
       const looksLikeFormula = hasLatex || (/(?:[A-Za-z]\([^)]*\)|[A-Za-z])\s*=\s*[^.!?]{2,}/.test(trimmed) && /[\^_=]/.test(trimmed))
       const isMarkdown = /^\s*(?:#{1,6}\s|[-*+]\s|>\s|\|)/.test(line) || /^\s*</.test(line)
-      if (looksLikeFormula && !isMarkdown && !trimmed.startsWith('$')) return '$\n' + trimmed + '\n$'
+      const alreadyDelimited = trimmed.startsWith('$') || trimmed.endsWith('$')
+      if (looksLikeFormula && !isMarkdown && !alreadyDelimited) return '$' + trimmed + '$'
       return line
     }).join('\n')
   }).join('')
