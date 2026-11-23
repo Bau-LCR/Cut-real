@@ -69,6 +69,19 @@ export async function uploadAttachment(file: File, userId: string, conversationI
   return { attachment: data as Attachment, note: ex.note }
 }
 
+export async function downloadAttachment(a: Pick<Attachment, 'storage_path' | 'file_name'>) {
+  const { data, error } = await supabase.storage.from('cr-attachments').download(a.storage_path)
+  if (error || !data) throw new Error('No se pudo descargar el archivo.')
+  const url = URL.createObjectURL(data)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = a.file_name
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1500)
+}
+
 export async function openAttachment(a: Pick<Attachment, 'storage_path'>) {
   const { data } = await supabase.storage.from('cr-attachments').createSignedUrl(a.storage_path, 60)
   if (data?.signedUrl) window.open(data.signedUrl, '_blank', 'noopener')
