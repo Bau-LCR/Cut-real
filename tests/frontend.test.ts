@@ -33,6 +33,54 @@ describe('markdown y voz', () => {
     expect(normalizeMath('\\[x^2\\]')).toContain('$$x^2$$')
     expect(normalizeMath('`\\(no\\)`')).toBe('`\\(no\\)`')
   })
+
+  it('preserva entornos aligned dentro de bloques display sin anidar delimitadores', () => {
+    const source = '\\[\\begin{aligned}f\\' (x)&=x^2\\\\&=2x\\end{aligned}\\]'
+    const normalized = normalizeMath(source)
+    expect(normalized).toContain('$\n\\begin{aligned}')
+    expect(normalized).toContain('\\end{aligned}\n$')
+    expect(normalized).not.toContain('$\n$')
+  })
+  it('envuelve entornos aligned sin delimitadores y mantiene sus líneas intactas', () => {
+    const normalized = normalizeMath('\\begin{aligned}\nf(x)&=x^2\\\\\nf\\' (x)&=2x\n\\end{aligned}')
+    expect(normalized).toContain('$\n\\begin{aligned}')
+    expect(normalized).toContain('f\\' (x)&=2x')
+    expect(normalized).not.toContain('$f\\' (x)&=2x
+    const t = markdownToSpeech('## Título\n\n**Hola** [enlace](http://x.y)\n\n```js\nconsole.log(1)\n```\n\n- item')
+    expect(t).not.toMatch(/[#*`\[\]]|console|http/); expect(t).toContain('Hola enlace'); expect(t).toContain('bloque de código omitido')
+  })
+  it('normaliza etiquetas HTML y tablas impresas por el modelo', () => {
+    const source = '<p>Resumen<br>de la guerra</p><ul><li>Aliados</li><li>Eje</li></ul><table><tr><th>País</th><th>Bloque</th></tr><tr><td>Francia</td><td>Aliados</td></tr></table>'
+    const normalized = normalizeHtmlArtifacts(source)
+    expect(normalized).toContain('Resumen\nde la guerra')
+    expect(normalized).toContain('- Aliados')
+    expect(normalized).toContain('| País | Bloque |')
+    expect(normalized).not.toMatch(/<\/?(?:p|br|ul|li|table|tr|td|th)>/i)
+  })
+  it('la voz no pronuncia etiquetas HTML escapadas ni emojis', () => {
+    const spoken = markdownToSpeech('Hola &lt;br&gt; mundo 😀 <ul><li>uno</li></ul>')
+    expect(spoken).not.toMatch(/[<>]|br|ul|li|😀/)
+    expect(spoken).toContain('Hola')
+    expect(spoken).toContain('mundo')
+  })
+  it('splitSentences respeta el máximo', () => {
+    const parts = splitSentences('Una frase. '.repeat(60), 100)
+    expect(parts.every((p) => p.length <= 100)).toBe(true); expect(parts.length).toBeGreaterThan(5)
+  })
+})
+
+describe('validación de archivos', () => {
+  it('acepta formatos soportados y rechaza el resto', () => {
+    for (const n of ['a.pdf', 'a.TXT', 'a.docx', 'a.csv', 'a.json', 'a.png', 'a.jpg', 'a.webp']) expect(validateFile({ name: n, size: 100 })).toBeNull()
+    expect(validateFile({ name: 'a.exe', size: 100 })).toMatch(/formato no admitido/)
+    expect(validateFile({ name: 'a.pdf', size: 11 * 1024 * 1024 })).toMatch(/10 MB/)
+    expect(validateFile({ name: 'a.pdf', size: 0 })).toMatch(/vacío/)
+  })
+  it('sanea nombres para el storage', () => { expect(safeName('../../mi archivo ñ.pdf')).not.toMatch(/[/\\ ]/) })
+})
+)
+  })
+
   it('la lectura en voz alta no incluye símbolos ni código', () => {
     const t = markdownToSpeech('## Título\n\n**Hola** [enlace](http://x.y)\n\n```js\nconsole.log(1)\n```\n\n- item')
     expect(t).not.toMatch(/[#*`\[\]]|console|http/); expect(t).toContain('Hola enlace'); expect(t).toContain('bloque de código omitido')
