@@ -1,7 +1,29 @@
 /** Muchos modelos escriben matemáticas con \( \) y \[ \]; remark-math espera $ y $$. Se omite el código. */
 export function normalizeMath(md: string): string {
-  return md.split(/(```[\s\S]*?```|`[^`\n]+`)/g).map((part, i) => i % 2 === 1 ? part
-    : part.replace(/\\\[([\s\S]+?)\\\]/g, (_, m) => `\n$$${m}$$\n`).replace(/\\\(([\s\S]+?)\\\)/g, (_, m) => `$${m}$`)).join('')
+  return md.split(/(\`\`\`[\s\S]*?\`\`\`|\`[^\`\n]+\`)/g).map((part, i) => {
+    if (i % 2 === 1) return part
+    let value = part
+      .replace(/\\\[([\s\S]+?)\\\]/g, (_match, math: string) => \`\\n$$\\n\${math}\\n$$\\n\`)
+      .replace(/\\\(([\s\S]+?)\\\)/g, (_match, math: string) => \`$\${math}$\`)
+
+    // Los modelos a veces entregan entornos LaTeX sin delimitadores matemáticos.
+    value = value.replace(
+      /\\begin\{(aligned|gathered|cases|matrix|pmatrix|bmatrix)\}[\s\S]*?\\end\{\1\}/g,
+      (block) => \`\\n$$\\n\${block}\\n$$\\n\`,
+    )
+
+    return value.split('\\n').map((line) => {
+      const trimmed = line.trim()
+      if (!trimmed) return line
+      // Elimina únicamente el artefacto aislado "undefined"; no altera código ni frases.
+      if (/^undefined[.!]?$/.test(trimmed)) return ''
+      const hasLatex = /\\(?:frac|dfrac|tfrac|boxed|sqrt|lim|sum|int|cdot|qquad|text|mathrm|begin)\b/.test(trimmed)
+      const looksLikeFormula = hasLatex || /(?:[A-Za-z]\([^)]*\)|[A-Za-z])\s*=\s*[^.!?]{2,}/.test(trimmed) && /[\^_=]/.test(trimmed)
+      const isMarkdown = /^\\s*(?:#{1,6}\\s|[-*+]\\s|>\\s|\\|)/.test(line) || /^\\s*<\//.test(line)
+      if (looksLikeFormula && !isMarkdown && !trimmed.startsWith('$$')) return \`$$\\n\${trimmed}\\n$$\`
+      return line
+    }).join('\\n')
+  }).join('')
 }
 
 
