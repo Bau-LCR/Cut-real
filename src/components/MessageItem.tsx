@@ -1,10 +1,11 @@
 import { memo, useEffect, useState } from 'react'
 import type { Attachment, Message } from '../lib/types'
 import { STALE_MS, formatBytes } from '../lib/format'
-import { openAttachment } from '../lib/files'
+import { downloadAttachment, openAttachment } from '../lib/files'
 import { useAuth } from '../store/auth'
 import { useChat } from '../store/chat'
 import { useSpeech } from '../store/speech'
+import { useUi } from '../store/ui'
 import { CopyButton, Markdown } from './Markdown'
 import { callFnBlob } from '../lib/functions'
 import { supabase } from '../lib/supabase'
@@ -145,6 +146,7 @@ function SpeakControls({ msg }: { msg: Message }) {
 function Chips({ list }: { list: Attachment[] }) {
   const [urls, setUrls] = useState<Record<string, string>>({})
   const [selected, setSelected] = useState<Attachment | null>(null)
+  const toast = useUi((s) => s.toast)
   const images = list.filter((item) => item.mime_type.startsWith('image/'))
   const otherFiles = list.filter((item) => !item.mime_type.startsWith('image/'))
 
@@ -174,6 +176,7 @@ function Chips({ list }: { list: Attachment[] }) {
             <img src={urls[item.id]} alt={item.file_name} loading="lazy" />
             <span>{item.file_name}</span>
           </button>
+          <button className="btn ghost sm" onClick={() => void downloadAttachment(item).catch((e) => toast('error', (e as Error).message))}>Descargar</button>
         ) : (
           <span className="chat-image-loading" key={item.id}>{item.file_name} · cargando imagen…</span>
         ))}
@@ -185,6 +188,7 @@ function Chips({ list }: { list: Attachment[] }) {
               <File className="sm" /><span className="n">{a.file_name}</span>
               <small>{formatBytes(a.size_bytes)}{a.status === 'processed' ? ' · leído' : ' · sin analizar'}</small>
             </button>
+            <button className="btn ghost sm" onClick={() => void downloadAttachment(a).catch((e) => toast('error', (e as Error).message))}>Descargar</button>
           </div>
         ))}
       </div>}
