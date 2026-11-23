@@ -140,6 +140,18 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
         <textarea
           ref={taRef} rows={1} value={text} placeholder="Escribí tu mensaje…" aria-label="Mensaje" maxLength={20000}
           onChange={(e) => setText(e.target.value)}
+          onPaste={(e) => {
+            const pasted = Array.from(e.clipboardData.files)
+            const itemFiles = Array.from(e.clipboardData.items).filter((item) => item.kind === 'file').map((item) => item.getAsFile()).filter((file): file is File => !!file)
+            const files = pasted.length ? pasted : itemFiles
+            if (files.length) {
+              e.preventDefault()
+              const transfer = new DataTransfer()
+              files.forEach((file) => transfer.items.add(file))
+              void addFiles(transfer.files)
+              toast('info', files.length === 1 ? 'Archivo pegado y adjuntado al mensaje.' : files.length + ' archivos pegados y adjuntados al mensaje.')
+            }
+          }}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !coarse && !e.nativeEvent.isComposing) { e.preventDefault(); void submit() } }}
         />
         <div className="tools">
