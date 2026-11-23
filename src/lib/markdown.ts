@@ -12,15 +12,20 @@ export function normalizeMath(md: string): string {
       (block) => '\n$$\n' + block + '\n$$\n',
     )
 
+    let inDisplayMath = false
     return value.split('\n').map((line) => {
       const trimmed = line.trim()
-      if (!trimmed) return line
+      if (trimmed === '$') {
+        inDisplayMath = !inDisplayMath
+        return line
+      }
+      if (!trimmed || inDisplayMath) return line
       // Elimina únicamente el artefacto aislado "undefined"; no altera código ni frases.
       if (/^undefined[.!]?$/.test(trimmed)) return ''
       const hasLatex = /\\(?:frac|dfrac|tfrac|boxed|sqrt|lim|sum|int|cdot|qquad|text|mathrm|begin)\b/.test(trimmed)
       const looksLikeFormula = hasLatex || (/(?:[A-Za-z]\([^)]*\)|[A-Za-z])\s*=\s*[^.!?]{2,}/.test(trimmed) && /[\^_=]/.test(trimmed))
       const isMarkdown = /^\s*(?:#{1,6}\s|[-*+]\s|>\s|\|)/.test(line) || /^\s*</.test(line)
-      if (looksLikeFormula && !isMarkdown && !trimmed.startsWith('$$')) return '$$\n' + trimmed + '\n$$'
+      if (looksLikeFormula && !isMarkdown && !trimmed.startsWith('$')) return '$\n' + trimmed + '\n$'
       return line
     }).join('\n')
   }).join('')
