@@ -161,6 +161,10 @@ export const useChat = create<ChatState>((set, get) => {
             setGen(convId, { controller, assistantId })
             break
           }
+          case 'status':
+            if (ev.status === 'searching') trace.mark('sending', 'Consulta de herramientas', 'Cut-real está consultando la herramienta solicitada antes de preparar la llamada al modelo.')
+            else if (ev.status === 'generating') trace.mark('model', 'Contexto preparado', 'El historial, las instrucciones y los adjuntos disponibles se organizaron para enviarse al modelo.')
+            break
           case 'sources':
             if (assistantId) {
               patchMsg(convId, assistantId, { sources: ev.sources })
@@ -218,6 +222,12 @@ export const useChat = create<ChatState>((set, get) => {
       if (err.code === 'search_not_configured') useUi.getState().toast('error', err.message)
       return { ok: false, error: err.message }
     } finally { setGen(convId, null) }
+    // Reconciliar la respuesta con la fila persistida para evitar que una instantánea
+    // antigua de Realtime o del historial reemplace el contenido recién generado.
+    if (assistantId && finalStatus !== null) {
+      const { data: persisted } = await supabase.from('cr_messages').select('*').eq('id', assistantId).maybeSingle()
+      if (persisted) upsertMsg(persisted as Message)
+    }
     // Título automático: refrescar la conversación al terminar.
     if (!o.ephemeral) void supabase.from('cr_conversations').select('*').eq('id', convId).maybeSingle().then(({ data }) => data && upsertConv(data as Conversation))
     // Lectura automática (si está activada y no estamos en el modo conversación por voz, que habla por su cuenta).
