@@ -36,7 +36,8 @@ function Guard({ children, admin = false }: { children: JSX.Element; admin?: boo
 }
 
 export default function App() {
-  const { init, session, ready } = useAuth()
+  const { init, session, ready, appearance } = useAuth()
+  useEffect(() => { document.documentElement.dataset.theme = appearance }, [appearance])
   useEffect(() => {
     if (isConfigured) init()
     else useAuth.setState({ ready: true, error: 'Supabase todavía no está configurado. Revisá las variables VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en GitHub.' })

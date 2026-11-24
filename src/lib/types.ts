@@ -11,5 +11,6 @@ export interface Attachment {
   id: string; conversation_id: string | null; message_id: string | null; storage_path: string; file_name: string; mime_type: string
   size_bytes: number; status: 'processed' | 'attached_only' | 'failed'; extracted_text?: string | null
 }
+export type Appearance = 'original' | 'white' | 'liquid-glass' | 'cybercore'
 export interface VoiceSettings { rate: number; auto_read: boolean; engine: 'browser' | 'remote'; voice_uri?: string; call_engine?: 'browser' | 'remote' }
 export interface Me { userId: string; email: string | null; display_name: string | null; avatar_url: string | null; role: Role; suspended: boolean; access_status: 'pending' | 'approved' | 'rejected'; suspended_reason: string | null }

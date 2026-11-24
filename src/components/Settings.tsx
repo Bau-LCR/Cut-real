@@ -12,7 +12,7 @@ interface Grant { id: string; integration_id: string; scopes: string[]; granted_
 interface AvailableIntegration { id: string; name: string; slug: string; allowed_scopes: string[] }
 
 export function Settings() {
-  const { me, voice, webSearchDefault, defaultModelId, privacyAck, updateProfile, saveSettings } = useAuth()
+  const { me, voice, appearance, webSearchDefault, defaultModelId, privacyAck, updateProfile, saveSettings } = useAuth()
   const models = useChat((s) => s.models)
   const setSettings = useUi((s) => s.setSettings)
   const toast = useUi((s) => s.toast)
@@ -91,6 +91,24 @@ export function Settings() {
             </p>
           </> : <p className="hint">Cargando consumo de tokens…</p>}
         </section>
+
+        <h3>Apariencia</h3>
+        <p className="hint">Elegí el estilo visual de Cut-real. La preferencia se guarda en tu cuenta y se sincroniza entre tus dispositivos.</p>
+        <div className="appearance-options" role="group" aria-label="Estilo de apariencia">
+          {([
+            { id: 'original', name: 'Original', desc: 'Diseño actual · carbón y azul', swatch: 'appearance-swatch-original' },
+            { id: 'white', name: 'White', desc: 'Interfaz clara y luminosa', swatch: 'appearance-swatch-white' },
+            { id: 'liquid-glass', name: 'Liquid Glass', desc: 'Cristal azul translúcido y reflejos', swatch: 'appearance-swatch-glass' },
+            { id: 'cybercore', name: 'Cybercore', desc: 'Cromo, neón y futurismo Y2K', swatch: 'appearance-swatch-cyber' },
+          ] as const).map((style) => (
+            <button key={style.id} type="button" className={`appearance-option ${appearance === style.id ? 'selected' : ''}`} aria-pressed={appearance === style.id}
+              onClick={() => guard(saveSettings({ appearance: style.id }).then(() => toast('info', `Apariencia ${style.name} guardada en tu cuenta.`)))}>
+              <span className={`appearance-swatch ${style.swatch}`} aria-hidden="true"><i /><i /><i /></span>
+              <span className="appearance-copy"><strong>{style.name}</strong><small>{style.desc}</small></span>
+              <span className="appearance-check" aria-hidden="true">{appearance === style.id ? '✓' : ''}</span>
+            </button>
+          ))}
+        </div>
 
         <h3>Perfil</h3>
         <div className="row">

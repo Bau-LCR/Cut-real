@@ -8,6 +8,16 @@ import { useAuth } from '../store/auth'
 import { useUi } from '../store/ui'
 import { ArrowUp, File, Globe, ImageSearch, Mic, Paperclip, Stop, Waves, X } from './icons'
 
+type LiveSpeechResult = { isFinal: boolean; length: number; [index: number]: { transcript: string } }
+type LiveSpeechEvent = { resultIndex: number; results: ArrayLike<LiveSpeechResult> }
+type LiveSpeechRecognition = {
+  lang: string; continuous: boolean; interimResults: boolean;
+  onresult: ((event: LiveSpeechEvent) => void) | null;
+  onerror: (() => void) | null;
+  start(): void; stop(): void;
+}
+type LiveSpeechConstructor = new () => LiveSpeechRecognition
+
 interface Item { key: string; name: string; size: number; state: 'uploading' | 'ready' | 'error'; attachment?: Attachment; note?: string; previewUrl?: string }
 interface Props {
   convId?: string; generating: boolean; seed?: { t: string; n: number }
@@ -30,6 +40,7 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
   const fileRef = useRef<HTMLInputElement>(null)
   const micRef = useRef<{ mic: MicSession; stop: () => void; done: Promise<Blob | null> } | null>(null)
   const previewUrls = useRef(new Set<string>())
+  const liveSpeechRef = useRef<LiveSpeechRecognition | null>(null)
 
   useEffect(() => { setWeb(webDefault) }, [webDefault])
   useEffect(() => { if (seed) { setText(seed.t); taRef.current?.focus() } }, [seed])
@@ -39,6 +50,7 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
   }, [text])
   useEffect(() => () => {
     micRef.current?.mic.close()
+    liveSpeechRef.current?.stop()
     for (const url of previewUrls.current) URL.revokeObjectURL(url)
     previewUrls.current.clear()
   }, [])
@@ -102,17 +114,51 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
     if (!MicSession.supported) return toast('error', 'Tu navegador no permite grabar audio.')
     const mic = new MicSession()
     try { await mic.open() } catch (e) { return toast('error', (e as Error).message || micErrorMessage(e)) }
+    const baseText = text
+    let liveFinal = ''
+    const SpeechRecognitionApi = (window as Window & { SpeechRecognition?: LiveSpeechConstructor; webkitSpeechRecognition?: LiveSpeechConstructor }).SpeechRecognition
+      ?? (window as Window & { webkitSpeechRecognition?: LiveSpeechConstructor }).webkitSpeechRecognition
+    if (SpeechRecognitionApi) {
+      try {
+        const recognition = new SpeechRecognitionApi()
+        recognition.lang = 'es-AR'; recognition.continuous = true; recognition.interimResults = true
+        recognition.onresult = (event) => {
+          let finalText = '', interimText = ''
+          for (let i = 0; i < event.results.length; i++) {
+            const part = event.results[i][0]?.transcript ?? ''
+            if (event.results[i].isFinal) finalText += part
+            else interimText += part
+          }
+          liveFinal = finalText
+          const preview = [baseText.trimEnd(), finalText, interimText].filter(Boolean).join(baseText.trim() ? ' ' : '')
+          setText(preview)
+        }
+        recognition.onerror = () => { /* La transcripción final del servidor sigue disponible como respaldo. */ }
+        recognition.start()
+        liveSpeechRef.current = recognition
+      } catch { liveSpeechRef.current = null }
+    }
     const r = mic.record({ vad: false, onLevel: (level) => setMicLevel(Math.min(1, level * 7)) })
     micRef.current = { mic, ...r }
     setRec('recording')
     const blob = await r.done
+    liveSpeechRef.current?.stop(); liveSpeechRef.current = null
     mic.close(); micRef.current = null; setMicLevel(0)
     if (!blob || blob.size < 1200) { setRec('idle'); return toast('info', 'No se escuchó nada. Probá de nuevo.') }
     setRec('transcribing')
     try {
       const t = await transcribe(blob)
-      if (t) { setText((p) => (p ? p.trimEnd() + ' ' : '') + t); taRef.current?.focus() } else toast('info', 'No se pudo entender el audio.')
-    } catch (e) { toast('error', (e as Error).message) }
+      const finalTranscript = t || liveFinal
+      if (finalTranscript) {
+        setText([baseText.trimEnd(), finalTranscript.trim()].filter(Boolean).join(' '))
+        taRef.current?.focus()
+      } else toast('info', 'No se pudo entender el audio.')
+    } catch (e) {
+      if (liveFinal.trim()) {
+        setText([baseText.trimEnd(), liveFinal.trim()].filter(Boolean).join(baseText.trim() ? ' ' : ' '))
+        toast('info', 'Se conservó la transcripción en vivo del navegador.')
+      } else toast('error', (e as Error).message)
+    }
     setRec('idle')
   }
 
@@ -160,7 +206,7 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
           <button className={`icon-btn${web ? ' on' : ''}`} title={web ? 'Búsqueda web activada' : 'Activar búsqueda web'} aria-pressed={web} aria-label="Búsqueda web" onClick={() => void toggleWebSearch()}><Globe /></button>
           <button className={`icon-btn${images ? ' on' : ''}`} title={images ? 'Búsqueda de imágenes activada' : 'Buscar imágenes (también se activa al pedirlas)' } aria-pressed={images} aria-label="Buscar imágenes" onClick={() => setImages((value) => !value)}><ImageSearch /></button>
           <button className={`icon-btn${rec === 'recording' ? ' on' : ''}`} title={rec === 'recording' ? 'Detener grabación' : 'Dictar por voz'} aria-label="Dictar por voz" disabled={rec === 'transcribing'} onClick={toggleRecording}><Mic /></button>
-          {rec === 'recording' && <span className="rec"><span className="waveform reactive" aria-hidden="true">{Array.from({ length: 9 }, (_, i) => <i key={i} style={{ height: `${Math.max(3, Math.round((0.12 + micLevel * (0.35 + ((i * 7) % 9) / 9)) * 22))}px` }} />)}</span>Grabando…</span>}
+          {rec === 'recording' && <span className="rec"><span className="waveform reactive" aria-hidden="true">{Array.from({ length: 9 }, (_, i) => <i key={i} style={{ height: `${Math.max(3, Math.round((0.12 + micLevel * (0.35 + ((i * 7) % 9) / 9)) * 22))}px` }} />)}</span>Grabando y transcribiendo…</span>}
           {rec === 'transcribing' && <span className="rec" style={{ color: 'var(--muted)' }}>Transcribiendo…</span>}
           <span className="grow" />
           <button className="icon-btn" title="Conversación por voz" aria-label="Conversación por voz" onClick={onVoice}><Waves /></button>

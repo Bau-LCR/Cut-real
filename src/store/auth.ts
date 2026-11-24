@@ -5,18 +5,18 @@ import type { Me, VoiceSettings } from '../lib/types'
 
 interface AuthState {
   session: Session | null; me: Me | null; ready: boolean; error: string | null
-  voice: VoiceSettings; webSearchDefault: boolean; defaultModelId: string | null; privacyAck: boolean
+  voice: VoiceSettings; appearance: 'original' | 'white' | 'liquid-glass' | 'cybercore'; webSearchDefault: boolean; defaultModelId: string | null; privacyAck: boolean
   init(): void
   signInWithGoogle(): Promise<void>
   signOut(): Promise<void>
   updateProfile(display_name: string): Promise<void>
-  saveSettings(p: Partial<{ voice: VoiceSettings; web_search_default: boolean; default_model_id: string | null; ack: boolean }>): Promise<void>
+  saveSettings(p: Partial<{ voice: VoiceSettings; appearance: 'original' | 'white' | 'liquid-glass' | 'cybercore'; web_search_default: boolean; default_model_id: string | null; ack: boolean }>): Promise<void>
 }
 
 let started = false
 export const useAuth = create<AuthState>((set, get) => ({
   session: null, me: null, ready: false, error: null,
-  voice: { rate: 1, auto_read: false, engine: 'remote', voice_uri: 'Puck' }, webSearchDefault: false, defaultModelId: null, privacyAck: false,
+  voice: { rate: 1, auto_read: false, engine: 'remote', voice_uri: 'Puck' }, appearance: 'original', webSearchDefault: false, defaultModelId: null, privacyAck: false,
 
   init() {
     if (started) return
@@ -37,7 +37,7 @@ export const useAuth = create<AuthState>((set, get) => ({
 
         const [{ data: p }, { data: s }] = await Promise.all([
           supabase.from('cr_profiles').select('email, display_name, avatar_url').eq('user_id', session.user.id).maybeSingle(),
-          supabase.from('cr_user_settings').select('default_model_id, web_search_default, voice, privacy_notice_ack_at').eq('user_id', session.user.id).maybeSingle(),
+          supabase.from('cr_user_settings').select('default_model_id, web_search_default, voice, appearance, privacy_notice_ack_at').eq('user_id', session.user.id).maybeSingle(),
         ])
 
         const loadedVoice = { ...get().voice, ...(s?.voice ?? {}) }
@@ -46,7 +46,7 @@ export const useAuth = create<AuthState>((set, get) => ({
         set({
           session, ready: true, error: null,
           me: { userId: session.user.id, email: p?.email ?? session.user.email ?? null, display_name: p?.display_name ?? null, avatar_url: p?.avatar_url ?? null, role: ens.role, suspended: ens.suspended, access_status: ens.access_status ?? 'pending', suspended_reason: ens.suspended_reason ?? null },
-          voice: loadedVoice, webSearchDefault: !!s?.web_search_default, defaultModelId: s?.default_model_id ?? null, privacyAck: !!s?.privacy_notice_ack_at,
+          voice: loadedVoice, appearance: (['original', 'white', 'liquid-glass', 'cybercore'].includes(s?.appearance) ? s.appearance : 'original'), webSearchDefault: !!s?.web_search_default, defaultModelId: s?.default_model_id ?? null, privacyAck: !!s?.privacy_notice_ack_at,
         })
         if (s?.voice && JSON.stringify(s.voice) !== JSON.stringify(loadedVoice)) {
           void supabase.from('cr_user_settings').update({ voice: loadedVoice }).eq('user_id', session.user.id)
@@ -98,13 +98,14 @@ export const useAuth = create<AuthState>((set, get) => ({
     const me = get().me; if (!me) return
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
     if (p.voice) patch.voice = p.voice
+    if (p.appearance) patch.appearance = p.appearance
     if (p.web_search_default !== undefined) patch.web_search_default = p.web_search_default
     if (p.default_model_id !== undefined) patch.default_model_id = p.default_model_id
     if (p.ack) patch.privacy_notice_ack_at = new Date().toISOString()
     const { error } = await supabase.from('cr_user_settings').update(patch).eq('user_id', me.userId)
     if (error) throw new Error('No se pudieron guardar los ajustes.')
     set({
-      ...(p.voice ? { voice: p.voice } : {}), ...(p.web_search_default !== undefined ? { webSearchDefault: p.web_search_default } : {}),
+      ...(p.voice ? { voice: p.voice } : {}), ...(p.appearance ? { appearance: p.appearance } : {}), ...(p.web_search_default !== undefined ? { webSearchDefault: p.web_search_default } : {}),
       ...(p.default_model_id !== undefined ? { defaultModelId: p.default_model_id } : {}), ...(p.ack ? { privacyAck: true } : {}),
     })
   },
