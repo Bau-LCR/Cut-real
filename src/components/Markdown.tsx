@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from 'react'
+import { Children, isValidElement, memo, useEffect, useState } from 'react'
 import ReactMarkdown, { defaultUrlTransform, type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
@@ -133,7 +133,12 @@ const components: Components = {
     if (src.startsWith('cutreal-image:')) return <GeneratedImage id={src.slice('cutreal-image:'.length)} alt={alt} />
     return /^https?:\/\//i.test(src) ? <img src={src} alt={alt ?? 'Imagen encontrada'} loading="lazy" referrerPolicy="no-referrer" /> : null
   },
-  table: ({ children }) => <div className="tablewrap"><table>{children}</table></div>,
+  table: ({ children }) => {
+    const nodes = Children.toArray(children)
+    const body = nodes.find((node) => isValidElement(node) && node.type === 'tbody')
+    if (!body || !Children.toArray((body as any).props.children).length) return null
+    return <div className="tablewrap"><table>{children}</table></div>
+  },
 }
 
 export const Markdown = memo(function Markdown({ text, streaming = false }: { text: string; streaming?: boolean }) {
