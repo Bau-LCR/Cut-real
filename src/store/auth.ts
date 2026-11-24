@@ -102,8 +102,12 @@ export const useAuth = create<AuthState>((set, get) => ({
     if (p.web_search_default !== undefined) patch.web_search_default = p.web_search_default
     if (p.default_model_id !== undefined) patch.default_model_id = p.default_model_id
     if (p.ack) patch.privacy_notice_ack_at = new Date().toISOString()
-    const { error } = await supabase.from('cr_user_settings').update(patch).eq('user_id', me.userId)
-    if (error) throw new Error('No se pudieron guardar los ajustes.')
+    const { data, error } = await supabase.from('cr_user_settings').update(patch).eq('user_id', me.userId).select('user_id').maybeSingle()
+    if (error) {
+      console.error('[Cut-real] Error al guardar ajustes:', error)
+      throw new Error(`No se pudieron guardar los ajustes: ${error.message}`)
+    }
+    if (!data) throw new Error('No se encontró la configuración de esta cuenta. Cerrá sesión y volvé a ingresar para sincronizar tu perfil.')
     set({
       ...(p.voice ? { voice: p.voice } : {}), ...(p.appearance ? { appearance: p.appearance } : {}), ...(p.web_search_default !== undefined ? { webSearchDefault: p.web_search_default } : {}),
       ...(p.default_model_id !== undefined ? { defaultModelId: p.default_model_id } : {}), ...(p.ack ? { privacyAck: true } : {}),
