@@ -323,7 +323,8 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
     if (cur?.status === 'cancelled') status = 'cancelled'
     const durationMs = Date.now() - t0
     const actualTokens = Math.max(1, (usage?.prompt_tokens ?? estimatedPromptTokens) + (usage?.completion_tokens ?? Math.ceil(full.length / 4)))
-    const finalMessagePatch: Record<string, unknown> = { content: full, status, error: errMsg, updated_at: new Date().toISOString(), duration_ms: durationMs }
+    const usageExact = usage?.prompt_tokens != null && usage?.completion_tokens != null
+    const finalMessagePatch: Record<string, unknown> = { content: full, status, error: errMsg, updated_at: new Date().toISOString(), duration_ms: durationMs, usage_exact: status === 'done' && usageExact }
     if (status === 'done') finalMessagePatch.token_usage = actualTokens
     const { error: finalMessageError } = await db.from('cr_messages').update(finalMessagePatch).eq('id', asst.id)
     if (finalMessageError) console.error('message final metrics save failed', finalMessageError.message)
