@@ -105,15 +105,22 @@ export const useChat = create<ChatState>((set, get) => {
         await sleep(1500)
         const { data } = await supabase.from('cr_messages').select('*').eq('id', id).maybeSingle()
         if (!data) break
-        upsertMsg(data as Message)
-        if (data.status !== 'generating') break
+        // No publiques snapshots parciales mientras el servidor sigue generando:
+        // podrían reemplazar el texto que el cliente ya recibió por streaming.
+        if (data.status !== 'generating') { upsertMsg(data as Message); break }
       }
     } finally { recovering.delete(id) }
   }
 
   async function reload(convId: string) {
     const { data } = await supabase.from('cr_messages').select('*').eq('conversation_id', convId).order('seq', { ascending: false }).limit(MSG_PAGE)
-    set((s) => ({ messages: { ...s.messages, [convId]: ((data ?? []) as Message[]).reverse() } }))
+    const fetched = ((data ?? []) as Message[]).reverse()
+    set((s) => {
+      const current = s.messages[convId] ?? []
+      // Una recarga nunca debe borrar el mensaje optimista ni el stream local.
+      const merged = mergeMessageSnapshot(fetched, current, !!s.gens[convId] || current.some((m) => m.id.startsWith('tmp-') || m.status === 'generating'))
+      return { messages: { ...s.messages, [convId]: merged } }
+    })
   }
 
   // ---------- generación (una por conversación, totalmente independientes) ----------
@@ -313,7 +320,7 @@ export const useChat = create<ChatState>((set, get) => {
       set((s) => {
         const current = s.messages[id] ?? []
         const changedWhileLoading = current !== messagesAtStart
-        const merged = mergeMessageSnapshot(rows, current, changedWhileLoading || !!s.gens[id])
+        const merged = mergeMessageSnapshot(rows, current, changedWhileLoading || !!s.gens[id] || current.some((m) => m.id.startsWith('tmp-') || m.status === 'generating'))
         return {
           messages: { ...s.messages, [id]: merged },
           olderHasMore: { ...s.olderHasMore, [id]: (data?.length ?? 0) === MSG_PAGE },
