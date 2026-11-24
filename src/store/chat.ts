@@ -239,6 +239,7 @@ export const useChat = create<ChatState>((set, get) => {
       const { data: persisted } = await supabase.from('cr_messages').select('*').eq('id', assistantId).maybeSingle()
       if (persisted) upsertMsg(persisted as Message)
     }
+    if (finalStatus === 'done' && content && !o.ephemeral) { try { const { recordLocalConversation } = await import('../lib/localLearning'); const userText = typeof body.content === 'string' ? body.content : ''; recordLocalConversation(convId, userText, content); } catch { /* El aprendizaje local nunca debe interrumpir el chat principal. */ } }
     // Título automático: refrescar la conversación al terminar.
     if (!o.ephemeral) void supabase.from('cr_conversations').select('*').eq('id', convId).maybeSingle().then(({ data }) => data && upsertConv(data as Conversation))
     // Lectura automática (si está activada y no estamos en el modo conversación por voz, que habla por su cuenta).
