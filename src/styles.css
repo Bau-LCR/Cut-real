@@ -753,3 +753,25 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
 .sim3d-color-label input{width:42px;height:30px;padding:2px;border:1px solid var(--line-strong);border-radius:7px;background:var(--slate)}
 @media(max-width:900px){.sim3d-layout{grid-template-columns:1fr}.sim3d-canvas{height:58vh;min-height:360px}.sim3d-controls{grid-template-columns:1fr 1fr}.sim3d-controls>.simulation-card:last-child{grid-column:1/-1}}
 @media(max-width:600px){.sim3d-visual{grid-template-rows:auto minmax(320px,1fr) auto auto}.sim3d-canvas{height:48vh;min-height:320px}.sim3d-controls{grid-template-columns:1fr}.sim3d-controls>.simulation-card:last-child{grid-column:auto}.sim3d-stage-head{padding:10px 12px}.sim3d-camera-help{gap:7px 12px;padding:9px 11px}.sim3d-visual-controls label:first-child{width:100%;justify-content:space-between}.sim3d-position-grid{gap:5px}}
+
+
+/* Gráficas cartesianas interactivas */
+.chat-graph{margin:16px 0;padding:12px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--graphite);overflow:hidden}
+.chat-graph-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.chat-graph-head figcaption{font:600 15px var(--display);color:var(--platinum)}
+.chat-graph svg{display:block;width:100%;height:auto;max-height:560px;touch-action:none;cursor:grab;user-select:none}
+.chat-graph svg:active{cursor:grabbing}
+.graph-grid{stroke:var(--line-strong);stroke-width:1;opacity:.65}
+.graph-axis{stroke:var(--platinum);stroke-width:1.6}
+.graph-tick,.graph-axis-label,.graph-point-label{fill:var(--muted);font:11px var(--mono)}
+.graph-axis-label{fill:var(--platinum);font-weight:700}
+.graph-line{fill:none;stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round}
+.graph-series-0{stroke:#4d91ff;color:#4d91ff}.graph-series-1{stroke:#e6b85c;color:#e6b85c}
+.graph-series-2{stroke:#65c99b;color:#65c99b}.graph-series-3{stroke:#c18af0;color:#c18af0}
+.graph-series-4{stroke:#f08b9a;color:#f08b9a}.graph-series-5{stroke:#67cbd0;color:#67cbd0}
+.graph-point{fill:var(--platinum);stroke:var(--carbon);stroke-width:2}
+.graph-legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:8px;font-size:12px;color:var(--muted)}
+.graph-legend span{display:inline-flex;align-items:center;gap:6px}
+.graph-legend i{display:inline-block;width:18px;height:3px;border-radius:4px;background:currentColor}
+.graph-hint{display:block;margin-top:8px;color:var(--faint);font-size:11px}
+@media(max-width:600px){.chat-graph{padding:8px}.graph-tick{font-size:10px}}
