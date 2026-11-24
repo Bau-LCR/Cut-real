@@ -200,7 +200,7 @@ export const useChat = create<ChatState>((set, get) => {
               trace.setMetrics(metrics)
               if (assistantId) patchMsg(convId, assistantId, {
                 status: ev.status, error: ev.error ?? null,
-                token_usage: metrics.tokenUsage, duration_ms: metrics.durationMs,
+                token_usage: metrics.tokenUsage, duration_ms: metrics.durationMs, usage_exact: metrics.usageExact,
               })
             } else if (assistantId) patchMsg(convId, assistantId, { status: ev.status, error: ev.error ?? null, duration_ms: Number.isFinite(ev.durationMs) ? Number(ev.durationMs) : null })
             trace.finish(ev.status === 'error' ? 'error' : 'done', ev.error ?? 'El flujo terminó correctamente.')
