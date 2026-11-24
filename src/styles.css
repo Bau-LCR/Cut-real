@@ -1092,3 +1092,8 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
  .functioning-svg.view-3d{transform:perspective(850px) rotateX(17deg) rotateZ(-2deg) scale(.94);transform-origin:left center}
  .functioning-zoom{position:sticky;left:calc(100% - 175px);bottom:8px;width:max-content}
 }
+
+
+/* Detalles seleccionables del mapa de procesamiento */
+.fn-node{cursor:pointer;outline:none}.fn-node.selected rect{stroke:#b6e2ff;stroke-width:2.8;filter:url(#fn-glow)}.fn-node:focus-visible rect{stroke:#fff;stroke-width:3}.functioning-node-details h3{margin:9px 0 5px;font:700 14px var(--display);color:var(--text)}.functioning-node-details p{font-size:11px;line-height:1.55;color:var(--muted)}.functioning-node-details>div:last-of-type{display:flex;justify-content:space-between;gap:10px;margin-top:10px;padding-top:9px;border-top:1px solid var(--line);font-size:10px;color:var(--muted)}.functioning-node-details>div b{font:600 10px var(--mono);color:var(--blue-bright)}.functioning-node-details>small{display:block;margin-top:8px;font-size:9px;line-height:1.45;color:var(--faint)}
+@media(max-width:600px){.functioning-node-details{order:-1}.functioning-node-details p{font-size:12px}}
