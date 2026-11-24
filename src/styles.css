@@ -1209,3 +1209,13 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
 @media(max-width:900px){.neural-app{grid-template-columns:240px minmax(0,1fr)}.neural-layer-legend{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){.neural-app{grid-template-columns:minmax(0,1fr)}.neural-app>.sidebar{position:fixed;inset:0 auto 0 0;width:290px;height:100dvh;transform:translateX(-105%);transition:transform .2s;z-index:90}.neural-app>.sidebar.open{transform:translateX(0)}.neural-app .scrim{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:85}.neural-main{grid-column:1;min-height:0;height:100dvh}.neural-header{padding:13px 15px}.neural-layout{padding:9px;display:flex;flex-direction:column}.neural-rail{display:flex;flex-direction:row;overflow-x:auto;align-items:stretch}.neural-rail>label,.neural-local{display:none}.neural-rail>button{min-width:145px;flex:none}.neural-tabs{padding:8px 6px}.neural-tabs button{padding:9px 10px}.neural-graph-large{min-height:300px;max-height:58vh}.neural-selected-actions{width:100%;min-width:0}.neural-selected-actions select{flex:1}.neural-panel-heading{flex-direction:column}.neural-chat,.neural-panel{padding:12px}.neural-messages{max-height:48vh}.neural-layer-legend{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){.nl-edge.active{animation:none}}
+
+
+.neural-menu-toggle{display:none;align-self:flex-start;padding:7px 11px;border:1px solid var(--line-strong);border-radius:8px;background:var(--graphite);color:var(--text);font-size:12px}
+.functioning-window{box-shadow:0 28px 90px rgba(0,0,0,.55),0 0 0 1px rgba(104,170,255,.12)}
+.functioning-head{background:linear-gradient(115deg,rgba(23,45,77,.95),rgba(13,18,29,.98))}
+.functioning-card,.functioning-side>section{border-color:color-mix(in srgb,var(--line-strong) 78%,#6dbbff 22%)}
+.functioning-svg .fn-link{transition:stroke .2s,opacity .2s}
+.functioning-svg .fn-node.active rect{filter:drop-shadow(0 0 9px rgba(91,190,255,.3))}
+.functioning-node-details{background:linear-gradient(145deg,rgba(35,71,112,.16),rgba(8,14,24,.25));border:1px solid var(--line);border-radius:12px;padding:12px}
+@media(max-width:700px){.neural-menu-toggle{display:inline-flex}.neural-header{display:grid;grid-template-columns:1fr auto;align-items:center}.neural-header>div{grid-column:1/-1;grid-row:2}.neural-header>.btn{grid-column:2;grid-row:1;width:auto}.neural-header .neural-menu-toggle{grid-column:1;grid-row:1}}
