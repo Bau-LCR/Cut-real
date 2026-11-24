@@ -6,6 +6,7 @@ import { useChat } from '../store/chat'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../store/auth'
 import { X } from './icons'
+import { useTelemetry } from '../store/telemetry'
 
 type Phase = 'starting' | 'listening' | 'transcribing' | 'thinking' | 'speaking' | 'error'
 const LABEL: Record<Phase, string> = { starting: 'Preparando el micrófono…', listening: 'Te escucho', transcribing: 'Transcribiendo…', thinking: 'Pensando…', speaking: 'Hablando', error: 'Algo falló' }
@@ -16,6 +17,7 @@ export function VoiceMode({ ensureConv, onClose }: { ensureConv(): Promise<strin
   const [phase, setPhase] = useState<Phase>('starting')
   const [err, setErr] = useState<string | null>(null)
   const [voiceLevel, setVoiceLevelState] = useState(0)
+  const setTraceVoice = useTelemetry((s) => s.setVoice)
   const ctl = useRef({ dead: false, abort: new AbortController(), stopRec: () => {}, fatal: false })
 
   useEffect(() => {
@@ -29,6 +31,7 @@ export function VoiceMode({ ensureConv, onClose }: { ensureConv(): Promise<strin
       try {
         if (!MicSession.supported) throw new Error('Tu navegador no permite grabar audio.')
         await mic.open()
+        setTraceVoice('Escuchando', 0)
         const me = useAuth.getState().me
         if (!me) throw new Error('Tu sesión no está disponible.')
         const { data, error } = await supabase.from('cr_call_sessions').insert({ user_id: me.userId }).select('id').single()
@@ -41,13 +44,13 @@ export function VoiceMode({ ensureConv, onClose }: { ensureConv(): Promise<strin
       }
       catch (e) { c.fatal = true; setErr((e as Error).message); setPhase('error'); return }
       while (!c.dead) {
-        setPhase('listening'); setErr(null)
+        setPhase('listening'); setTraceVoice('Escuchando', 0); setErr(null)
         const rec = mic.record({ vad: true, silenceMs: 600, signal: c.abort.signal })
         c.stopRec = rec.stop
         const blob = await rec.done
         if (c.dead) break
         if (!blob || blob.size < 1500) continue                     // nadie habló
-        setPhase('transcribing')
+        setPhase('transcribing'); setTraceVoice('Transcribiendo', 0)
         let text = ''
         try { text = await transcribe(blob) }
         catch (e) {
@@ -63,20 +66,20 @@ export function VoiceMode({ ensureConv, onClose }: { ensureConv(): Promise<strin
             session_id: callSessionId, user_id: me.userId, seq: turnSeq++, role: 'user', content: text.trim(),
           }).then(({ error }) => { if (error && !c.dead) setErr('No se pudo guardar tu intervención en el historial de llamadas.') })
         }
-        setPhase('thinking')
+        setPhase('thinking'); setTraceVoice('Procesando consulta', 0)
         try {
           const id = await ensureConv()
           const res = await useChat.getState().send(id, text, { silent: true, ephemeral: true })
           if (!res.ok) { setErr(res.error ?? 'No se pudo obtener la respuesta.'); setPhase('error'); await sleep(2800); continue }
           if (c.dead || !res.content) continue
-          setPhase('speaking')
+          setPhase('speaking'); setTraceVoice('Reproduciendo respuesta', 0)
           if (callSessionId && me) {
             void supabase.from('cr_call_turns').insert({
               session_id: callSessionId, user_id: me.userId, seq: turnSeq++, role: 'assistant', content: res.content.trim(),
             }).then(({ error }) => { if (error && !c.dead) setErr('No se pudo guardar la respuesta en el historial de llamadas.') })
           }
           const barge = new AbortController()
-          const speaking = speakCallAndWait(res.content, (level) => { if (!c.dead) setVoiceLevelState(level) }).catch((error) => { if (!c.dead) { setErr((error as Error).message || 'No se pudo reproducir la respuesta.'); setPhase('error') } })
+          const speaking = speakCallAndWait(res.content, (level) => { if (!c.dead) { setVoiceLevelState(level); setTraceVoice('Reproduciendo respuesta', level) } }).catch((error) => { if (!c.dead) { setErr((error as Error).message || 'No se pudo reproducir la respuesta.'); setPhase('error') } })
           const interrupted = mic.waitForVoice(barge.signal).then((v) => v)
           const first = await Promise.race([interrupted.then((v) => (v ? 'barge' : 'wait')), speaking.then(() => 'done')])
           barge.abort()
@@ -86,7 +89,7 @@ export function VoiceMode({ ensureConv, onClose }: { ensureConv(): Promise<strin
       }
     })()
     return () => {
-      c.dead = true; c.abort.abort(); c.stopRec(); stopSpeaking(); mic.close()
+      c.dead = true; c.abort.abort(); c.stopRec(); stopSpeaking(); mic.close(); setTraceVoice('Inactiva', 0)
       if (callSessionId) void supabase.from('cr_call_sessions').update({ ended_at: new Date().toISOString(), duration_seconds: Math.max(0, Math.round((Date.now() - startedAt) / 1000)) }).eq('id', callSessionId)
     }
   }, [ensureConv])
