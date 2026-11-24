@@ -5,9 +5,8 @@ import { isConfigured } from './lib/supabase'
 import { Login } from './pages/Login'
 import { ChatPage } from './pages/ChatPage'
 import { LandingPage } from './pages/LandingPage'
-import { StudioPage } from './pages/StudioPage'
-import { CallsPage } from './pages/CallsPage'
-import { SimulationPage } from './pages/SimulationPage'
+const StudioPage = lazy(() => import('./pages/StudioPage').then((m) => ({ default: m.StudioPage })))
+const CallsPage = lazy(() => import('./pages/CallsPage').then((m) => ({ default: m.CallsPage })))
 import { LegalPage } from './pages/LegalPage'
 import { useAuth } from './store/auth'
 
@@ -48,11 +47,11 @@ export default function App() {
       <Routes>
         <Route path="/login" element={!ready ? <Splash /> : ready && session ? <Navigate to="/" replace /> : <Login />} />
         <Route path="/admin" element={<Guard admin><Suspense fallback={<Splash />}><Admin /></Suspense></Guard>} />
-        <Route path="/studio" element={<Guard><StudioPage /></Guard>} />
+        <Route path="/studio" element={<Guard><Suspense fallback={<Splash />}><StudioPage /></Suspense></Guard>} />
         <Route path="/projects" element={<Navigate to="/" replace />} />
-        <Route path="/simulation" element={<Guard><SimulationPage /></Guard>} />
+        <Route path="/simulation" element={<Navigate to="/" replace />} />
         <Route path="/legal" element={<LegalPage />} />
-        <Route path="/calls" element={<Guard><CallsPage /></Guard>} />
+        <Route path="/calls" element={<Guard><Suspense fallback={<Splash />}><CallsPage /></Suspense></Guard>} />
         <Route path="/c/:id" element={<Guard><ChatPage /></Guard>} />
         <Route path="/" element={!ready ? <Splash /> : session ? <Guard><ChatPage /></Guard> : <LandingPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
