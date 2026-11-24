@@ -259,8 +259,12 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, busy, modelN
         {status === 'error' && <div className="notice error" role="alert"><div className="grow"><div className="t">No se pudo completar la respuesta</div>{msg.error}</div>{isLast && !busy && <button className="btn sm" onClick={() => onRegenerate(msg.id)}>Reintentar</button>}</div>}
         {status === 'interrupted' && <div className="notice" role="status"><div className="grow">La generación se interrumpió antes de terminar.</div>{isLast && !busy && <button className="btn sm" onClick={() => onRegenerate(msg.id)}>Reintentar</button>}</div>}
         {status === 'cancelled' && <div className="meta-line">Generación detenida.</div>}
-        {!generating && msg.token_usage != null && (useAuth.getState().me?.role === 'admin' || useAuth.getState().me?.role === 'owner') && (
-          <div className="meta-line" title="Tokens de entrada y salida informados por el proveedor; estimación cuando no hay uso exacto.">{msg.token_usage.toLocaleString('es-AR')}</div>
+        {!generating && (msg.token_usage != null || msg.duration_ms != null) && (
+          <div className="message-usage" aria-label="Métricas de respuesta">
+            {msg.token_usage != null && <span><b>{msg.token_usage.toLocaleString('es-AR')}</b> tokens</span>}
+            {msg.duration_ms != null && <span><b>{(msg.duration_ms / 1000).toFixed(2).replace('.', ',')}</b> s</span>}
+            <small>Uso informado por el proveedor; puede ser estimado si no se recibió el desglose exacto.</small>
+          </div>
         )}
         {!generating && (
           <div className="actions">
