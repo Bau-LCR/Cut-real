@@ -44,9 +44,9 @@ label.lbl { display: block; font-size: 13px; color: var(--muted); margin: 14px 0
 /* ---------- layout principal ---------- */
 .app { display: grid; grid-template-columns: 290px minmax(0, 1fr); height: 100dvh; }
 .sidebar { background: var(--graphite); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; z-index: 40; }
-.brand { display: flex; align-items: center; gap: 10px; padding: 16px 16px 8px; font: 600 18px var(--display); letter-spacing: -.01em; }
+.brand { color: var(--text); text-decoration: none; transition: background .15s, color .15s; display: flex; align-items: center; gap: 10px; padding: 16px 16px 8px; font: 600 18px var(--display); letter-spacing: -.01em; }
 .brand img { width: 30px; height: 30px; display: block; }
-.brand b { color: var(--platinum); font-weight: 600; }
+.brand b { color: var(--platinum); font-weight: 600; } .brand:hover { color: #fff; background: rgba(255,255,255,.025); }
 .side-actions { padding: 8px 12px; display: grid; gap: 8px; }
 .side-search { position: relative; } .side-search .icon { position: absolute; left: 11px; top: 11px; color: var(--faint); }
 .side-search .field { padding-left: 34px; background: var(--slate); }
@@ -775,3 +775,8 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
 .graph-legend i{display:inline-block;width:18px;height:3px;border-radius:4px;background:currentColor}
 .graph-hint{display:block;margin-top:8px;color:var(--faint);font-size:11px}
 @media(max-width:600px){.chat-graph{padding:8px}.graph-tick{font-size:10px}}
+
+/* Respetar la preferencia del sistema y evitar animaciones no esenciales. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
