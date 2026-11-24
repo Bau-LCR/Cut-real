@@ -1059,3 +1059,29 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
 @media(max-width:900px){.functioning-content{grid-template-columns:1fr}.functioning-side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.functioning-transcript{grid-column:1/-1}.functioning-window{height:96dvh}.functioning-events{max-height:190px}}
 @media(max-width:600px){.functioning-backdrop{padding:0}.functioning-window{height:100dvh;max-height:100dvh;border-radius:0}.functioning-head{padding:12px}.functioning-brand small{font-size:8px}.functioning-live{font-size:8px}.functioning-content{padding:8px;gap:8px}.functioning-visual{min-height:380px}.functioning-svg{min-height:300px}.functioning-side{grid-template-columns:1fr}.functioning-transcript{grid-column:auto}.functioning-events{margin:0 8px 8px;padding:10px;max-height:170px}.functioning-event{grid-template-columns:7px 52px minmax(90px,.8fr) minmax(100px,1fr);gap:6px;font-size:9px}.functioning-event span{white-space:normal;max-height:28px}.functioning-legend{font-size:9px}.functioning-toolbar{padding:10px}.functioning-toolbar small{font-size:9px}}
 @media(prefers-reduced-motion:reduce){.functioning-live-dot,.fn-link.hot,.functioning-audio-orb span{animation:none}}
+
+
+/* Métricas de respuesta y centro de funcionamiento ampliado */
+.message-usage{display:flex;align-items:center;gap:9px 14px;flex-wrap:wrap;margin:10px 0 4px;padding:8px 11px;width:max-content;max-width:100%;border:1px solid var(--line);border-radius:9px;background:color-mix(in srgb,var(--slate) 72%,transparent);font-size:11px;color:var(--muted)}
+.message-usage span{white-space:nowrap}.message-usage b{color:var(--text);font:700 11px var(--mono)}.message-usage small{flex-basis:100%;font-size:9px;color:var(--faint)}
+.functioning-toolbar-controls{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.functioning-token-breakdown{display:grid;gap:9px}
+.functioning-token-breakdown>div:not(.functioning-card-title){display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;color:var(--muted)}
+.functioning-token-breakdown>div b{font:600 10px var(--mono);color:var(--text);text-align:right}
+.functioning-token-breakdown .functioning-token-total{border-top:1px solid var(--line);padding-top:9px;margin-top:2px}
+.functioning-token-breakdown .functioning-token-total b{color:var(--blue-bright);font-size:12px}
+.functioning-token-breakdown>small{font-size:9px;line-height:1.5;color:var(--faint)}
+.fn-node-metric{fill:var(--blue-bright);font:600 9px var(--mono);letter-spacing:.01em}
+.functioning-svg.3d{transform:perspective(900px) rotateX(29deg) rotateZ(-4deg) scale(.9);filter:drop-shadow(0 28px 22px rgba(0,0,0,.35))}
+.functioning-svg.3d .fn-node rect{stroke-width:2}
+.functioning-svg.3d .fn-link{stroke-width:2.8}
+.functioning-svg.3d .fn-node{filter:drop-shadow(0 9px 4px rgba(0,0,0,.28))}
+@media(max-width:700px){
+ .functioning-toolbar{align-items:flex-start;flex-direction:column}
+ .functioning-toolbar-controls{width:100%;justify-content:space-between}
+ .functioning-toolbar-controls .functioning-modes{flex:1;justify-content:center}
+ .functioning-toolbar-controls button{min-height:32px}
+ .functioning-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .message-usage{width:100%;gap:7px 12px}
+ .functioning-svg.3d{transform:perspective(700px) rotateX(22deg) rotateZ(-3deg) scale(.88)}
+}
