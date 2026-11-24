@@ -53,6 +53,50 @@ function ChartBlock({ raw }: { raw: string }) {
   </figure>
 }
 
+type GraphData = {
+  type: 'graph'; title?: string; xMin: number; xMax: number; yMin: number; yMax: number
+  series: { name: string; segments: number[][][] }[]
+  points?: { x: number; y: number; label?: string }[]
+}
+function GraphBlock({ raw }: { raw: string }) {
+  const [view,setView]=useState<{xMin:number;xMax:number;yMin:number;yMax:number}|null>(null)
+  const [dragState,setDragState]=useState<{x:number;y:number}|null>(null)
+  let graph:GraphData|null=null
+  try {
+    const v=JSON.parse(raw) as GraphData
+    const domainOk=[v.xMin,v.xMax,v.yMin,v.yMax].every(Number.isFinite)&&v.xMin<v.xMax&&v.yMin<v.yMax
+    const seriesOk=Array.isArray(v.series)&&v.series.length>0&&v.series.length<=6&&v.series.every(s=>typeof s.name==='string'&&Array.isArray(s.segments)&&s.segments.every(seg=>Array.isArray(seg)&&seg.length>=2&&seg.length<=500&&seg.every(p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite))))
+    if(v.type==='graph'&&domainOk&&seriesOk)graph=v
+  } catch { /* JSON inválido: se muestra como código */ }
+  if(!graph)return <pre><code>{raw}</code></pre>
+  const d=view??{xMin:graph.xMin,xMax:graph.xMax,yMin:graph.yMin,yMax:graph.yMax}
+  const W=800,H=440,L=66,R=24,T=24,B=48
+  const sx=(x:number)=>L+(x-d.xMin)/(d.xMax-d.xMin)*(W-L-R)
+  const sy=(y:number)=>T+(d.yMax-y)/(d.yMax-d.yMin)*(H-T-B)
+  const step=(range:number)=>{const rough=range/8,p=Math.pow(10,Math.floor(Math.log10(rough||1))),n=rough/p;return(n<1.5?1:n<3.5?2:n<7.5?5:10)*p}
+  const xs:number[]=[],ys:number[]=[],dx=step(d.xMax-d.xMin),dy=step(d.yMax-d.yMin)
+  for(let x=Math.ceil(d.xMin/dx)*dx;x<=d.xMax&&xs.length<30;x+=dx)xs.push(Number(x.toPrecision(6)))
+  for(let y=Math.ceil(d.yMin/dy)*dy;y<=d.yMax&&ys.length<30;y+=dy)ys.push(Number(y.toPrecision(6)))
+  const fmt=(n:number)=>Number(n.toPrecision(4)).toString()
+  const down=(e:React.PointerEvent<SVGSVGElement>)=>{e.currentTarget.setPointerCapture(e.pointerId);setDragState({x:e.clientX,y:e.clientY})}
+  const move=(e:React.PointerEvent<SVGSVGElement>)=>{if(!dragState)return;const r=e.currentTarget.getBoundingClientRect(),ox=(e.clientX-dragState.x)/r.width*(d.xMax-d.xMin),oy=(e.clientY-dragState.y)/r.height*(d.yMax-d.yMin);setView({xMin:d.xMin-ox,xMax:d.xMax-ox,yMin:d.yMin+oy,yMax:d.yMax+oy});setDragState({x:e.clientX,y:e.clientY})}
+  const wheel=(e:React.WheelEvent<SVGSVGElement>)=>{e.preventDefault();const f=e.deltaY<0?.85:1.18,cx=(d.xMin+d.xMax)/2,cy=(d.yMin+d.yMax)/2;setView({xMin:cx-(cx-d.xMin)*f,xMax:cx+(d.xMax-cx)*f,yMin:cy-(cy-d.yMin)*f,yMax:cy+(d.yMax-cy)*f})}
+  return <figure className="chat-graph">
+    <div className="chat-graph-head"><figcaption>{graph.title||'Gráfica cartesiana'}</figcaption><button className="btn ghost sm" onClick={()=>setView(null)}>Restablecer vista</button></div>
+    <svg viewBox={'0 0 '+W+' '+H} role="img" aria-label={graph.title||'Gráfica interactiva'} onPointerDown={down} onPointerMove={move} onPointerUp={()=>setDragState(null)} onPointerCancel={()=>setDragState(null)} onWheel={wheel}>
+      {xs.map(x=><g key={'x'+x}><line x1={sx(x)} y1={T} x2={sx(x)} y2={H-B} className="graph-grid"/><text x={sx(x)} y={H-B+20} textAnchor="middle" className="graph-tick">{fmt(x)}</text></g>)}
+      {ys.map(y=><g key={'y'+y}><line x1={L} y1={sy(y)} x2={W-R} y2={sy(y)} className="graph-grid"/><text x={L-10} y={sy(y)+4} textAnchor="end" className="graph-tick">{fmt(y)}</text></g>)}
+      {d.xMin<=0&&d.xMax>=0&&<line x1={sx(0)} y1={T} x2={sx(0)} y2={H-B} className="graph-axis"/>}
+      {d.yMin<=0&&d.yMax>=0&&<line x1={L} y1={sy(0)} x2={W-R} y2={sy(0)} className="graph-axis"/>}
+      {graph.series.map((s,i)=>s.segments.map((seg,k)=><polyline key={s.name+k} points={seg.map(p=>sx(p[0])+','+sy(p[1])).join(' ')} className={'graph-line graph-series-'+i}/>))}
+      {(graph.points??[]).map((p,i)=><g key={i}><circle cx={sx(p.x)} cy={sy(p.y)} r="5" className="graph-point"/><text x={sx(p.x)+9} y={sy(p.y)-9} className="graph-point-label">{p.label||'('+fmt(p.x)+', '+fmt(p.y)+')'}</text></g>)}
+      <text x={W-R} y={H-8} textAnchor="end" className="graph-axis-label">x</text><text x={L+8} y={T+10} className="graph-axis-label">y</text>
+    </svg>
+    <div className="graph-legend">{graph.series.map((s,i)=><span key={s.name}><i className={'graph-series-'+i}/>{s.name}</span>)}</div>
+    <small className="graph-hint">Arrastrá para mover la vista · Usá la rueda del mouse para acercar o alejar</small>
+  </figure>
+}
+
 function GeneratedImage({ id, alt }: { id: string; alt?: string }) {
   const [url, setUrl] = useState('')
   const [failed, setFailed] = useState(false)
@@ -74,6 +118,7 @@ const components: Components = {
     const lang = /language-([\w-]+)/.exec(className ?? '')?.[1]
     const text = String(children).replace(/\n$/, '')
     if (lang === 'chart') return <ChartBlock raw={text} />
+    if (lang === 'graph') return <GraphBlock raw={text} />
     if (!lang && !text.includes('\n')) return <code>{children}</code>
     return (
       <pre>
