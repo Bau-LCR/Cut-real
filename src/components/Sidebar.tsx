@@ -91,7 +91,7 @@ export function Sidebar({ activeId }: { activeId?: string }) {
               <button role="menuitem" onClick={() => { setMenu(false); setSettings(true); close() }}><Settings className="sm" />Configuración</button>
               <div className="menu-divider" />
               <Link role="menuitem" className="menu-link" to="/legal" onClick={() => { setMenu(false); close() }}><FileText className="sm" />Términos y privacidad</Link>
-              <Link role="menuitem" className="menu-link" to="/" onClick={() => { setMenu(false); close() }}><Home className="sm" />Ir al inicio</Link>
+              <Link role="menuitem" className="menu-link" to="/inicio" onClick={() => { setMenu(false); close() }}><Home className="sm" />Ir al inicio</Link>
               {(me.role === 'admin' || me.role === 'owner') && <button role="menuitem" onClick={() => { setMenu(false); nav('/admin') }}><Shield className="sm" />Panel de administración</button>}
               <button role="menuitem" onClick={() => { setMenu(false); void signOut() }}><LogOut className="sm" />Cerrar sesión</button>
             </div>
