@@ -4,6 +4,7 @@ import { ChatView } from '../components/ChatView'
 import { PrivacyGate, Settings } from '../components/Settings'
 import { Sidebar } from '../components/Sidebar'
 import { VoiceMode } from '../components/VoiceMode'
+import { FunctioningCenter } from '../components/FunctioningCenter'
 import { useAuth } from '../store/auth'
 import { useChat } from '../store/chat'
 import { useUi } from '../store/ui'
@@ -11,7 +12,7 @@ import { useUi } from '../store/ui'
 export function ChatPage() {
   const { id } = useParams()
   const nav = useNavigate()
-  const { settingsOpen, voiceOpen, setVoice } = useUi()
+  const { settingsOpen, voiceOpen, functioningOpen, setVoice } = useUi()
   const privacyAck = useAuth((s) => s.privacyAck)
   const userId = useAuth((s) => s.me?.userId)
   const ephemeralCallId = useRef<string | null>(null)
@@ -46,6 +47,7 @@ export function ChatPage() {
       <ChatView key={id ?? 'new'} convId={id} />
       {settingsOpen && <Settings />}
       {voiceOpen && <VoiceMode ensureConv={ensureConv} onClose={closeVoice} />}
+      {functioningOpen && <FunctioningCenter />}
       {!privacyAck && <PrivacyGate />}
     </div>
   )
