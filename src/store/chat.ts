@@ -6,6 +6,7 @@ import type { Attachment, Conversation, Message, ModelInfo, MsgStatus } from '..
 import { useAuth } from './auth'
 import { useUi } from './ui'
 import { useSpeech } from './speech'
+import { useTelemetry } from './telemetry'
 
 const CONV_PAGE = 25
 const MSG_PAGE = 40
@@ -120,6 +121,14 @@ export const useChat = create<ChatState>((set, get) => {
     const controller = new AbortController()
     setGen(convId, { controller, assistantId: null })
     setError(convId, null)
+    const trace = useTelemetry.getState()
+    const selectedModel = get().models.find((m) => m.id === ((body.modelId as string) ?? get().modelId))
+    trace.begin({
+      input: typeof body.content === 'string' ? body.content : body.mode === 'regenerate' ? 'Regeneración de una respuesta anterior' : 'Edición de un mensaje',
+      model: selectedModel?.display_name ?? 'Modelo seleccionado',
+      conversationId: convId,
+    })
+    trace.mark('sending', 'Preparando solicitud', `Solicitud enviada desde Cut-real. ${body.webSearch ? 'Búsqueda web activada. ' : ''}${body.imageSearch ? 'Búsqueda de imágenes activada. ' : ''}${o.attachments?.length ? `${o.attachments.length} archivo(s) adjunto(s).` : ''}`)
     // Feedback instantáneo: se muestra el indicador de escritura antes de que el servidor responda.
     const tmpAsst: Message = {
       id: `tmp-a-${crypto.randomUUID()}`, conversation_id: convId, role: 'assistant', content: '', status: 'generating', model_id: get().modelId, error: null,
@@ -136,6 +145,7 @@ export const useChat = create<ChatState>((set, get) => {
         switch (ev.type) {
           case 'meta': {
             assistantId = ev.assistantMessageId
+            trace.mark('model', 'Conexión establecida', 'El servidor aceptó la solicitud y creó el espacio para la respuesta.')
             const real = ev.userMessage as Message | null
             set((s) => {
               let list = (s.messages[convId] ?? []).filter((m) => m.id !== tmpAsst.id)
@@ -151,13 +161,21 @@ export const useChat = create<ChatState>((set, get) => {
             setGen(convId, { controller, assistantId })
             break
           }
-          case 'sources': if (assistantId) patchMsg(convId, assistantId, { sources: ev.sources }); break
-          case 'delta': if (assistantId) { content += ev.text; queueDelta(convId, assistantId, ev.text) } break
+          case 'sources':
+            if (assistantId) {
+              patchMsg(convId, assistantId, { sources: ev.sources })
+              trace.mark('streaming', 'Fuentes recibidas', `${ev.sources?.length ?? 0} fuente(s) asociada(s) a la respuesta.`)
+            }
+            break
+          case 'delta':
+            if (assistantId) { content += ev.text; queueDelta(convId, assistantId, ev.text); trace.receiveChunk(ev.text) }
+            break
           case 'replace': if (assistantId) { flush(convId); content = String(ev.text ?? ''); patchMsg(convId, assistantId, { content }) } break
           case 'notice': useUi.getState().toast('info', ev.message); break
           case 'done':
             flush(convId)
             finalStatus = ev.status; finalError = ev.error ?? null
+            trace.finish(ev.status === 'error' ? 'error' : 'done', ev.error ?? 'El flujo terminó correctamente.')
             if (assistantId) patchMsg(convId, assistantId, { status: ev.status, error: ev.error ?? null })
             break
         }
@@ -165,11 +183,13 @@ export const useChat = create<ChatState>((set, get) => {
     } catch (e) {
       flush(convId)
       if ((e as Error).name === 'AbortError') {
+        trace.finish('cancelled', 'La generación fue cancelada desde la aplicación.')
         if (assistantId) patchMsg(convId, assistantId, { status: 'cancelled' }); else dropTmp()
         return { ok: true, content, status: 'cancelled' }
       }
       const err = e instanceof FnError ? e : new FnError('internal', 'Ocurrió un error inesperado.')
       if (err.code === 'stream_dropped' && assistantId) {
+        trace.mark('streaming', 'Conexión interrumpida', 'Cut-real intentará recuperar la respuesta que el servidor sigue procesando.')
         void recover(convId, assistantId)                      // el servidor sigue; se recupera sola
         useUi.getState().toast('info', 'Se cortó la conexión. Seguimos buscando tu respuesta…')
         return { ok: true, content, status: 'generating' }
@@ -181,6 +201,7 @@ export const useChat = create<ChatState>((set, get) => {
         set((s) => ({ messages: { ...s.messages, [convId]: (s.messages[convId] ?? []).filter((m) => m.id !== o.optimisticId) } }))
         if (body.mode !== 'send') void reload(convId)
       }
+      trace.finish('error', err.message)
       setError(convId, err.message)
       if (err.code === 'search_not_configured') useUi.getState().toast('error', err.message)
       return { ok: false, error: err.message }
