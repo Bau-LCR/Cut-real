@@ -5,7 +5,7 @@ import type { Conversation } from '../lib/types'
 import { useAuth } from '../store/auth'
 import { useChat } from '../store/chat'
 import { useUi } from '../store/ui'
-import { Edit, LogOut, More, Pin, Plus, Search, Settings, Shield, Trash } from './icons'
+import { Edit, FileText, Home, LogOut, More, Pin, Plus, Search, Settings, Shield, Trash } from './icons'
 
 function ConvItem({ c, active, onOpen }: { c: Conversation; active: boolean; onOpen(): void }) {
   const busy = useChat((s) => !!s.gens[c.id])
@@ -90,8 +90,8 @@ export function Sidebar({ activeId }: { activeId?: string }) {
             <div className="menu up" role="menu">
               <button role="menuitem" onClick={() => { setMenu(false); setSettings(true); close() }}><Settings className="sm" />Configuración</button>
               <div className="menu-divider" />
-              <Link role="menuitem" className="menu-link" to="/legal" onClick={() => { setMenu(false); close() }}>Términos y privacidad</Link>
-              <Link role="menuitem" className="menu-link" to="/" onClick={() => { setMenu(false); close() }}>Ir al inicio</Link>
+              <Link role="menuitem" className="menu-link" to="/legal" onClick={() => { setMenu(false); close() }}><FileText className="sm" />Términos y privacidad</Link>
+              <Link role="menuitem" className="menu-link" to="/" onClick={() => { setMenu(false); close() }}><Home className="sm" />Ir al inicio</Link>
               {(me.role === 'admin' || me.role === 'owner') && <button role="menuitem" onClick={() => { setMenu(false); nav('/admin') }}><Shield className="sm" />Panel de administración</button>}
               <button role="menuitem" onClick={() => { setMenu(false); void signOut() }}><LogOut className="sm" />Cerrar sesión</button>
             </div>
