@@ -6,7 +6,7 @@ const features = [
   { n: '02', title: 'Búsqueda web con fuentes', text: 'Activá la búsqueda en internet para consultar información reciente y abrir directamente las páginas de origen.' },
   { n: '03', title: 'Documentos y archivos', text: 'Adjuntá PDF, Word, texto, tablas, datos e imágenes para que Cut-real pueda leerlos y ayudarte a interpretarlos.' },
   { n: '04', title: 'Voz y transcripción', text: 'Dictá tus mensajes, convertí audio en texto y escuchá respuestas con las opciones de voz disponibles.' },
-  { n: '05', title: 'Programación asistida', text: 'Un espacio de trabajo para escribir código, preservar cada proyecto y comprobar resultados en una vista previa aislada.' },
+  { n: '05', title: 'Programación asistida', text: 'Un espacio de trabajo para escribir, revisar y mejorar código con asistencia de inteligencia artificial.' },
   { n: '06', title: 'Privacidad y control', text: 'Configurá tus preferencias, administrá integraciones autorizadas y conservá el control de tu cuenta.' },
 ]
 
