@@ -11,7 +11,7 @@ import { LegalPage } from './pages/LegalPage'
 import { useAuth } from './store/auth'
 
 const Admin = lazy(() => import('./pages/Admin'))
-const NeuralLab = lazy(() => import('./pages/NeuralLab'))
+const NeuralLab = lazy(() => import('./pages/NeuralLab').then((m) => ({ default: m.NeuralLab })))
 
 const Splash = () => (
   <div className="center-screen" role="status" aria-live="polite">
