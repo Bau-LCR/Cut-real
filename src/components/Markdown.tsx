@@ -1,4 +1,4 @@
-import { Children, isValidElement, memo, useEffect, useState } from 'react'
+import { Children, isValidElement, memo, useEffect, useState, type PointerEvent, type WheelEvent } from 'react'
 import ReactMarkdown, { defaultUrlTransform, type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
@@ -78,9 +78,9 @@ function GraphBlock({ raw }: { raw: string }) {
   for(let x=Math.ceil(d.xMin/dx)*dx;x<=d.xMax&&xs.length<30;x+=dx)xs.push(Number(x.toPrecision(6)))
   for(let y=Math.ceil(d.yMin/dy)*dy;y<=d.yMax&&ys.length<30;y+=dy)ys.push(Number(y.toPrecision(6)))
   const fmt=(n:number)=>Number(n.toPrecision(4)).toString()
-  const down=(e:React.PointerEvent<SVGSVGElement>)=>{e.currentTarget.setPointerCapture(e.pointerId);setDragState({x:e.clientX,y:e.clientY})}
+  const down=(e:PointerEvent<SVGSVGElement>)=>{e.currentTarget.setPointerCapture(e.pointerId);setDragState({x:e.clientX,y:e.clientY})}
   const move=(e:React.PointerEvent<SVGSVGElement>)=>{if(!dragState)return;const r=e.currentTarget.getBoundingClientRect(),ox=(e.clientX-dragState.x)/r.width*(d.xMax-d.xMin),oy=(e.clientY-dragState.y)/r.height*(d.yMax-d.yMin);setView({xMin:d.xMin-ox,xMax:d.xMax-ox,yMin:d.yMin+oy,yMax:d.yMax+oy});setDragState({x:e.clientX,y:e.clientY})}
-  const wheel=(e:React.WheelEvent<SVGSVGElement>)=>{e.preventDefault();const f=e.deltaY<0?.85:1.18,cx=(d.xMin+d.xMax)/2,cy=(d.yMin+d.yMax)/2;setView({xMin:cx-(cx-d.xMin)*f,xMax:cx+(d.xMax-cx)*f,yMin:cy-(cy-d.yMin)*f,yMax:cy+(d.yMax-cy)*f})}
+  const wheel=(e:WheelEvent<SVGSVGElement>)=>{e.preventDefault();const f=e.deltaY<0?.85:1.18,cx=(d.xMin+d.xMax)/2,cy=(d.yMin+d.yMax)/2;setView({xMin:cx-(cx-d.xMin)*f,xMax:cx+(d.xMax-cx)*f,yMin:cy-(cy-d.yMin)*f,yMax:cy+(d.yMax-cy)*f})}
   return <figure className="chat-graph">
     <div className="chat-graph-head"><figcaption>{graph.title||'Gráfica cartesiana'}</figcaption><button className="btn ghost sm" onClick={()=>setView(null)}>Restablecer vista</button></div>
     <svg viewBox={'0 0 '+W+' '+H} role="img" aria-label={graph.title||'Gráfica interactiva'} onPointerDown={down} onPointerMove={move} onPointerUp={()=>setDragState(null)} onPointerCancel={()=>setDragState(null)} onWheel={wheel}>
