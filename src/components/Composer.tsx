@@ -150,7 +150,7 @@ export function Composer({ convId, generating, onSubmit, onStop, onVoice, seed }
       const t = await transcribe(blob)
       const finalTranscript = t || liveFinal
       if (finalTranscript) {
-        setText([baseText.trimEnd(), finalTranscript.trim()].filter(Boolean).join(baseText.trim() ? ' ' : ' '))
+        setText([baseText.trimEnd(), finalTranscript.trim()].filter(Boolean).join(' '))
         taRef.current?.focus()
       } else toast('info', 'No se pudo entender el audio.')
     } catch (e) {
