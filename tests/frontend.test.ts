@@ -37,7 +37,7 @@ describe('historial', () => {
 describe('markdown y voz', () => {
   it('convierte delimitadores LaTeX sin tocar el código', () => {
     expect(normalizeMath('x \\(a+b\\) y')).toContain('$a+b$')
-    expect(normalizeMath('\\[x^2\\]')).toContain('$$x^2$$')
+    expect(normalizeMath('\\[x^2\\]')).toContain('$\nx^2\n$')
     expect(normalizeMath('`\\(no\\)`')).toBe('`\\(no\\)`')
   })
 
