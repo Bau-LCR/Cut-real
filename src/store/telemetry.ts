@@ -36,7 +36,7 @@ export const useTelemetry = create<TelemetryState>((set, get) => ({
     const shouldLog = chunks === 1 || chunks % 12 === 0
     return {
       phase: 'streaming', output: (s.output + text).slice(-2400), chunks, updatedAt: Date.now(),
-      events: shouldLog ? [...s.events, { id: ++eventId, at: Date.now(), title: chunks === 1 ? 'Primer fragmento recibido' : 'Respuesta en transmisión', detail: `${chunks} fragmentos recibidos desde el flujo de respuesta.`, phase: 'streaming' }].slice(-28) : s.events,
+      events: shouldLog ? [...s.events, { id: ++eventId, at: Date.now(), title: chunks === 1 ? 'Primer fragmento recibido' : 'Respuesta en transmisión', detail: `${chunks} fragmentos recibidos desde el flujo de respuesta.`, phase: 'streaming' as TracePhase }].slice(-28) : s.events,
     }
   }),
   finish: (phase, detail) => get().mark(phase, phase === 'done' ? 'Respuesta completada' : phase === 'error' ? 'Se produjo un error' : 'Generación detenida', detail),
