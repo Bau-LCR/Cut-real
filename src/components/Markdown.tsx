@@ -20,6 +20,29 @@ export function CopyButton({ text, label = 'Copiar' }: { text: string; label?: s
   )
 }
 
+function detectGraphJson(raw: string): string | null {
+  try {
+    const value = JSON.parse(raw)
+    if (value?.type === 'graph') return raw
+    // Compatibilidad: los modelos a veces entregan una serie cartesiana como JSON genérico.
+    if (value?.type !== 'line' || !Array.isArray(value.labels) || !Array.isArray(value.series) || !value.series.length) return null
+    const xs = value.labels.map((x: unknown) => typeof x === 'number' ? x : Number(String(x).replace(',', '.')))
+    if (!xs.length || !xs.every(Number.isFinite)) return null
+    const series = value.series.filter((s: any) => Array.isArray(s.values) && s.values.length === xs.length && s.values.every((n: unknown) => typeof n === 'number' && Number.isFinite(n)))
+    if (!series.length) return null
+    const ys = series.flatMap((s: any) => s.values)
+    const pad = (min: number, max: number) => Math.max((max - min) * .12, Math.abs(max || min || 1) * .12, 1)
+    const xMin = Math.min(...xs), xMax = Math.max(...xs), yMin = Math.min(...ys), yMax = Math.max(...ys)
+    return JSON.stringify({
+      type: 'graph',
+      title: value.title || 'Gráfica cartesiana',
+      xMin: xMin - pad(xMin, xMax), xMax: xMax + pad(xMin, xMax),
+      yMin: yMin - pad(yMin, yMax), yMax: yMax + pad(yMin, yMax),
+      series: series.map((s: any) => ({ name: s.name || 'f(x)', segments: [xs.map((x: number, i: number) => [x, s.values[i]])] }))
+    })
+  } catch { return null }
+}
+
 function ChartBlock({ raw }: { raw: string }) {
   let chart: { type: 'bar' | 'line'; title?: string; labels: string[]; series: { name: string; values: number[] }[] } | null = null
   try {
@@ -119,6 +142,8 @@ const components: Components = {
     const text = String(children).replace(/\n$/, '')
     if (lang === 'chart') return <ChartBlock raw={text} />
     if (lang === 'graph') return <GraphBlock raw={text} />
+    const graphJson = detectGraphJson(text)
+    if (graphJson) return <GraphBlock raw={graphJson} />
     if (!lang && !text.includes('\n')) return <code>{children}</code>
     return (
       <pre>
