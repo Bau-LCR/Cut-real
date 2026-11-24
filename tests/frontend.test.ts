@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readSSE } from '../src/lib/sse'
-import { groupConversations, relativeTime, formatBytes } from '../src/lib/format'
+import { groupConversations, relativeTime, formatBytes, mergeMessageSnapshot } from '../src/lib/format'
 import { normalizeHtmlArtifacts, normalizeMath } from '../src/lib/markdown'
 import { markdownToSpeech, splitSentences } from '../src/voice/speechText'
 import { validateFile, safeName } from '../src/lib/files'
@@ -18,6 +18,13 @@ describe('readSSE', () => {
 describe('historial', () => {
   const now = new Date('2026-11-13T15:00:00')
   const c = (id: string, iso: string, pinned = false) => ({ id, title: id, model_id: null, pinned, created_at: iso, updated_at: iso, last_message_at: iso })
+  it('no pierde mensajes locales que llegan mientras se carga el historial', () => {
+    const fetched = [{ id: 'db-1', seq: 1, content: 'pregunta' }, { id: 'db-2', seq: 2, content: 'respuesta parcial' }] as any
+    const live = [{ id: 'tmp-1', seq: undefined, content: 'pregunta nueva' }, { id: 'db-2', seq: 2, content: 'respuesta completa' }] as any
+    const merged = mergeMessageSnapshot(fetched, live, true)
+    expect(merged.map((m) => m.id)).toEqual(['db-1', 'db-2', 'tmp-1'])
+    expect(merged.find((m) => m.id === 'db-2')?.content).toBe('respuesta completa')
+  })
   it('agrupa por fecha y respeta fijadas', () => {
     const g = groupConversations([c('p', '2026-01-01T10:00:00', true), c('hoy', '2026-11-13T09:00:00'), c('ayer', '2026-11-12T23:00:00'), c('sem', '2026-11-08T10:00:00'), c('viejo', '2026-06-01T10:00:00')], now)
     expect(g.map((x) => x.label)).toEqual(['Fijadas', 'Hoy', 'Ayer', 'Últimos 7 días', 'Anteriores'])
