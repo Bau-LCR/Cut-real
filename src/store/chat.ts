@@ -175,8 +175,20 @@ export const useChat = create<ChatState>((set, get) => {
           case 'done':
             flush(convId)
             finalStatus = ev.status; finalError = ev.error ?? null
+            if (ev.status === 'done') {
+              const metrics = {
+                tokenUsage: Number.isFinite(ev.tokenUsage) ? Number(ev.tokenUsage) : null,
+                promptTokens: Number.isFinite(ev.promptTokens) ? Number(ev.promptTokens) : null,
+                completionTokens: Number.isFinite(ev.completionTokens) ? Number(ev.completionTokens) : null,
+                durationMs: Number.isFinite(ev.durationMs) ? Number(ev.durationMs) : null,
+              }
+              trace.setMetrics(metrics)
+              if (assistantId) patchMsg(convId, assistantId, {
+                status: ev.status, error: ev.error ?? null,
+                token_usage: metrics.tokenUsage, duration_ms: metrics.durationMs,
+              })
+            } else if (assistantId) patchMsg(convId, assistantId, { status: ev.status, error: ev.error ?? null, duration_ms: Number.isFinite(ev.durationMs) ? Number(ev.durationMs) : null })
             trace.finish(ev.status === 'error' ? 'error' : 'done', ev.error ?? 'El flujo terminó correctamente.')
-            if (assistantId) patchMsg(convId, assistantId, { status: ev.status, error: ev.error ?? null })
             break
         }
       }, controller.signal)
