@@ -23,6 +23,17 @@ export function Settings() {
   const [browserVoices, setBrowserVoices] = useState<SpeechSynthesisVoice[]>([])
   const [tokenUsage, setTokenUsage] = useState<{ used: number; limit: number | null; unlimited: boolean; resets_at: string } | null>(null)
   const [usageClock, setUsageClock] = useState(Date.now())
+  const [appearanceSaving, setAppearanceSaving] = useState(false)
+
+  const changeAppearance = async (value: 'original' | 'white' | 'liquid-glass' | 'cybercore', label: string) => {
+    if (appearanceSaving || value === appearance) return
+    setAppearanceSaving(true)
+    try {
+      await saveSettings({ appearance: value })
+      toast('info', `Apariencia ${label} guardada en tu cuenta.`)
+    } catch (e) { toast('error', (e as Error).message) }
+    finally { setAppearanceSaving(false) }
+  }
 
   const loadGrants = async () => {
     const [{ data: g, error: grantError }, { data: i, error: integrationError }] = await Promise.all([
@@ -75,7 +86,7 @@ export function Settings() {
 
   return (
     <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && setSettings(false)}>
-      <div className="modal" role="dialog" aria-modal="true" aria-label="Configuración">
+      <div className="modal settings-modal" role="dialog" aria-modal="true" aria-label="Configuración">
         <h2>Configuración <button className="icon-btn" onClick={() => setSettings(false)} aria-label="Cerrar"><X /></button></h2>
         <p className="hint">{me?.email}</p>
         <section className="panel" aria-label="Uso de tokens">
@@ -92,8 +103,9 @@ export function Settings() {
           </> : <p className="hint">Cargando consumo de tokens…</p>}
         </section>
 
-        <h3>Apariencia</h3>
-        <p className="hint">Elegí el estilo visual de Cut-real. La preferencia se guarda en tu cuenta y se sincroniza entre tus dispositivos.</p>
+        <section className="settings-section settings-appearance">
+        <div className="settings-section-heading"><div><h3>Apariencia</h3><p className="hint">Elegí un tema visual para tu cuenta.</p></div><span className="settings-section-tag">PERSONALIZACIÓN</span></div>
+        <p className="hint">El cambio se guarda y se sincroniza automáticamente entre tus dispositivos.</p>
         <div className="appearance-options" role="group" aria-label="Estilo de apariencia">
           {([
             { id: 'original', name: 'Original', desc: 'Diseño actual · carbón y azul', swatch: 'appearance-swatch-original' },
@@ -102,21 +114,24 @@ export function Settings() {
             { id: 'cybercore', name: 'Cybercore', desc: 'Cromo, neón y futurismo Y2K', swatch: 'appearance-swatch-cyber' },
           ] as const).map((style) => (
             <button key={style.id} type="button" className={`appearance-option ${appearance === style.id ? 'selected' : ''}`} aria-pressed={appearance === style.id}
-              onClick={() => guard(saveSettings({ appearance: style.id }).then(() => toast('info', `Apariencia ${style.name} guardada en tu cuenta.`)))}>
+              disabled={appearanceSaving} onClick={() => void changeAppearance(style.id, style.name)}>
               <span className={`appearance-swatch ${style.swatch}`} aria-hidden="true"><i /><i /><i /></span>
               <span className="appearance-copy"><strong>{style.name}</strong><small>{style.desc}</small></span>
               <span className="appearance-check" aria-hidden="true">{appearance === style.id ? '✓' : ''}</span>
             </button>
           ))}
         </div>
+        {appearanceSaving && <p className="hint" role="status">Guardando apariencia…</p>}
+        </section>
 
-        <h3>Perfil</h3>
+        <section className="settings-section"><div className="settings-section-heading"><h3>Perfil</h3><span className="settings-section-tag">CUENTA</span></div>
         <div className="row">
           <input className="field grow" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} aria-label="Nombre para mostrar" />
           <button className="btn" disabled={!name.trim() || name === me?.display_name} onClick={() => guard(updateProfile(name).then(() => toast('info', 'Nombre actualizado.')))}>Guardar</button>
         </div>
 
-        <h3>Modelo y búsqueda</h3>
+        </section>
+        <section className="settings-section"><div className="settings-section-heading"><h3>Modelo y búsqueda</h3><span className="settings-section-tag">PREFERENCIAS</span></div>
         <label className="lbl" htmlFor="dm">Modelo predeterminado</label>
         <select id="dm" className="field" value={defaultModelId ?? ''} onChange={(e) => guard(saveSettings({ default_model_id: e.target.value || null }))}>
           <option value="">Primero de la lista</option>
@@ -125,7 +140,8 @@ export function Settings() {
         <label className="switch"><span>Activar búsqueda web por defecto<br /><span className="hint">Requiere un proveedor de búsqueda configurado en el servidor.</span></span>
           <input type="checkbox" checked={webSearchDefault} onChange={(e) => guard(saveSettings({ web_search_default: e.target.checked }))} /></label>
 
-        <h3>Voz</h3>
+        </section>
+        <section className="settings-section"><div className="settings-section-heading"><h3>Voz</h3><span className="settings-section-tag">AUDIO</span></div>
         <div className="grid2">
           <div><label className="lbl" htmlFor="eng">Motor de voz</label>
             <select id="eng" className="field" value={voice.engine} onChange={(e) => { const engine = e.target.value as 'browser' | 'remote'; guard(saveSettings({ voice: { ...voice, engine, voice_uri: engine === 'remote' ? 'Puck' : '' } })) }}>
@@ -170,7 +186,8 @@ export function Settings() {
         </div>}
                 <button className="btn sm" onClick={() => void useSpeech.getState().speak('settings-test', 'Hola. Soy Cut-real. Esta es mi voz.')}>Probar voz</button>
 
-        <h3>Integraciones autorizadas</h3>
+        </section>
+        <section className="settings-section"><div className="settings-section-heading"><h3>Integraciones autorizadas</h3><span className="settings-section-tag">PERMISOS</span></div>
         <p className="hint">Elegí qué permisos concedés. Podés modificarlos o revocarlos cuando quieras. Solo se comparten datos cuando la función correspondiente está habilitada.</p>
         {availableIntegrations.map((integration) => {
           const active = grants.find((grant) => grant.integration_id === integration.id)
@@ -194,9 +211,11 @@ export function Settings() {
         ))}
         {availableIntegrations.length === 0 && grants.length === 0 && <p className="hint">No hay integraciones habilitadas disponibles para autorizar.</p>}
 
-        <h3>Privacidad</h3>
+        </section>
+        <section className="settings-section"><div className="settings-section-heading"><h3>Privacidad</h3><span className="settings-section-tag">DATOS</span></div>
         <p className="hint">{PRIVACY_TEXT}</p>
         {!privacyAck && <button className="btn sm" style={{ marginTop: 10 }} onClick={() => guard(saveSettings({ ack: true }))}>Entendido</button>}
+        </section>
       </div>
     </div>
   )
