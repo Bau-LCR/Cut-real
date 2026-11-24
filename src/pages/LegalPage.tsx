@@ -2,43 +2,48 @@ import { Link } from 'react-router-dom'
 
 export function LegalPage() {
   return <main className="legal-page">
-    <header className="legal-top"><Link className="landing-brand" to="/"><span>Cut-real 2</span></Link><Link className="btn ghost" to="/">Volver al inicio</Link></header>
+    <header className="legal-top">
+      <Link className="landing-brand" to="/"><span>Cut-real 2</span></Link>
+      <Link className="btn ghost" to="/">Volver al inicio</Link>
+    </header>
     <article className="legal-content">
       <span className="section-eyebrow">INFORMACIÓN DEL SERVICIO</span>
       <h1>Términos de uso y política de privacidad</h1>
-      <p className="legal-updated">Versión informativa · 23 de noviembre de 2026</p>
-      <div className="notice"><b>Nota:</b> este documento describe de forma general el funcionamiento previsto de Cut-real 2. Es un texto informativo y no constituye asesoramiento jurídico. Antes de ofrecer el servicio públicamente, el responsable del proyecto debe completar los datos de contacto, confirmar los proveedores y sus condiciones vigentes, y obtener una revisión legal adecuada.</div>
+      <p className="legal-updated">Última actualización: 24 de noviembre de 2026</p>
+      <div className="notice"><b>Importante:</b> Cut-real 2 es actualmente un servicio privado de acceso restringido. Este documento explica las condiciones previstas de uso y privacidad; no constituye asesoramiento jurídico. El responsable del proyecto debe revisar estas condiciones y completarlas si cambian las funciones, los proveedores o la normativa aplicable.</div>
 
       <h2>Parte I · Términos de uso</h2>
-      <h3>1. Servicio</h3>
-      <p>Cut-real 2 es una aplicación que ofrece una interfaz para conversar con modelos de inteligencia artificial y utilizar las herramientas que estén habilitadas en cada momento. Entre ellas pueden encontrarse selección de modelos, búsqueda web, carga y análisis de archivos, programación asistida y funciones de voz. La disponibilidad depende de la configuración, del dispositivo y de los proveedores externos. Las secciones Proyectos y Simulación no están disponibles actualmente en la interfaz.</p>
-      <h3>2. Cuenta y acceso</h3>
-      <p>El inicio de sesión se realiza mediante Google. El acceso puede requerir aprobación del responsable o administrador. Cada usuario debe proteger sus credenciales y avisar si sospecha que otra persona accedió a su cuenta. Los administradores pueden restringir temporalmente el acceso por razones de seguridad o incumplimiento, y deben ofrecer un canal para solicitar revisión.</p>
+      <h3>1. Naturaleza del servicio</h3>
+      <p>Cut-real 2 es una aplicación privada que reúne una interfaz de conversación con modelos de inteligencia artificial y otras herramientas que el responsable habilite, como búsqueda web, análisis de archivos, programación asistida y funciones de voz. Las funciones pueden cambiar, limitarse o quedar temporalmente fuera de servicio.</p>
+      <h3>2. Acceso restringido y autorización de cuentas</h3>
+      <p>Cut-real 2 no es, en su estado actual, un servicio público ni una plataforma de registro abierto. La posibilidad de iniciar sesión o completar un registro no concede por sí sola autorización para utilizar la aplicación. Cada cuenta debe ser habilitada o aprobada expresamente por el propietario o por un administrador autorizado. Las cuentas que todavía no hayan sido aprobadas permanecerán sin acceso a las funciones privadas. El propietario puede conceder, limitar, suspender o revocar el acceso por motivos de seguridad, mantenimiento o administración del servicio.</p>
+      <p>La autorización es personal y no debe compartirse ni transferirse. El usuario debe proteger el acceso a su cuenta y avisar al responsable si sospecha que otra persona la está utilizando. La creación de cuentas adicionales, el acceso automatizado o el intento de eludir el proceso de aprobación no están permitidos sin autorización expresa.</p>
       <h3>3. Uso aceptable</h3>
-      <p>El servicio debe utilizarse de forma lícita y respetuosa. No está permitido intentar acceder sin autorización a cuentas, datos o sistemas; interferir con el funcionamiento del servicio; vulnerar la privacidad o los derechos de terceros; ni utilizarlo para amenazas, acoso, fraude o distribución de contenido ilegal. Las medidas de moderación automatizada pueden equivocarse y los casos dudosos deben revisarse teniendo en cuenta el contexto.</p>
-      <h3>4. Contenido y respuestas de IA</h3>
-      <p>Las respuestas pueden contener errores, omisiones o información desactualizada. El usuario debe verificar los datos importantes y revisar el código generado antes de ejecutarlo. Cut-real no sustituye la orientación de docentes ni el asesoramiento profesional médico, jurídico, financiero o de emergencia. El usuario conserva la responsabilidad de contar con derechos y permisos sobre los archivos y contenidos que adjunta.</p>
-      <h3>5. Disponibilidad y cambios</h3>
-      <p>Las funciones, modelos y límites pueden cambiar, quedar temporalmente fuera de servicio o depender de cuotas de terceros. No se garantiza disponibilidad ininterrumpida ni compatibilidad de todas las funciones con todos los modelos. Las funciones experimentales pueden modificarse o retirarse.</p>
+      <p>El servicio debe utilizarse de manera lícita y respetuosa. No está permitido intentar acceder a cuentas, datos o sistemas ajenos; interferir con la disponibilidad o seguridad de la aplicación; vulnerar la privacidad o los derechos de terceros; ni utilizar las herramientas para fraude, amenazas, acoso o actividades ilegales.</p>
+      <h3>4. Respuestas y contenido generado por IA</h3>
+      <p>Las respuestas de inteligencia artificial pueden ser incorrectas, incompletas o estar desactualizadas. El usuario debe verificar la información importante y revisar el código antes de ejecutarlo. Cut-real no sustituye a docentes ni a profesionales médicos, jurídicos, financieros o de emergencia. Quien adjunta archivos o contenido debe contar con los derechos y permisos necesarios para hacerlo.</p>
+      <h3>5. Disponibilidad, límites y cambios</h3>
+      <p>La disponibilidad depende de la infraestructura, la configuración del responsable, el dispositivo y los límites de los proveedores externos. No se garantiza un funcionamiento ininterrumpido. Los modelos, herramientas, cuotas y límites pueden modificarse o retirarse, especialmente cuando se trate de funciones experimentales.</p>
       <h3>6. Proveedores externos</h3>
-      <p>Para procesar mensajes, archivos, imágenes, búsquedas o audio, la aplicación puede transmitir el contenido necesario a los proveedores configurados. Esos proveedores aplican sus propios términos, políticas, medidas de seguridad, ubicaciones de procesamiento y límites. El responsable debe mantener una lista actualizada de proveedores y revisar sus condiciones antes de habilitarlos.</p>
+      <p>Para procesar solicitudes, archivos, imágenes, búsquedas o audio, Cut-real puede enviar el contenido necesario a los proveedores de IA o infraestructura configurados por el responsable. Cada proveedor aplica sus propias condiciones, políticas de privacidad, reglas de retención y ubicaciones de procesamiento. El responsable debe mantener esa configuración bajo revisión.</p>
 
       <h2>Parte II · Política de privacidad</h2>
-      <h3>7. Datos que pueden tratarse</h3>
-      <p>Según las funciones utilizadas, Cut-real puede procesar datos básicos de cuenta proporcionados por Google (como identificador, correo y nombre visible), preferencias de la aplicación, conversaciones, archivos adjuntos, registros de llamadas o voz cuando se utilicen esas funciones, y datos técnicos necesarios para operar, diagnosticar errores y proteger el servicio.</p>
-      <h3>8. Finalidades</h3>
-      <p>Los datos se utilizan para autenticar al usuario, prestar las funciones solicitadas, guardar y recuperar conversaciones, mostrar el historial, administrar permisos, controlar el uso, prevenir abusos, mantener la seguridad y solucionar fallos. No debe afirmarse que los datos se utilizan para una finalidad distinta sin actualizar esta política y la configuración real.</p>
-      <h3>9. Almacenamiento y terceros</h3>
-      <p>La aplicación utiliza servicios de infraestructura y base de datos configurados por el responsable. El contenido enviado a un modelo o servicio externo puede ser procesado por ese proveedor para devolver el resultado solicitado. La retención, ubicación, uso para mejora de modelos y eliminación por parte de cada proveedor dependen de sus condiciones y de la configuración contratada; el usuario debe consultar también las políticas de dichos proveedores.</p>
-      <h3>10. Acceso, seguridad y conservación</h3>
-      <p>El acceso a los datos debe limitarse a las personas y sistemas que lo necesiten para operar el servicio. Se aplican medidas técnicas y organizativas razonables, pero ningún sistema puede garantizar seguridad absoluta. Los datos se conservan mientras sean necesarios para prestar el servicio, mantener el historial o cumplir obligaciones aplicables, y deben eliminarse o anonimizarse cuando corresponda según los procedimientos disponibles.</p>
-      <h3>11. Derechos y solicitudes</h3>
-      <p>El usuario puede solicitar información sobre sus datos, corrección o eliminación cuando corresponda. Antes de publicar el servicio, el responsable debe completar y mantener visible un canal de contacto para estas solicitudes: <b>CONTACTO DEL RESPONSABLE PENDIENTE DE COMPLETAR</b>. No se debe considerar este documento listo para un lanzamiento público mientras falte ese dato.</p>
-      <h3>12. Menores de edad</h3>
-      <p>El acceso y el uso de proveedores externos deben respetar los requisitos de edad, consentimiento y autorización aplicables en cada jurisdicción y los términos de cada proveedor. El responsable debe verificar estas condiciones antes de habilitar el registro o una nueva integración.</p>
-      <h3>13. Cambios a esta política</h3>
-      <p>Esta política debe actualizarse cuando se incorporen proveedores, cambien las funciones, se modifiquen las prácticas de almacenamiento o tratamiento, o lo exija la normativa. La fecha de versión se actualizará cada vez que se publique una modificación sustancial.</p>
-      <footer className="legal-footer"><Link to="/">Inicio de Cut-real</Link><span>Cut-real 2 · Información del servicio</span></footer>
+      <h3>7. Datos que se pueden tratar</h3>
+      <p>Según el uso de la aplicación, pueden tratarse el identificador de cuenta, correo electrónico, nombre e imagen de perfil proporcionados por el inicio de sesión; las preferencias de configuración; conversaciones y mensajes; archivos adjuntos; datos de uso y consumo; y registros técnicos necesarios para la seguridad, el diagnóstico y la administración.</p>
+      <h3>8. Finalidades y acceso interno</h3>
+      <p>Los datos se utilizan para verificar la identidad y autorización de la cuenta, prestar las funciones solicitadas, guardar y recuperar conversaciones, sincronizar preferencias, administrar permisos, controlar el uso, prevenir abusos y resolver errores. El acceso administrativo a información de usuarios debe limitarse a tareas legítimas de soporte, seguridad o administración y realizarse mediante las herramientas y controles disponibles. La autorización de acceso a la aplicación no implica que otros usuarios puedan ver las conversaciones privadas de una cuenta.</p>
+      <h3>9. Almacenamiento y procesamiento por terceros</h3>
+      <p>La aplicación utiliza la base de datos y los servicios de infraestructura configurados por el responsable. Cuando una función necesita un proveedor externo, se transmite el contenido necesario para procesar esa solicitud. El tratamiento, la retención y la eventual utilización de datos por parte de cada proveedor dependen de sus propias condiciones y de la configuración vigente. No se debe asumir que todos los proveedores tienen las mismas prácticas.</p>
+      <h3>10. Seguridad y conservación</h3>
+      <p>Se aplican controles técnicos como autenticación, autorización por cuenta y restricciones de acceso a los datos. Ningún sistema puede garantizar seguridad absoluta. La información puede conservarse mientras sea necesaria para mantener la cuenta, el historial solicitado, la seguridad y el funcionamiento del servicio, o para atender obligaciones aplicables. La eliminación debe solicitarse al responsable y estará sujeta a los procedimientos y copias de seguridad disponibles.</p>
+      <h3>11. Solicitudes sobre datos personales</h3>
+      <p>El usuario puede solicitar información, corrección o eliminación de datos cuando corresponda, contactando al propietario o responsable de Cut-real 2 por el canal que este haya facilitado. No se publica aquí una dirección de correo de contacto porque el proyecto todavía no ha definido un canal público específico.</p>
+      <h3>12. Menores y requisitos de los proveedores</h3>
+      <p>El acceso y el uso deben respetar los requisitos de edad, consentimiento y autorización aplicables, así como las condiciones de cada proveedor externo. El responsable debe verificar esos requisitos antes de habilitar cuentas o funciones nuevas.</p>
+      <h3>13. Cambios de este documento</h3>
+      <p>Estos términos pueden actualizarse cuando cambien las funciones, los proveedores, las prácticas de tratamiento de datos o las reglas aplicables. La fecha indicada al comienzo identifica la última revisión publicada.</p>
+
+      <footer className="legal-footer"><Link to="/">Inicio de Cut-real</Link><span>Cut-real 2 · Servicio privado de acceso restringido</span></footer>
     </article>
   </main>
 }
