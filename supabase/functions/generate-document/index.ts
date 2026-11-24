@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
     if (!title || !content || content.length > 300000) throw new HttpError(400, 'invalid_document', 'El documento está vacío o supera el límite permitido.')
     const safeTitle = title.replace(/[^\p{L}\p{N} ._-]/gu, '').slice(0, 100) || 'Documento'
     const documentImages = await loadDocumentImages(ctx, Array.isArray(body.images) ? body.images : [])
-    if (body.format === 'pdf') return new Response(toArrayBuffer(await makePdf(safeTitle, content, documentImages)), { headers: { ...corsHeaders(req), 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="documento.pdf"', 'Cache-Control': 'no-store' } })
+    if (body.format === 'pdf') return new Response(toArrayBuffer(await makePdf(safeTitle, content, documentImages, hasCover)), { headers: { ...corsHeaders(req), 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="documento.pdf"', 'Cache-Control': 'no-store' } })
     return new Response(toArrayBuffer(await makeDocx(safeTitle, content, documentImages, hasCover)), { headers: { ...corsHeaders(req), 'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Content-Disposition': 'attachment; filename="documento.docx"', 'Cache-Control': 'no-store' } })
   } catch (e) { return errorResponse(req, e) }
 })
@@ -76,7 +76,7 @@ function parse(s: string) {
   for (let i = 0; i < lines.length; i++) {
     const t = lines[i].trim()
     if (/^\\x60{3}/.test(t)) { inCode = !inCode; continue }
-    if (!t) continue
+    if (!t || /^!\\[[^\\]]*\\]\\(cutreal-image:[0-9a-f-]{36}\\)$/i.test(t)) continue
     if (inCode) { blocks.push({ kind: 'code', raw: t, text: clean(t) }); continue }
     if (/^\\|/.test(t)) {
       const rows: string[][] = []
@@ -119,7 +119,7 @@ function inlineSegments(value: string) {
 function inlineRuns(value: string) {
   return inlineSegments(value).map(run => new TextRun({ text: run.text, bold: run.bold, italics: run.italic, underline: run.underline ? {} : undefined, strike: run.strike, font: run.code ? 'Consolas' : undefined }))
 }
-async function makePdf(title: string, md: string, images: Map<string,DocumentImage>): Promise<Uint8Array> {
+async function makePdf(title: string, md: string, images: Map<string,DocumentImage>, hasCover: boolean): Promise<Uint8Array> {
   const pdf = await PDFDocument.create(), regular = await pdf.embedFont(StandardFonts.Helvetica), bold = await pdf.embedFont(StandardFonts.HelveticaBold), italic = await pdf.embedFont(StandardFonts.HelveticaOblique)
   pdf.setTitle(title)
   const W=595.28,H=841.89,M=58, max=W-M*2
@@ -214,7 +214,8 @@ async function makeDocx(title:string,md:string,images:Map<string,DocumentImage>,
     children.push(new Paragraph({ children:[new TextRun({text:'CUT-REAL  /  DOCUMENTO',bold:true,color:'315B9B',size:22})], alignment:AlignmentType.CENTER, spacing:{before:2200,after:900} }))
     children.push(new Paragraph({ text:title, heading:HeadingLevel.TITLE, alignment:AlignmentType.CENTER, spacing:{after:500} }))
     children.push(new Paragraph({ children:[new TextRun({text:'Documento elaborado con estructura y contenido original',color:'66758A',size:22})], alignment:AlignmentType.CENTER, spacing:{after:1800} }))
-    children.push(new Paragraph({ children:[new TextRun({text:new Date().toLocaleDateString('es-AR',{year:'numeric',month:'long',day:'numeric'}),color:'7A8190',size:18})], alignment:AlignmentType.CENTER, children: [new PageBreak()] }))
+    children.push(new Paragraph({ children:[new TextRun({text:new Date().toLocaleDateString('es-AR',{year:'numeric',month:'long',day:'numeric'}),color:'7A8190',size:18})], alignment:AlignmentType.CENTER }))
+    children.push(new Paragraph({ children:[new PageBreak()] }))
   }
   children.push(new Paragraph({text:title,heading:HeadingLevel.TITLE,spacing:{after:280}}),new Paragraph({children:[new TextRun({text:'CUT-REAL',bold:true,color:'315B9B',size:18})],spacing:{after:240}}))
   let orderedIndex=0
