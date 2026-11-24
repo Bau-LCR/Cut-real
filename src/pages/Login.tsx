@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useAuth } from '../store/auth'
 import { isConfigured } from '../lib/supabase'
 
@@ -19,7 +20,8 @@ export function Login() {
           Continuar con Google
         </button>
         {error && <p role="alert" style={{ color: 'var(--danger)', marginTop: 14, fontSize: 14 }}>{error}</p>}
-        <p className="privacy">Al continuar, iniciás sesión de forma segura con tu cuenta de Google.</p>
+        <p className="privacy">Al continuar, iniciás sesión con Google. <Link to="/legal">Consultá los términos de uso y la política de privacidad</Link>.</p>
+        <p style={{ marginTop: 14, fontSize: 13 }}><Link to="/">Volver al inicio de Cut-real</Link></p>
       </main>
     </div>
   )
