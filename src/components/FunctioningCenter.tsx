@@ -34,8 +34,7 @@ const ACTIVE: Record<string, string[]> = {
 export function FunctioningCenter() {
   const close = useUi((s) => s.setFunctioning)
   const trace = useTelemetry()
-  const mode = '2d' as const
-  const [detailMode, setDetailMode] = useState<'simple' | 'full'>('full')
+    const [detailMode, setDetailMode] = useState<'simple' | 'full'>('full')
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
@@ -90,7 +89,7 @@ export function FunctioningCenter() {
           <div className="functioning-visual">
             <div className="functioning-toolbar"><div><b>Mapa de procesamiento</b><small>Arrastrá para mover · Usá los controles para acercar</small></div><div className="functioning-toolbar-controls"><div className="functioning-modes"><button className={detailMode === 'simple' ? 'selected' : ''} onClick={() => setDetailMode('simple')}>Simple</button><button className={detailMode === 'full' ? 'selected' : ''} onClick={() => setDetailMode('full')}>Completo</button></div></div></div>
             <div className="functioning-canvas">
-              <svg viewBox="0 0 1120 440" role="img" aria-label="Esquema interactivo del recorrido de una consulta" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} className={`functioning-svg ${view-2d}`}>
+              <svg viewBox="0 0 1120 440" role="img" aria-label="Esquema interactivo del recorrido de una consulta" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} className="functioning-svg view-2d">
                 <defs><pattern id="fn-grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M 28 0 L 0 0 0 28" fill="none" stroke="currentColor" strokeOpacity=".10" strokeWidth="1"/></pattern><filter id="fn-glow"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
                 <rect width="1120" height="440" fill="url(#fn-grid)" />
                 <g transform={`translate(${pan.x} ${pan.y}) translate(560 220) scale(${zoom}) translate(-560 -220)`}>
