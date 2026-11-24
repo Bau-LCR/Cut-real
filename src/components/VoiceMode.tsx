@@ -45,7 +45,7 @@ export function VoiceMode({ ensureConv, onClose }: { ensureConv(): Promise<strin
       catch (e) { c.fatal = true; setErr((e as Error).message); setPhase('error'); return }
       while (!c.dead) {
         setPhase('listening'); setTraceVoice('Escuchando', 0); setErr(null)
-        const rec = mic.record({ vad: true, silenceMs: 600, signal: c.abort.signal })
+        const rec = mic.record({ vad: true, silenceMs: 600, signal: c.abort.signal, onLevel: (level) => { if (!c.dead) { setVoiceLevelState(level); setTraceVoice('Escuchando', level) } } })
         c.stopRec = rec.stop
         const blob = await rec.done
         if (c.dead) break
