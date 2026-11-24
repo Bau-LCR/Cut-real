@@ -35,8 +35,8 @@ function normalizeToolIntent(content: unknown): string {
 function shouldExplicitlyRequestDocument(content: unknown): boolean {
   const text = normalizeToolIntent(content)
   if (!text) return false
-  const artifact = '(?:pdf|word|docx|documento|documentos|archivo descargable|informe|reporte|diapositivas|powerpoint|presentacion)'
-  const create = new RegExp('\\b(?:crea|crear|genera|generar|prepara|preparar|arma|armar|redacta|redactar|exporta|exportar|descarga|descargar|haceme|hace|haga|elabora|elaborar)\\b.{0,50}\\b' + artifact + '\\b', 'i')
+  const artifact = '(?:pdf|word|docx|documento|documentos|archivo descargable|informe|reportes?|reporte|diapositivas|powerpoint|presentacion)'
+  const create = new RegExp('\\b(?:crea|crear|genera|generar|prepara|preparar|arma|armar|redacta|redactar|exporta|exportar|descarga|descargar|haceme|haz|hace|haga|elabora|elaborar|preparame|prepará)\\b.{0,50}\\b' + artifact + '\\b', 'i')
   const request = new RegExp('\\b(?:necesito|quiero)\\b.{0,35}\\b(?:un|una|el|la)?\\s*' + artifact + '\\b', 'i')
   return create.test(text) || request.test(text)
 }
@@ -228,7 +228,8 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
         : message.content.reduce((sum: number, part: any) => sum + (part.type === 'text' ? String(part.text ?? '').length : 4800), 0)), 0)
       estimatedPromptTokens = Math.max(1, Math.ceil(promptChars / 4))
       // Programación necesita espacio para entregar archivos completos; el chat normal conserva su límite habitual.
-      const maxOutputTokens = b.taskMode === 'programming'
+      const documentRequest = shouldExplicitlyRequestDocument((lastUser as any).content)
+      const maxOutputTokens = b.taskMode === 'programming' || documentRequest
         ? Math.min(Number(model.max_output_tokens ?? 8192), 8192)
         : Math.min(Number(model.max_output_tokens ?? 4096), 4096)
       reservedTokens = estimatedPromptTokens + maxOutputTokens
