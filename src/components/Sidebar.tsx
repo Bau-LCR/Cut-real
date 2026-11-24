@@ -53,6 +53,7 @@ export function Sidebar({ activeId }: { activeId?: string }) {
   const open = useUi((s) => s.sidebarOpen)
   const setSidebar = useUi((s) => s.setSidebar)
   const setSettings = useUi((s) => s.setSettings)
+  const setFunctioning = useUi((s) => s.setFunctioning)
   const [q, setQ] = useState('')
   const [menu, setMenu] = useState(false)
   useEffect(() => { const t = setTimeout(() => void search(q), 250); return () => clearTimeout(t) }, [q, search])
@@ -70,6 +71,7 @@ export function Sidebar({ activeId }: { activeId?: string }) {
           <button className="btn" onClick={() => { nav('/'); close() }}><Plus className="sm" />Nueva conversación</button>
           <button className="btn" onClick={() => { nav('/calls'); close() }}><span className="studio-nav-icon" aria-hidden="true">◷</span>Registro de llamadas</button>
           <button className="btn" onClick={() => { nav('/studio'); close() }}><span className="studio-nav-icon" aria-hidden="true">{'</>'}</span>Programación</button>
+          <button className="btn" onClick={() => { setFunctioning(true); close() }}><span className="studio-nav-icon" aria-hidden="true">◉</span>Funcionamiento</button>
           <div className="side-search">
             <Search className="sm" />
             <input className="field" placeholder="Buscar conversaciones" aria-label="Buscar conversaciones" value={q} onChange={(e) => setQ(e.target.value)} />
