@@ -854,3 +854,44 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
 @media (prefers-reduced-motion: reduce) {
   .appearance-option { transition:none; }
 }
+
+
+/* Menú de cuenta: áreas completas y cómodas para hacer clic */
+.menu.up { max-height: min(72dvh, 460px); overflow-y: auto; overscroll-behavior: contain; padding: 7px; }
+.menu button, .menu a {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  min-height: 42px; padding: 10px 12px; border-radius: 9px;
+  text-align: left; text-decoration: none; color: var(--text);
+  font: inherit; font-size: 13px; line-height: 1.35; cursor: pointer;
+}
+.menu button:hover, .menu a:hover, .menu button:focus-visible, .menu a:focus-visible {
+  background: var(--slate); outline: none;
+}
+.menu .menu-link { justify-content: flex-start; }
+.menu .menu-divider { height: 1px; background: var(--line); margin: 5px 7px; }
+.profile { min-height: 48px; cursor: pointer; }
+.profile.expanded { background: var(--slate); outline: 1px solid var(--line-strong); }
+.profile:focus-visible { outline: 2px solid var(--blue-bright); outline-offset: 2px; }
+
+/* Configuración organizada por secciones, con más espacio para leer */
+.settings-modal { width: min(820px, 100%); max-height: min(91dvh, 900px); padding: 26px; }
+.settings-modal > h2 { position: sticky; top: -26px; z-index: 2; padding: 8px 0 12px; background: var(--graphite); border-bottom: 1px solid var(--line); }
+.settings-modal > .hint { margin: 10px 0 18px; }
+.settings-modal > .panel[aria-label="Uso de tokens"] { padding: 16px 18px; border-radius: 14px; }
+.settings-section { margin-top: 16px; padding: 18px; border: 1px solid var(--line); border-radius: 15px; background: color-mix(in srgb, var(--slate) 45%, transparent); }
+.settings-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.settings-section-heading h3 { margin: 0 0 4px; font-size: 16px; }
+.settings-section-heading .hint { margin: 0; }
+.settings-section-tag { flex: none; color: var(--faint); font: 600 10px var(--mono); letter-spacing: .09em; }
+.settings-appearance { border-color: var(--line-strong); background: linear-gradient(135deg, color-mix(in srgb, var(--navy) 55%, transparent), color-mix(in srgb, var(--slate) 70%, transparent)); }
+.settings-modal .appearance-options { margin-top: 14px; }
+.settings-modal .appearance-option { min-height: 72px; cursor: pointer; }
+.settings-modal .appearance-option:disabled { opacity: .65; cursor: wait; transform: none; }
+.settings-modal .field { margin: 5px 0 10px; }
+.settings-modal .settings-section > .hint { line-height: 1.6; }
+@media (max-width: 600px) {
+  .settings-modal { padding: 18px 14px; }
+  .settings-section { padding: 14px; }
+  .settings-section-tag { font-size: 9px; }
+  .settings-modal .appearance-options { grid-template-columns: 1fr; }
+}
