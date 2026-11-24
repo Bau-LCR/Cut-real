@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => null)
     if (!body || !['pdf', 'docx'].includes(body.format) || typeof body.title !== 'string' || typeof body.content !== 'string' || (body.html !== undefined && typeof body.html !== 'string') || (body.images !== undefined && (!Array.isArray(body.images) || body.images.length > 8 || !body.images.every((image: any) => image && typeof image.id === 'string' && /^[0-9a-f-]{36}$/i.test(image.id)))))
       throw new HttpError(400, 'bad_request', 'Se requiere formato PDF o DOCX, título, contenido y hasta 8 referencias de imágenes válidas.')
-    const title = body.title.trim().slice(0, 160), rawContent = (typeof body.html === 'string' && body.html.trim() ? htmlToMarkdown(body.html.slice(0, 300000)) : body.content).trim(), hasCover = /^<!--CUTREAL_COVER-->/i.test(rawContent), content = rawContent.replace(/^<!--CUTREAL_COVER-->\\s*/i, '')
+    const title = body.title.trim().slice(0, 160), rawContent = (typeof body.html === 'string' && body.html.trim() ? htmlToMarkdown(body.html.slice(0, 300000)) : body.content).trim(), hasCover = /^<!--CUTREAL_COVER-->/i.test(rawContent), content = rawContent.replace(/^<!--CUTREAL_COVER-->\s*/i, '')
     if (!title || !content || content.length > 300000) throw new HttpError(400, 'invalid_document', 'El documento está vacío o supera el límite permitido.')
     const safeTitle = title.replace(/[^\p{L}\p{N} ._-]/gu, '').slice(0, 100) || 'Documento'
     const documentImages = await loadDocumentImages(ctx, Array.isArray(body.images) ? body.images : [])
@@ -70,32 +70,32 @@ function htmlToMarkdown(html: string) {
     .replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n')).trim()
 }
 function parse(s: string) {
-  const lines = s.replace(/\\r/g, '').replace(/^<!--CUTREAL_COVER-->\\s*/i, '').split('\\n')
+  const lines = s.replace(/\r/g, '').replace(/^<!--CUTREAL_COVER-->\s*/i, '').split('\n')
   const blocks: any[] = []
   let inCode = false
   for (let i = 0; i < lines.length; i++) {
     const t = lines[i].trim()
-    if (/^\\x60{3}/.test(t)) { inCode = !inCode; continue }
-    if (!t || /^!\\[[^\\]]*\\]\\(cutreal-image:[0-9a-f-]{36}\\)$/i.test(t)) continue
+    if (/^\x60{3}/.test(t)) { inCode = !inCode; continue }
+    if (!t || /^!\[[^\]]*\]\(cutreal-image:[0-9a-f-]{36}\)$/i.test(t)) continue
     if (inCode) { blocks.push({ kind: 'code', raw: t, text: clean(t) }); continue }
-    if (/^\\|/.test(t)) {
+    if (/^\|/.test(t)) {
       const rows: string[][] = []
-      while (i < lines.length && /^\\s*\\|/.test(lines[i])) {
+      while (i < lines.length && /^\s*\|/.test(lines[i])) {
         const row = lines[i].trim()
-        if (!/^\\|[\\s:|-]+\\|?$/.test(row)) rows.push(row.replace(/^\\||\\|$/g, '').split('|').map((cell) => clean(cell.trim())))
+        if (!/^\|[\s:|-]+\|?$/.test(row)) rows.push(row.replace(/^\||\|$/g, '').split('|').map((cell) => clean(cell.trim())))
         i++
       }
       i--
       if (rows.length) blocks.push({ kind: 'table', rows })
       continue
     }
-    const image = t.match(/^<!--CUTREAL_IMAGE:([0-9a-f-]{36})\\|([^>]*)-->$/i)
+    const image = t.match(/^<!--CUTREAL_IMAGE:([0-9a-f-]{36})\|([^>]*)-->$/i)
     if (image) { blocks.push({ kind: 'image', raw: image[1], text: image[2].trim() }); continue }
     const make = (kind: string, raw: string) => blocks.push({ kind, raw, text: clean(raw) })
-    if (/^#{1,3}\\s/.test(t)) make('h' + Math.min(3, t.match(/^#+/)![0].length), t.replace(/^#{1,3}\\s*/, ''))
-    else if (/^[-*+]\\s/.test(t)) make('bullet', t.replace(/^[-*+]\\s*/, ''))
-    else if (/^\\d+[.)]\\s/.test(t)) make('number', t.replace(/^\\d+[.)]\\s*/, ''))
-    else if (/^>\\s?/.test(t)) make('quote', t.replace(/^>\\s?/, ''))
+    if (/^#{1,3}\s/.test(t)) make('h' + Math.min(3, t.match(/^#+/)![0].length), t.replace(/^#{1,3}\s*/, ''))
+    else if (/^[-*+]\s/.test(t)) make('bullet', t.replace(/^[-*+]\s*/, ''))
+    else if (/^\d+[.)]\s/.test(t)) make('number', t.replace(/^\d+[.)]\s*/, ''))
+    else if (/^>\s?/.test(t)) make('quote', t.replace(/^>\s?/, ''))
     else make('p', t)
   }
   return blocks.filter((block) => block.kind === 'image' || block.kind === 'table' || !!block.text)
