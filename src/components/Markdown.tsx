@@ -139,9 +139,9 @@ const components: Components = {
   pre: ({ children }) => {
     // ReactMarkdown puede entregar JSON dentro de <pre><code> aunque el bloque no tenga
     // una etiqueta de lenguaje reconocible. Detectarlo aquí evita mostrar datos de gráfica como código.
-    const child = Children.only(children)
+    const child = Children.toArray(children)[0]
     if (isValidElement(child)) {
-      const raw = String((child.props as { children?: unknown }).children ?? '').replace(/\\n$/, '')
+      const raw = String((child.props as { children?: unknown }).children ?? '').replace(/\n$/, '')
       const graphJson = detectGraphJson(raw)
       if (graphJson) return <GraphBlock raw={graphJson} />
     }
