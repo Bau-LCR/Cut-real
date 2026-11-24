@@ -164,6 +164,7 @@ export const useChat = create<ChatState>((set, get) => {
           case 'status':
             if (ev.status === 'searching') trace.mark('sending', 'Consulta de herramientas', 'Cut-real está consultando la herramienta solicitada antes de preparar la llamada al modelo.')
             else if (ev.status === 'generating') trace.mark('model', 'Contexto preparado', 'El historial, las instrucciones y los adjuntos disponibles se organizaron para enviarse al modelo.')
+            else if (ev.status === 'prompt_ready') { trace.setMetrics({ tokenUsage: null, promptTokens: Number(ev.promptTokens) || 0, completionTokens: null, durationMs: null, usageExact: false }); trace.mark('sending', 'Presupuesto de entrada calculado', 'El servidor estimó los tokens del prompt completo antes de iniciar la generación.') }
             else if (ev.status === 'postprocessing') trace.mark('streaming', 'Postprocesamiento', 'Se están aplicando las transformaciones necesarias a la respuesta, como formato de documentos o integración de imágenes.')
             else if (ev.status === 'saving') trace.mark('streaming', 'Persistencia', 'La respuesta final y sus métricas se están guardando en el historial de la conversación.')
             break
@@ -187,6 +188,7 @@ export const useChat = create<ChatState>((set, get) => {
                 promptTokens: Number.isFinite(ev.promptTokens) ? Number(ev.promptTokens) : null,
                 completionTokens: Number.isFinite(ev.completionTokens) ? Number(ev.completionTokens) : null,
                 durationMs: Number.isFinite(ev.durationMs) ? Number(ev.durationMs) : null,
+                usageExact: !!ev.usageExact,
               }
               trace.setMetrics(metrics)
               if (assistantId) patchMsg(convId, assistantId, {
