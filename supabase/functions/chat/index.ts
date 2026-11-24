@@ -337,7 +337,7 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
         if (recordError) console.error('unlimited account usage record failed', recordError.message)
       }
     }
-    send({ type: 'done', status, error: errMsg, errorCode: errCode, tokenUsage: status === 'done' ? actualTokens : null, durationMs })
+    send({ type: 'done', status, error: errMsg, errorCode: errCode, tokenUsage: status === 'done' ? actualTokens : null, promptTokens: status === 'done' ? (usage?.prompt_tokens ?? estimatedPromptTokens) : null, completionTokens: status === 'done' ? (usage?.completion_tokens ?? Math.ceil(full.length / 4)) : null, durationMs })
     try { controller.close() } catch { /* cliente ya desconectado */ }
     await logUsage(db, {
       userId, conversationId: conv.id, providerId: provider.id, modelId: model.id, kind: 'chat',
