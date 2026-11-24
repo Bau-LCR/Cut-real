@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { CSSProperties, PointerEvent } from 'react'
 import { useTelemetry } from '../store/telemetry'
 import { useUi } from '../store/ui'
 
@@ -32,7 +33,7 @@ export function FunctioningCenter() {
   }, [close])
   const elapsed = trace.startedAt ? ((trace.updatedAt - trace.startedAt) / 1000).toFixed(1) : '—'
   const node = (id: string) => NODES.find((n) => n.id === id)!
-  const onDown = (e: React.PointerEvent<SVGSVGElement>) => { drag.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y }; e.currentTarget.setPointerCapture(e.pointerId) }
+  const onDown = (e: PointerEvent<SVGSVGElement>) => { drag.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y }; e.currentTarget.setPointerCapture(e.pointerId) }
   const onMove = (e: React.PointerEvent<SVGSVGElement>) => { if (!drag.current) return; setPan({ x: drag.current.px + e.clientX - drag.current.x, y: drag.current.py + e.clientY - drag.current.y }) }
   const onUp = () => { drag.current = null }
   const zoomBy = (delta: number) => setZoom((z) => Math.max(.65, Math.min(1.65, +(z + delta).toFixed(2))))
@@ -61,7 +62,7 @@ export function FunctioningCenter() {
           </div>
           <aside className="functioning-side">
             <div className="functioning-card"><div className="functioning-card-title">ESTADO ACTUAL <span>{trace.phase.toUpperCase()}</span></div><h2>{trace.phase === 'idle' ? 'Esperando una consulta' : trace.phase === 'preparing' ? 'Preparando el mensaje' : trace.phase === 'sending' ? 'Enviando solicitud' : trace.phase === 'model' ? 'Modelo conectado' : trace.phase === 'streaming' ? 'Respuesta en camino' : trace.phase === 'done' ? 'Proceso completado' : trace.phase === 'error' ? 'Proceso con error' : 'Proceso detenido'}</h2><p>{trace.events.at(-1)?.detail ?? 'Cuando envíes un mensaje, vas a ver aquí los eventos que Cut-real recibe en tiempo real.'}</p><div className="functioning-stats"><div><small>MODELO</small><b>{trace.model}</b></div><div><small>TIEMPO</small><b>{elapsed === '—' ? '—' : `${elapsed} s`}</b></div><div><small>FRAGMENTOS</small><b>{trace.chunks}</b></div></div></div>
-            <div className="functioning-card functioning-audio"><div className="functioning-card-title">AUDIO / VOZ <span>{trace.voicePhase.toUpperCase()}</span></div><div className="functioning-audio-orb" style={{'--audio-level':trace.voiceLevel} as React.CSSProperties}><span/><span/><span/></div><p>El indicador responde a los estados y al nivel de voz que Cut-real recibe o reproduce.</p></div>
+            <div className="functioning-card functioning-audio"><div className="functioning-card-title">AUDIO / VOZ <span>{trace.voicePhase.toUpperCase()}</span></div><div className="functioning-audio-orb" style={{'--audio-level':trace.voiceLevel} as CSSProperties}><span/><span/><span/></div><p>El indicador responde a los estados y al nivel de voz que Cut-real recibe o reproduce.</p></div>
             <div className="functioning-card functioning-transcript"><div className="functioning-card-title">TRÁFICO DE CONVERSACIÓN <span>LOCAL</span></div><small>ENTRADA</small><p>{trace.input || 'Todavía no hay una consulta registrada.'}</p><small>SALIDA</small><p>{trace.output || 'La respuesta aparecerá aquí a medida que llegue.'}</p></div>
           </aside>
         </div>
