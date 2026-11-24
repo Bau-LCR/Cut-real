@@ -136,7 +136,17 @@ function GeneratedImage({ id, alt }: { id: string; alt?: string }) {
 }
 
 const components: Components = {
-  pre: ({ children }) => <>{children}</>,
+  pre: ({ children }) => {
+    // ReactMarkdown puede entregar JSON dentro de <pre><code> aunque el bloque no tenga
+    // una etiqueta de lenguaje reconocible. Detectarlo aquí evita mostrar datos de gráfica como código.
+    const child = Children.only(children)
+    if (isValidElement(child)) {
+      const raw = String((child.props as { children?: unknown }).children ?? '').replace(/\\n$/, '')
+      const graphJson = detectGraphJson(raw)
+      if (graphJson) return <GraphBlock raw={graphJson} />
+    }
+    return <>{children}</>
+  },
   code({ className, children }) {
     const lang = /language-([\w-]+)/.exec(className ?? '')?.[1]
     const text = String(children).replace(/\n$/, '')
