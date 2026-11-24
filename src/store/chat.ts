@@ -164,6 +164,8 @@ export const useChat = create<ChatState>((set, get) => {
           case 'status':
             if (ev.status === 'searching') trace.mark('sending', 'Consulta de herramientas', 'Cut-real está consultando la herramienta solicitada antes de preparar la llamada al modelo.')
             else if (ev.status === 'generating') trace.mark('model', 'Contexto preparado', 'El historial, las instrucciones y los adjuntos disponibles se organizaron para enviarse al modelo.')
+            else if (ev.status === 'postprocessing') trace.mark('streaming', 'Postprocesamiento', 'Se están aplicando las transformaciones necesarias a la respuesta, como formato de documentos o integración de imágenes.')
+            else if (ev.status === 'saving') trace.mark('streaming', 'Persistencia', 'La respuesta final y sus métricas se están guardando en el historial de la conversación.')
             break
           case 'sources':
             if (assistantId) {
