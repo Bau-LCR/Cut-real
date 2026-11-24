@@ -269,6 +269,7 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
             if (cur?.status === 'cancelled') { status = 'cancelled'; abort.abort(); break }
           }
         }
+        send({ type: 'status', status: 'postprocessing' })
         const requestText = (lastUser as any).content
         const allowDocumentGeneration = shouldExplicitlyRequestDocument(requestText)
         const allowImageGeneration = shouldExplicitlyRequestImage(requestText) ||
@@ -315,6 +316,7 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
         else { errCode = 'internal'; errMsg = 'Ocurrió un error al generar la respuesta.'; console.error('generate failed', (e as Error)?.message) }
       }
     }
+    send({ type: 'status', status: 'saving' })
     // Estado final: puede haberse marcado "cancelled" desde otro request; se respeta.
     const { data: cur } = await db.from('cr_messages').select('status').eq('id', asst.id).maybeSingle()
     if (cur?.status === 'cancelled') status = 'cancelled'
