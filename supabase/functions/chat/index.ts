@@ -227,6 +227,7 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
         ? message.content.length
         : message.content.reduce((sum: number, part: any) => sum + (part.type === 'text' ? String(part.text ?? '').length : 4800), 0)), 0)
       estimatedPromptTokens = Math.max(1, Math.ceil(promptChars / 4))
+      send({ type: 'status', status: 'prompt_ready', promptTokens: estimatedPromptTokens })
       // Programación necesita espacio para entregar archivos completos; el chat normal conserva su límite habitual.
       const documentRequest = shouldExplicitlyRequestDocument((lastUser as any).content)
       const maxOutputTokens = b.taskMode === 'programming' || documentRequest
@@ -340,7 +341,7 @@ async function generate(req: Request, ctx: AuthContext, b: Body): Promise<Respon
         if (recordError) console.error('unlimited account usage record failed', recordError.message)
       }
     }
-    send({ type: 'done', status, error: errMsg, errorCode: errCode, tokenUsage: status === 'done' ? actualTokens : null, promptTokens: status === 'done' ? (usage?.prompt_tokens ?? estimatedPromptTokens) : null, completionTokens: status === 'done' ? (usage?.completion_tokens ?? Math.ceil(full.length / 4)) : null, durationMs })
+    send({ type: 'done', status, error: errMsg, errorCode: errCode, tokenUsage: status === 'done' ? actualTokens : null, promptTokens: status === 'done' ? (usage?.prompt_tokens ?? estimatedPromptTokens) : null, completionTokens: status === 'done' ? (usage?.completion_tokens ?? Math.ceil(full.length / 4)) : null, usageExact: status === 'done' && usage?.prompt_tokens != null && usage?.completion_tokens != null, durationMs })
     try { controller.close() } catch { /* cliente ya desconectado */ }
     await logUsage(db, {
       userId, conversationId: conv.id, providerId: provider.id, modelId: model.id, kind: 'chat',
