@@ -1,5 +1,5 @@
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1'
-import { Document, Footer, HeadingLevel, Packer, Paragraph, TextRun, ImageRun, AlignmentType } from 'npm:docx@8.5.0'
+import { Document, Footer, HeadingLevel, Packer, Paragraph, TextRun, ImageRun, AlignmentType, Table, TableRow, TableCell, WidthType, ShadingType, BorderStyle, PageBreak } from 'npm:docx@8.5.0'
 import { corsHeaders, errorResponse, HttpError } from '../_shared/cors.ts'
 import { authenticate, rateLimit } from '../_shared/supabase.ts'
 
@@ -12,12 +12,12 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => null)
     if (!body || !['pdf', 'docx'].includes(body.format) || typeof body.title !== 'string' || typeof body.content !== 'string' || (body.html !== undefined && typeof body.html !== 'string') || (body.images !== undefined && (!Array.isArray(body.images) || body.images.length > 8 || !body.images.every((image: any) => image && typeof image.id === 'string' && /^[0-9a-f-]{36}$/i.test(image.id)))))
       throw new HttpError(400, 'bad_request', 'Se requiere formato PDF o DOCX, título, contenido y hasta 8 referencias de imágenes válidas.')
-    const title = body.title.trim().slice(0, 160), content = (typeof body.html === 'string' && body.html.trim() ? htmlToMarkdown(body.html.slice(0, 300000)) : body.content).trim()
+    const title = body.title.trim().slice(0, 160), rawContent = (typeof body.html === 'string' && body.html.trim() ? htmlToMarkdown(body.html.slice(0, 300000)) : body.content).trim(), hasCover = /^<!--CUTREAL_COVER-->/i.test(rawContent), content = rawContent.replace(/^<!--CUTREAL_COVER-->\\s*/i, '')
     if (!title || !content || content.length > 300000) throw new HttpError(400, 'invalid_document', 'El documento está vacío o supera el límite permitido.')
     const safeTitle = title.replace(/[^\p{L}\p{N} ._-]/gu, '').slice(0, 100) || 'Documento'
     const documentImages = await loadDocumentImages(ctx, Array.isArray(body.images) ? body.images : [])
     if (body.format === 'pdf') return new Response(toArrayBuffer(await makePdf(safeTitle, content, documentImages)), { headers: { ...corsHeaders(req), 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="documento.pdf"', 'Cache-Control': 'no-store' } })
-    return new Response(toArrayBuffer(await makeDocx(safeTitle, content, documentImages)), { headers: { ...corsHeaders(req), 'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Content-Disposition': 'attachment; filename="documento.docx"', 'Cache-Control': 'no-store' } })
+    return new Response(toArrayBuffer(await makeDocx(safeTitle, content, documentImages, hasCover)), { headers: { ...corsHeaders(req), 'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'Content-Disposition': 'attachment; filename="documento.docx"', 'Cache-Control': 'no-store' } })
   } catch (e) { return errorResponse(req, e) }
 })
 
@@ -70,19 +70,35 @@ function htmlToMarkdown(html: string) {
     .replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n')).trim()
 }
 function parse(s: string) {
-  return s.replace(/\r/g, '').split('\n').map(line => {
-    const t = line.trim()
-    if (!t || /^\x60{3}/.test(t)) return null
-    const make = (kind: string, raw: string) => ({ kind, raw, text: clean(raw) })
-    const image = t.match(/^<!--CUTREAL_IMAGE:([0-9a-f-]{36})\|([^>]*)-->$/i)
-    if (image) return make('image', image[1])
-    if (/^#{1,3}\s/.test(t)) return make('h' + Math.min(3, t.match(/^#+/)![0].length), t.replace(/^#{1,3}\s*/, ''))
-    if (/^[-*+]\s/.test(t)) return make('bullet', t.replace(/^[-*+]\s*/, ''))
-    if (/^\d+[.)]\s/.test(t)) return make('number', t.replace(/^\d+[.)]\s*/, ''))
-    if (/^>\s?/.test(t)) return make('quote', t.replace(/^>\s?/, ''))
-    if (/^\|/.test(t)) { if (/^\|[\s:|-]+\|?$/.test(t)) return null; return make('table', t.replace(/^\||\|$/g, '').split('|').join('   •   ')) }
-    return make('p', t)
-  }).filter((x): x is {kind:string;text:string;raw:string} => !!x && !!x.text)
+  const lines = s.replace(/\\r/g, '').replace(/^<!--CUTREAL_COVER-->\\s*/i, '').split('\\n')
+  const blocks: any[] = []
+  let inCode = false
+  for (let i = 0; i < lines.length; i++) {
+    const t = lines[i].trim()
+    if (/^\\x60{3}/.test(t)) { inCode = !inCode; continue }
+    if (!t) continue
+    if (inCode) { blocks.push({ kind: 'code', raw: t, text: clean(t) }); continue }
+    if (/^\\|/.test(t)) {
+      const rows: string[][] = []
+      while (i < lines.length && /^\\s*\\|/.test(lines[i])) {
+        const row = lines[i].trim()
+        if (!/^\\|[\\s:|-]+\\|?$/.test(row)) rows.push(row.replace(/^\\||\\|$/g, '').split('|').map((cell) => clean(cell.trim())))
+        i++
+      }
+      i--
+      if (rows.length) blocks.push({ kind: 'table', rows })
+      continue
+    }
+    const image = t.match(/^<!--CUTREAL_IMAGE:([0-9a-f-]{36})\\|([^>]*)-->$/i)
+    if (image) { blocks.push({ kind: 'image', raw: image[1], text: image[2].trim() }); continue }
+    const make = (kind: string, raw: string) => blocks.push({ kind, raw, text: clean(raw) })
+    if (/^#{1,3}\\s/.test(t)) make('h' + Math.min(3, t.match(/^#+/)![0].length), t.replace(/^#{1,3}\\s*/, ''))
+    else if (/^[-*+]\\s/.test(t)) make('bullet', t.replace(/^[-*+]\\s*/, ''))
+    else if (/^\\d+[.)]\\s/.test(t)) make('number', t.replace(/^\\d+[.)]\\s*/, ''))
+    else if (/^>\\s?/.test(t)) make('quote', t.replace(/^>\\s?/, ''))
+    else make('p', t)
+  }
+  return blocks.filter((block) => block.kind === 'image' || block.kind === 'table' || !!block.text)
 }
 function inlineSegments(value: string) {
   const runs: { text: string; bold?: boolean; italic?: boolean; underline?: boolean; strike?: boolean; code?: boolean }[] = []
@@ -125,6 +141,18 @@ async function makePdf(title: string, md: string, images: Map<string,DocumentIma
     }
     flush()
   }
+  if (hasCover) {
+    page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: rgb(.035,.09,.19) })
+    page.drawRectangle({ x: 0, y: 0, width: 13, height: H, color: rgb(.16,.43,.82) })
+    page.drawCircle({ x: W-65, y: H-65, size: 170, borderColor: rgb(.17,.38,.68), borderWidth: 1.5, opacity: .45 })
+    page.drawCircle({ x: W-65, y: H-65, size: 125, borderColor: rgb(.17,.38,.68), borderWidth: 1, opacity: .35 })
+    page.drawText('CUT-REAL  /  DOCUMENTO', { x:M, y:H-150, size:10, font:bold, color:rgb(.48,.72,1) })
+    page.drawText(title, { x:M, y:H-270, size:30, font:bold, color:rgb(1,1,1), maxWidth:max })
+    page.drawLine({ start:{x:M,y:H-300}, end:{x:M+100,y:H-300}, thickness:3, color:rgb(.25,.58,.98) })
+    page.drawText('Documento elaborado con estructura y contenido original', { x:M, y:H-330, size:11, font:regular, color:rgb(.78,.84,.93) })
+    page.drawText(new Date().toLocaleDateString('es-AR', { year:'numeric', month:'long', day:'numeric' }), { x:M, y:95, size:10, font:regular, color:rgb(.68,.76,.88) })
+    next()
+  }
   page.drawText(title,{x:M,y,size:23,font:bold,color:rgb(.06,.18,.42),maxWidth:max});y-=38
   page.drawLine({start:{x:M,y},end:{x:W-M,y},thickness:1,color:rgb(.12,.34,.72)});y-=28
   let orderedIndex=0
@@ -141,20 +169,54 @@ async function makePdf(title: string, md: string, images: Map<string,DocumentIma
       }
       continue
     }
+    if (b.kind === 'table') {
+      orderedIndex = 0
+      const cols = Math.max(...b.rows.map((row: string[]) => row.length))
+      const widths = Array.from({ length: cols }, () => max / cols)
+      b.rows.forEach((row: string[], rowIndex: number) => {
+        const cells = Array.from({ length: cols }, (_, i) => row[i] ?? '')
+        const wrapped = cells.map((cell: string, i: number) => {
+          const words = cell.split(/\\s+/); const lines: string[] = []; let line = ''
+          for (const word of words) { const nextLine = line ? line + ' ' + word : word; if (regular.widthOfTextAtSize(nextLine, 8.5) > widths[i] - 12 && line) { lines.push(line); line = word } else line = nextLine }
+          if (line) lines.push(line); return lines
+        })
+        const rowHeight = Math.max(25, Math.max(...wrapped.map((lines: string[]) => lines.length)) * 11 + 12)
+        if (y - rowHeight < 65) next()
+        page.drawRectangle({ x:M, y:y-rowHeight+2, width:max, height:rowHeight, color: rowIndex === 0 ? rgb(.09,.22,.42) : rowIndex % 2 ? rgb(.95,.96,.98) : rgb(.985,.988,.995), borderColor:rgb(.82,.85,.9), borderWidth:.45 })
+        let x=M
+        cells.forEach((cell: string, i: number) => {
+          const font = rowIndex === 0 ? bold : regular
+          wrapped[i].forEach((line: string, lineIndex: number) => page.drawText(line, { x:x+6, y:y-13-lineIndex*11, size:8.5, font, color:rowIndex===0?rgb(1,1,1):rgb(.16,.18,.22) }))
+          if (i > 0) page.drawLine({ start:{x,y:y-rowHeight+2}, end:{x,y:y+2}, thickness:.4, color:rgb(.82,.85,.9) })
+          x += widths[i]
+        })
+        y -= rowHeight
+      })
+      y -= 12
+      continue
+    }
     if(b.kind==='number'){orderedIndex++;drawRich(`${orderedIndex}. ${b.raw}`,regular,10.5,undefined,14);y-=5;continue}
     orderedIndex=0
     if(b.kind[0]==='h'){y-=8;drawRich(b.raw,bold,b.kind==='h1'?17:b.kind==='h2'?14:12,rgb(.08,.22,.43));y-=5}
     else if(b.kind==='bullet')drawRich('•  '+b.raw,regular,10.5,undefined,14)
     else if(b.kind==='quote')drawRich(b.raw,italic,10.5,rgb(.35,.38,.43),18)
-    else drawRich(b.raw,regular,10.5,undefined,b.kind==='table'?8:0)
+    else if(b.kind==='code')drawRich(b.raw,regular,9,rgb(.20,.28,.38),14)
+    else drawRich(b.raw,regular,10.5)
     y-=5
   }
   const pages=pdf.getPages()
   pages.forEach((p,i)=>{p.drawLine({start:{x:M,y:42},end:{x:W-M,y:42},thickness:.5,color:rgb(.82,.84,.88)});p.drawText('Cut-real',{x:M,y:27,size:8,font:regular,color:rgb(.45,.48,.54)});p.drawText('Página '+(i+1)+' de '+pages.length,{x:W-M-70,y:27,size:8,font:regular,color:rgb(.45,.48,.54)})})
   return pdf.save()
 }
-async function makeDocx(title:string,md:string,images:Map<string,DocumentImage>):Promise<Uint8Array>{
-  const children:Paragraph[]=[new Paragraph({text:title,heading:HeadingLevel.TITLE,spacing:{after:280}}),new Paragraph({children:[new TextRun({text:'CUT-REAL',bold:true,color:'315B9B',size:18})],spacing:{after:240}})]
+async function makeDocx(title:string,md:string,images:Map<string,DocumentImage>,hasCover:boolean):Promise<Uint8Array>{
+  const children:any[]=[]
+  if (hasCover) {
+    children.push(new Paragraph({ children:[new TextRun({text:'CUT-REAL  /  DOCUMENTO',bold:true,color:'315B9B',size:22})], alignment:AlignmentType.CENTER, spacing:{before:2200,after:900} }))
+    children.push(new Paragraph({ text:title, heading:HeadingLevel.TITLE, alignment:AlignmentType.CENTER, spacing:{after:500} }))
+    children.push(new Paragraph({ children:[new TextRun({text:'Documento elaborado con estructura y contenido original',color:'66758A',size:22})], alignment:AlignmentType.CENTER, spacing:{after:1800} }))
+    children.push(new Paragraph({ children:[new TextRun({text:new Date().toLocaleDateString('es-AR',{year:'numeric',month:'long',day:'numeric'}),color:'7A8190',size:18})], alignment:AlignmentType.CENTER, children: [new PageBreak()] }))
+  }
+  children.push(new Paragraph({text:title,heading:HeadingLevel.TITLE,spacing:{after:280}}),new Paragraph({children:[new TextRun({text:'CUT-REAL',bold:true,color:'315B9B',size:18})],spacing:{after:240}}))
   let orderedIndex=0
   for(const b of parse(md)){
     if (b.kind === 'image') {
@@ -164,11 +226,26 @@ async function makeDocx(title:string,md:string,images:Map<string,DocumentImage>)
       }
       continue
     }
+    if (b.kind === 'table') {
+      orderedIndex = 0
+      const cols = Math.max(...b.rows.map((row: string[]) => row.length))
+      const rows = b.rows.map((row: string[], rowIndex: number) => new TableRow({
+        tableHeader: rowIndex === 0,
+        children: Array.from({ length: cols }, (_, i) => new TableCell({
+          width: { size: Math.floor(100 / cols), type: WidthType.PERCENTAGE },
+          shading: rowIndex === 0 ? { fill: '173B70', type: ShadingType.CLEAR } : { fill: rowIndex % 2 ? 'F1F4F8' : 'FFFFFF', type: ShadingType.CLEAR },
+          children: [new Paragraph({ children: rowIndex === 0 ? [new TextRun({ text: row[i] ?? '', bold:true, color:'FFFFFF' })] : inlineRuns(row[i] ?? '') })],
+        })),
+      }))
+      children.push(new Table({ rows, width:{size:100,type:WidthType.PERCENTAGE}, columnWidths:Array.from({length:cols},()=>Math.floor(9000/cols)), borders:{ top:{style:BorderStyle.SINGLE,size:4,color:'D4DCE8'}, bottom:{style:BorderStyle.SINGLE,size:4,color:'D4DCE8'}, left:{style:BorderStyle.SINGLE,size:4,color:'D4DCE8'}, right:{style:BorderStyle.SINGLE,size:4,color:'D4DCE8'}, insideHorizontal:{style:BorderStyle.SINGLE,size:3,color:'D4DCE8'}, insideVertical:{style:BorderStyle.SINGLE,size:3,color:'D4DCE8'} } }))
+      continue
+    }
     if(b.kind==='number'){orderedIndex++;children.push(new Paragraph({children:[new TextRun({text:`${orderedIndex}. `}),...inlineRuns(b.raw)],spacing:{after:70}}));continue}
     orderedIndex=0
     if(b.kind[0]==='h'){const level=b.kind==='h1'?HeadingLevel.HEADING_1:b.kind==='h2'?HeadingLevel.HEADING_2:HeadingLevel.HEADING_3;children.push(new Paragraph({children:inlineRuns(b.raw),heading:level,spacing:{before:220,after:100},keepNext:true}))}
     else if(b.kind==='bullet')children.push(new Paragraph({children:inlineRuns(b.raw),bullet:{level:0},spacing:{after:70}}))
     else if(b.kind==='quote')children.push(new Paragraph({children:inlineRuns(b.raw),indent:{left:420},spacing:{after:100}}))
+    else if(b.kind==='code')children.push(new Paragraph({children:inlineRuns(b.raw),indent:{left:240},spacing:{after:70}}))
     else children.push(new Paragraph({children:inlineRuns(b.raw),alignment:AlignmentType.JUSTIFIED,spacing:{after:120,line:300}}))
   }
   const doc=new Document({title,creator:'Cut-real',sections:[{properties:{page:{margin:{top:1440,right:1440,bottom:1440,left:1440}}},footers:{default:new Footer({children:[new Paragraph({children:[new TextRun({text:'Generado con Cut-real',size:16,color:'7A8190'})],alignment:AlignmentType.CENTER})]})},children}]})
