@@ -71,6 +71,7 @@ export function Sidebar({ activeId }: { activeId?: string }) {
           <button className="btn" onClick={() => { nav('/'); close() }}><Plus className="sm" />Nueva conversación</button>
           <button className="btn" onClick={() => { nav('/calls'); close() }}><span className="studio-nav-icon" aria-hidden="true">◷</span>Registro de llamadas</button>
           <button className="btn" onClick={() => { nav('/studio'); close() }}><span className="studio-nav-icon" aria-hidden="true">{'</>'}</span>Programación</button>
+          <button className="btn" onClick={() => { nav('/neural'); close() }}><span className="studio-nav-icon" aria-hidden="true">◎</span>Laboratorio neuronal</button>
           <button className="btn" onClick={() => { setFunctioning(true); close() }}><span className="studio-nav-icon" aria-hidden="true">◉</span>Funcionamiento</button>
           <div className="side-search">
             <Search className="sm" />
