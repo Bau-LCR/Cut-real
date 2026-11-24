@@ -19,11 +19,12 @@ interface TelemetryState {
   promptTokens: number | null
   completionTokens: number | null
   tokenUsage: number | null
+  usageExact: boolean
   durationMs: number | null
   begin(data: { input: string; model: string; conversationId: string }): void
   mark(phase: TracePhase, title: string, detail: string): void
   receiveChunk(text: string): void
-  setMetrics(data: { tokenUsage: number | null; promptTokens: number | null; completionTokens: number | null; durationMs: number | null }): void
+  setMetrics(data: { tokenUsage: number | null; promptTokens: number | null; completionTokens: number | null; durationMs: number | null; usageExact: boolean }): void
   finish(phase: 'done' | 'error' | 'cancelled', detail: string): void
   setVoice(phase: string, level?: number): void
 }
@@ -33,7 +34,7 @@ export const useTelemetry = create<TelemetryState>((set, get) => ({
   phase: 'idle', model: 'Sin seleccionar', input: '', output: '', conversationId: null,
   startedAt: null, updatedAt: Date.now(), chunks: 0, events: [],
   voicePhase: 'Inactiva', voiceLevel: 0,
-  inputTokensEstimate: 0, outputTokensEstimate: 0, promptTokens: null, completionTokens: null, tokenUsage: null, durationMs: null,
+  inputTokensEstimate: 0, outputTokensEstimate: 0, promptTokens: null, completionTokens: null, tokenUsage: null, usageExact: false, durationMs: null,
   begin: ({ input, model, conversationId }) => {
     eventId = 0
     set({
