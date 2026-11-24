@@ -52,6 +52,7 @@ export default function App() {
         <Route path="/projects" element={<Navigate to="/" replace />} />
         <Route path="/simulation" element={<Navigate to="/" replace />} />
         <Route path="/legal" element={<LegalPage />} />
+        <Route path="/inicio" element={<LandingPage />} />
         <Route path="/calls" element={<Guard><Suspense fallback={<Splash />}><CallsPage /></Suspense></Guard>} />
         <Route path="/c/:id" element={<Guard><ChatPage /></Guard>} />
         <Route path="/" element={!ready ? <Splash /> : session ? <Guard><ChatPage /></Guard> : <LandingPage />} />
