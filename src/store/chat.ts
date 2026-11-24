@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 import { callFn, FnError, streamChat } from '../lib/functions'
-import { STALE_MS } from '../lib/format'
+import { mergeMessageSnapshot, STALE_MS } from '../lib/format'
 import type { Attachment, Conversation, Message, ModelInfo, MsgStatus } from '../lib/types'
 import { useAuth } from './auth'
 import { useUi } from './ui'
@@ -257,10 +257,22 @@ export const useChat = create<ChatState>((set, get) => {
         if (data) upsertConv(data as Conversation)
       }
       if (s0.gens[id] && s0.messages[id]) return                // generación local en curso: ya tenemos todo
+      const messagesAtStart = get().messages[id] ?? []
       set((s) => ({ loadingConv: { ...s.loadingConv, [id]: true } }))
       const { data } = await supabase.from('cr_messages').select('*').eq('conversation_id', id).order('seq', { ascending: false }).limit(MSG_PAGE)
       const rows = ((data ?? []) as Message[]).reverse()
-      set((s) => ({ messages: { ...s.messages, [id]: rows }, olderHasMore: { ...s.olderHasMore, [id]: (data?.length ?? 0) === MSG_PAGE }, loadingConv: { ...s.loadingConv, [id]: false } }))
+      // La consulta puede haber comenzado justo antes de enviar un mensaje. No reemplazamos
+      // el stream local con una fotografía antigua del historial al terminar la petición.
+      set((s) => {
+        const current = s.messages[id] ?? []
+        const changedWhileLoading = current !== messagesAtStart
+        const merged = mergeMessageSnapshot(rows, current, changedWhileLoading || !!s.gens[id])
+        return {
+          messages: { ...s.messages, [id]: merged },
+          olderHasMore: { ...s.olderHasMore, [id]: (data?.length ?? 0) === MSG_PAGE },
+          loadingConv: { ...s.loadingConv, [id]: false },
+        }
+      })
       void fetchAttachments(rows.filter((m) => m.role === 'user').map((m) => m.id))
       for (const m of rows) if (m.status === 'generating' && Date.now() - +new Date(m.updated_at) < STALE_MS) void recover(id, m.id)
     },
