@@ -1034,7 +1034,7 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
 .functioning-modes button.selected{background:var(--raised);color:var(--text);box-shadow:inset 0 0 0 1px var(--line-strong)}
 .functioning-canvas{position:relative;flex:1;min-height:310px;overflow:hidden;background:radial-gradient(ellipse at 50% 45%,color-mix(in srgb,var(--navy) 25%,transparent),transparent 65%)}
 .functioning-svg{width:100%;height:100%;min-height:330px;color:var(--muted);touch-action:none;cursor:grab;user-select:none;transition:transform .45s cubic-bezier(.2,.7,.2,1);transform-origin:center}
-.functioning-svg:active{cursor:grabbing}.functioning-svg.3d{transform:perspective(1100px) rotateX(13deg) rotateZ(-2deg) scale(.96);filter:drop-shadow(0 22px 24px rgba(0,0,0,.2))}
+.functioning-svg:active{cursor:grabbing}.functioning-svg.view-3d{transform:perspective(1100px) rotateX(13deg) rotateZ(-2deg) scale(.96);filter:drop-shadow(0 22px 24px rgba(0,0,0,.2))}
 .fn-link{fill:none;stroke:var(--line-strong);stroke-width:2;stroke-dasharray:5 8;opacity:.65}.fn-link.hot{stroke:#55aaff;stroke-width:2.6;opacity:1;filter:url(#fn-glow);animation:fn-flow 1.1s linear infinite}
 .fn-packet{fill:#a9ddff;filter:url(#fn-glow)}
 .fn-node rect{fill:var(--raised);stroke:var(--line-strong);stroke-width:1.3;transition:all .3s}
@@ -1072,10 +1072,10 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
 .functioning-token-breakdown .functioning-token-total b{color:var(--blue-bright);font-size:12px}
 .functioning-token-breakdown>small{font-size:9px;line-height:1.5;color:var(--faint)}
 .fn-node-metric{fill:var(--blue-bright);font:600 9px var(--mono);letter-spacing:.01em}
-.functioning-svg.3d{transform:perspective(900px) rotateX(29deg) rotateZ(-4deg) scale(.9);filter:drop-shadow(0 28px 22px rgba(0,0,0,.35))}
-.functioning-svg.3d .fn-node rect{stroke-width:2}
-.functioning-svg.3d .fn-link{stroke-width:2.8}
-.functioning-svg.3d .fn-node{filter:drop-shadow(0 9px 4px rgba(0,0,0,.28))}
+.functioning-svg.view-3d{transform:perspective(900px) rotateX(29deg) rotateZ(-4deg) scale(.9);filter:drop-shadow(0 28px 22px rgba(0,0,0,.35))}
+.functioning-svg.view-3d .fn-node rect{stroke-width:2}
+.functioning-svg.view-3d .fn-link{stroke-width:2.8}
+.functioning-svg.view-3d .fn-node{filter:drop-shadow(0 9px 4px rgba(0,0,0,.28))}
 @media(max-width:700px){
  .functioning-toolbar{align-items:flex-start;flex-direction:column}
  .functioning-toolbar-controls{width:100%;justify-content:space-between}
@@ -1083,5 +1083,5 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
  .functioning-toolbar-controls button{min-height:32px}
  .functioning-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
  .message-usage{width:100%;gap:7px 12px}
- .functioning-svg.3d{transform:perspective(700px) rotateX(22deg) rotateZ(-3deg) scale(.88)}
+ .functioning-svg.view-3d{transform:perspective(700px) rotateX(22deg) rotateZ(-3deg) scale(.88)}
 }
