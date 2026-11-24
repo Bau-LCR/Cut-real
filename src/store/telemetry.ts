@@ -40,7 +40,7 @@ export const useTelemetry = create<TelemetryState>((set, get) => ({
     set({
       phase: 'preparing', model: model || 'Modelo seleccionado', input: input.slice(0, 500), output: '',
       conversationId, startedAt: Date.now(), updatedAt: Date.now(), chunks: 0, events: [],
-      inputTokensEstimate: estimate(input), outputTokensEstimate: 0, promptTokens: null, completionTokens: null, tokenUsage: null, durationMs: null,
+      inputTokensEstimate: estimate(input), outputTokensEstimate: 0, promptTokens: null, completionTokens: null, tokenUsage: null, usageExact: false, durationMs: null,
     })
     get().mark('preparing', 'Consulta iniciada', 'Cut-real recibió una nueva solicitud.')
   },
