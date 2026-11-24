@@ -33,7 +33,7 @@ const normalize=(s:string)=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u
 const vector=(s:string)=>{const ws=normalize(s).match(/[a-z0-9]+/g)??[];return vocab.map(w=>ws.includes(w)?1:0)}
 const seedExamples:Example[]=[['hola buen dia','saludo'],['buenas como estas','saludo'],['que tal hola','saludo'],['quien sos','identidad'],['que es una computadora','definicion'],['explicame fotosintesis','definicion'],['cuando se creo internet','fecha'],['gracias por ayudarme','agradecimiento'],['adios hasta luego','despedida'],['necesito informacion sobre argentina','busqueda'],['como funciona un motor','busqueda'],['cual es la capital de francia','busqueda']].map(([text,intent])=>({text,intent}))
 const baseNodes:NNode[]=Array.from({length:100},(_,i)=>{const col=Math.floor(i/10),row=i%10,kind=columns[col][row];return{id:'n'+i,kind,name:i===0?'Entrada principal':labels[kind]+' '+(row+1),x:30+col*185,y:35+row*82,enabled:true}})
-const baseEdges:Edge[]=[...Array.from({length:10},(_,r)=>({id:uid(),from:'n'+r,to:'n'+(10+r),weight:1})),...Array.from({length:9},(_,c)=>Array.from({length:10},(_,r)=>({id:uid(),from:'n'+(c*10+r),to:'n'+((c+1)*10+r),weight:1}))).flat()]
+const baseEdges:Edge[]=[...Array.from({length:9},(_,r)=>({id:uid(),from:'n0',to:'n'+(r+1),weight:1})),...Array.from({length:9},(_,c)=>Array.from({length:10},(_,r)=>({id:uid(),from:'n'+(c*10+r),to:'n'+((c+1)*10+r),weight:1}))).flat()]
 const fresh=():Brain=>({id:uid(),name:'Red principal',nodes:baseNodes,edges:baseEdges,docs:[{id:uid(),title:'Identidad de la red',text:'Soy una red experimental local de Cut-real. Clasifico intenciones, recupero memoria del dispositivo y puedo consultar información pública cuando la pregunta lo requiere. No soy un LLM generativo.',source:'Conocimiento inicial'}],examples:seedExamples,weights:[]})
 const KEY='cutreal.neural-lab.v1'
 function load():Brain[]{try{const v=JSON.parse(localStorage.getItem(KEY)||'[]') as Brain[];if(v.length)return v.map(b=>b.nodes?.length>=100?b:{...b,nodes:baseNodes,edges:baseEdges})}catch{}return[fresh()]}
@@ -63,7 +63,7 @@ export function NeuralLab(){
  try{
   const weights=brain.weights.length?brain.weights:train([...brain.examples,...records.map(r=>({text:r.question,intent:r.intent}))]);if(!brain.weights.length)edit(b=>({...b,weights,trainedAt:new Date().toISOString()}))
   const prediction=path.has('n4')?classify(q,weights):{intent:'sin_clasificador',confidence:0}
-  const localMatches=path.has('n4')?allDocs.map(d=>({d,score:sim(q,d.title+' '+d.text)})).sort((a,b)=>b.score-a.score).filter(x=>x.score>.12).slice(0,2):[]
+  const localMatches=path.has('n24')?allDocs.map(d=>({d,score:sim(q,d.title+' '+d.text)})).sort((a,b)=>b.score-a.score).filter(x=>x.score>.12).slice(0,2):[]
   let answer='',meta='';const hello=prediction.intent==='saludo'||prediction.intent==='agradecimiento'||prediction.intent==='despedida'
   if(!path.has('n0')||!path.has('n99'))answer='La ruta de procesamiento no llega a la salida. Revisá las conexiones y las neuronas activas.'
   else if(hello)answer=prediction.intent==='saludo'?'¡Hola! ¿Qué te gustaría hacer o consultar hoy?':prediction.intent==='agradecimiento'?'¡De nada! Me alegra que te haya servido.':'¡Hasta luego! Cuando vuelvas, seguimos desde acá.'
@@ -74,7 +74,7 @@ export function NeuralLab(){
   }
   if(!answer&&prediction.confidence<.48)answer='No tengo suficiente contexto para responder con seguridad. ¿Podés reformular la pregunta o contarme un poco más qué necesitás?'
   else if(!answer)answer='No encontré información suficientemente relacionada en la memoria ni en la fuente pública disponible. Podés agregar conocimiento en la pestaña Memoria o ampliar la pregunta.'
-  if(!path.has('n69')||!path.has('n89'))answer='El flujo está incompleto: habilitá las neuronas de validación y salida para entregar la respuesta.'
+  if(!path.has('n84')||!path.has('n99'))answer='El flujo está incompleto: habilitá las neuronas de validación y salida para entregar la respuesta.'
   setMessages(p=>[...p,{role:'assistant',text:answer,time:(performance.now()-start)/1000,meta:meta||'Procesamiento local · '+prediction.intent+' · activación '+(prediction.confidence*100).toFixed(1)+'%'}])
  }catch(e){setMessages(p=>[...p,{role:'assistant',text:'No pude completar la consulta externa. La memoria local sigue disponible. '+(e instanceof Error?e.message:'Error de red')}])}
  finally{setBusy(false);setActivated([...path])}
