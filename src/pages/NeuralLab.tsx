@@ -13,7 +13,7 @@ const descriptions:Record<NodeKind,string>={input:'Recibe el texto y normaliza p
 const vocab=['hola','buenas','buen','dia','quien','sos','eres','que','es','computadora','explicame','cuando','creo','internet','gracias','ayudarme','adios','luego','informacion','argentina','como','estas','por','favor','donde','porque','para','sobre','quiero','necesito','funciona','fotosintesis','capital','historia','definicion']
 const classes=['saludo','identidad','definicion','fecha','agradecimiento','despedida','busqueda']
 const uid=()=>Math.random().toString(36).slice(2,10)
-const vector=(s:string)=>{const ws=s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').match(/[a-z0-9]+/g)||[];return vocab.map(w=>ws.includes(w)?1:0)}
+const vector=(s:string)=>{const ws: string[]=s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').match(/[a-z0-9]+/g) ?? [];return vocab.map(w=>ws.includes(w)?1:0)}
 const examples:Example[]=[['hola buen dia','saludo'],['buenas como estas','saludo'],['quien sos','identidad'],['que es una computadora','definicion'],['explicame fotosintesis','definicion'],['cuando se creo internet','fecha'],['gracias por ayudarme','agradecimiento'],['adios hasta luego','despedida'],['necesito informacion sobre argentina','busqueda']].map(([text,intent])=>({text,intent}))
 const baseNodes:NNode[]=(Object.keys(labels) as NodeKind[]).map((kind,i)=>({id:kind,kind,name:labels[kind],x:35+(i%4)*225,y:35+Math.floor(i/4)*145,enabled:true}))
 const baseEdges:Edge[]=[['input','intent'],['intent','memory'],['memory','rank'],['intent','search'],['search','rank'],['rank','answer'],['answer','output']].map(([from,to])=>({id:uid(),from,to,weight:1}))
