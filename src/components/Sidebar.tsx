@@ -89,13 +89,14 @@ export function Sidebar({ activeId }: { activeId?: string }) {
           {menu && (
             <div className="menu up" role="menu">
               <button role="menuitem" onClick={() => { setMenu(false); setSettings(true); close() }}><Settings className="sm" />Configuración</button>
-              <Link role="menuitem" to="/legal" onClick={() => { setMenu(false); close() }}>Términos y privacidad</Link>
-              <Link role="menuitem" to="/" onClick={() => { setMenu(false); close() }}>Ir al inicio</Link>
+              <div className="menu-divider" />
+              <Link role="menuitem" className="menu-link" to="/legal" onClick={() => { setMenu(false); close() }}>Términos y privacidad</Link>
+              <Link role="menuitem" className="menu-link" to="/" onClick={() => { setMenu(false); close() }}>Ir al inicio</Link>
               {(me.role === 'admin' || me.role === 'owner') && <button role="menuitem" onClick={() => { setMenu(false); nav('/admin') }}><Shield className="sm" />Panel de administración</button>}
               <button role="menuitem" onClick={() => { setMenu(false); void signOut() }}><LogOut className="sm" />Cerrar sesión</button>
             </div>
           )}
-          <button className="profile" onClick={() => setMenu(!menu)} aria-haspopup="menu" aria-expanded={menu}>
+          <button className={`profile${menu ? " expanded" : ""}`} onClick={() => setMenu(!menu)} aria-haspopup="menu" aria-expanded={menu} aria-label="Abrir menú de cuenta">
             <span className="avatar">{me.avatar_url ? <img src={me.avatar_url} alt="" referrerPolicy="no-referrer" /> : initials}</span>
             <span className="who"><b>{me.display_name ?? 'Mi cuenta'}</b><span>{me.role === 'owner' ? 'Propietario' : me.role === 'admin' ? 'Administrador' : me.email}</span></span>
           </button>
