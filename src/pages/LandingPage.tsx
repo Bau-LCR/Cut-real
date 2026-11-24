@@ -6,9 +6,8 @@ const features = [
   { n: '02', title: 'Búsqueda web con fuentes', text: 'Activá la búsqueda en internet para consultar información reciente y abrir directamente las páginas de origen.' },
   { n: '03', title: 'Documentos y archivos', text: 'Adjuntá PDF, Word, texto, tablas, datos e imágenes para que Cut-real pueda leerlos y ayudarte a interpretarlos.' },
   { n: '04', title: 'Voz y transcripción', text: 'Dictá tus mensajes, convertí audio en texto y escuchá respuestas con las opciones de voz disponibles.' },
-  { n: '05', title: 'Proyectos guiados', text: 'Convertí ideas en investigaciones, presentaciones, documentos, diseños, gráficos, aplicaciones y videojuegos con un flujo que te hace las preguntas necesarias.' },
-  { n: '06', title: 'Programación asistida', text: 'Un espacio de trabajo para escribir código, preservar cada proyecto y comprobar resultados en una vista previa aislada.' },
-  { n: '07', title: 'Privacidad y control', text: 'Configurá tus preferencias, administrá integraciones autorizadas y conservá el control de tu cuenta.' },
+  { n: '05', title: 'Programación asistida', text: 'Un espacio de trabajo para escribir código, preservar cada proyecto y comprobar resultados en una vista previa aislada.' },
+  { n: '06', title: 'Privacidad y control', text: 'Configurá tus preferencias, administrá integraciones autorizadas y conservá el control de tu cuenta.' },
 ]
 
 export function LandingPage() {
@@ -23,7 +22,7 @@ export function LandingPage() {
       <section className="landing-hero">
         <div className="landing-kicker"><span /> TU ESPACIO DE INTELIGENCIA ARTIFICIAL</div>
         <h1>Ideas que avanzan.<br /><em>Proyectos que toman forma.</em></h1>
-        <p>Estudiá, investigá, programá y creá desde un mismo lugar. Cut-real reúne herramientas de inteligencia artificial en un espacio simple, flexible y pensado para trabajar.</p>
+        <p>Estudiá, investigá y creá desde un mismo lugar. Cut-real reúne herramientas de inteligencia artificial en un espacio simple, flexible y pensado para trabajar.</p>
         <div className="landing-actions"><Link className="btn primary" to="/login">Comenzar con Cut-real <span aria-hidden="true">→</span></Link><button type="button" className="landing-secondary" onClick={() => scrollTo("funciones")}>Conocé sus funciones ↓</button></div>
         <div className="landing-preview" aria-label="Vista conceptual de Cut-real">
           <div className="preview-sidebar"><div className="preview-logo">◉ <b>Cut-real</b></div><div className="preview-new">＋ Nueva conversación</div><small>RECIENTES</small><div className="preview-line active">Planificación de proyecto</div><div className="preview-line">Ideas para estudiar</div><div className="preview-line">Revisión de código</div><div className="preview-user"><i /> Mi espacio</div></div>
