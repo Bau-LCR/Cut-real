@@ -29,3 +29,6 @@ export const More = mk(['M5 12h.01M12 12h.01M19 12h.01'], { strokeWidth: 3 })
 export const Back = mk(['M15 6l-6 6 6 6'])
 
 export const ImageSearch = mk(['M4 5h16v14H4zM8 9h.01M20 15l-5-5-7 8', 'M16 4v-2M20 8h2']);
+
+export const Home = mk(['M3 10.5 12 3l9 7.5M5.5 9v11h13V9M9 20v-6h6v6'])
+export const FileText = mk(['M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M8 13h8M8 17h8'])
