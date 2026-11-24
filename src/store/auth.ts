@@ -46,7 +46,7 @@ export const useAuth = create<AuthState>((set, get) => ({
         set({
           session, ready: true, error: null,
           me: { userId: session.user.id, email: p?.email ?? session.user.email ?? null, display_name: p?.display_name ?? null, avatar_url: p?.avatar_url ?? null, role: ens.role, suspended: ens.suspended, access_status: ens.access_status ?? 'pending', suspended_reason: ens.suspended_reason ?? null },
-          voice: loadedVoice, appearance: (['original', 'white', 'liquid-glass', 'cybercore'].includes(s?.appearance) ? s.appearance : 'original'), webSearchDefault: !!s?.web_search_default, defaultModelId: s?.default_model_id ?? null, privacyAck: !!s?.privacy_notice_ack_at,
+          voice: loadedVoice, appearance: (s?.appearance && ['original', 'white', 'liquid-glass', 'cybercore'].includes(s.appearance) ? s.appearance : 'original'), webSearchDefault: !!s?.web_search_default, defaultModelId: s?.default_model_id ?? null, privacyAck: !!s?.privacy_notice_ack_at,
         })
         if (s?.voice && JSON.stringify(s.voice) !== JSON.stringify(loadedVoice)) {
           void supabase.from('cr_user_settings').update({ voice: loadedVoice }).eq('user_id', session.user.id)
