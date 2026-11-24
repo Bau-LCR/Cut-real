@@ -4,19 +4,32 @@ import { useTelemetry } from '../store/telemetry'
 import { useUi } from '../store/ui'
 
 const NODES = [
-  { id: 'input', x: 90, y: 205, label: 'ENTRADA', sub: 'Mensaje / voz' },
-  { id: 'context', x: 270, y: 95, label: 'CONTEXTO', sub: 'Historial y archivos' },
-  { id: 'tools', x: 270, y: 315, label: 'HERRAMIENTAS', sub: 'Búsqueda / funciones' },
-  { id: 'gateway', x: 475, y: 205, label: 'CUT-REAL', sub: 'Orquestación' },
-  { id: 'model', x: 680, y: 205, label: 'MODELO IA', sub: 'Proveedor externo' },
-  { id: 'stream', x: 880, y: 95, label: 'FLUJO', sub: 'Fragmentos recibidos' },
-  { id: 'answer', x: 880, y: 315, label: 'RESPUESTA', sub: 'Texto / audio' },
+  { id: 'input', x: 85, y: 220, label: 'ENTRADA', sub: 'Mensaje / voz' },
+  { id: 'context', x: 265, y: 85, label: 'CONTEXTO', sub: 'Historial e instrucciones' },
+  { id: 'attachments', x: 265, y: 220, label: 'ADJUNTOS', sub: 'Texto e imágenes' },
+  { id: 'tools', x: 265, y: 355, label: 'HERRAMIENTAS', sub: 'Web / imágenes' },
+  { id: 'gateway', x: 475, y: 220, label: 'CUT-REAL', sub: 'Orquestación y límites' },
+  { id: 'model', x: 685, y: 220, label: 'PROVEEDOR IA', sub: 'Modelo seleccionado' },
+  { id: 'stream', x: 885, y: 85, label: 'STREAMING', sub: 'Fragmentos de salida' },
+  { id: 'post', x: 885, y: 220, label: 'POSTPROCESO', sub: 'Documentos / formato' },
+  { id: 'storage', x: 885, y: 355, label: 'PERSISTENCIA', sub: 'Guardar respuesta' },
+  { id: 'answer', x: 1050, y: 220, label: 'INTERFAZ', sub: 'Mensaje al usuario' },
 ]
-const LINKS = [['input','context'],['input','tools'],['context','gateway'],['tools','gateway'],['gateway','model'],['model','stream'],['model','answer'],['stream','answer']]
+const LINKS = [
+  ['input','context'],['input','attachments'],['input','tools'],
+  ['context','gateway'],['attachments','gateway'],['tools','gateway'],
+  ['gateway','model'],['model','stream'],['model','post'],['stream','post'],
+  ['post','storage'],['post','answer'],['storage','answer'],
+]
 const ACTIVE: Record<string, string[]> = {
-  idle: [], preparing: ['input','context'], sending: ['input','context','gateway'], model: ['input','context','gateway','model'],
-  streaming: ['input','context','gateway','model','stream','answer'], done: ['input','context','gateway','model','stream','answer'],
-  error: ['input','gateway','model'], cancelled: ['input','gateway','model'],
+  idle: [],
+  preparing: ['input','context','attachments'],
+  sending: ['input','context','attachments','tools','gateway'],
+  model: ['input','context','attachments','tools','gateway','model'],
+  streaming: ['input','context','attachments','tools','gateway','model','stream','post','storage','answer'],
+  done: ['input','context','attachments','tools','gateway','model','stream','post','storage','answer'],
+  error: ['input','context','attachments','gateway','model'],
+  cancelled: ['input','context','attachments','gateway','model'],
 }
 export function FunctioningCenter() {
   const close = useUi((s) => s.setFunctioning)
@@ -51,12 +64,12 @@ export function FunctioningCenter() {
           <div className="functioning-visual">
             <div className="functioning-toolbar"><div><b>Mapa de procesamiento</b><small>Arrastrá para mover · Usá los controles para acercar</small></div><div className="functioning-toolbar-controls"><div className="functioning-modes"><button className={mode === '2d' ? 'selected' : ''} onClick={() => setMode('2d')}>2D</button><button className={mode === '3d' ? 'selected' : ''} onClick={() => setMode('3d')}>3D</button></div><div className="functioning-modes"><button className={detailMode === 'simple' ? 'selected' : ''} onClick={() => setDetailMode('simple')}>Simple</button><button className={detailMode === 'full' ? 'selected' : ''} onClick={() => setDetailMode('full')}>Completo</button></div></div></div>
             <div className="functioning-canvas">
-              <svg viewBox="0 0 980 410" role="img" aria-label="Esquema interactivo del recorrido de una consulta" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} className={`functioning-svg ${mode === '3d' ? 'view-3d' : 'view-2d'}`}>
+              <svg viewBox="0 0 1120 440" role="img" aria-label="Esquema interactivo del recorrido de una consulta" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} className={`functioning-svg ${mode === '3d' ? 'view-3d' : 'view-2d'}`}>
                 <defs><pattern id="fn-grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M 28 0 L 0 0 0 28" fill="none" stroke="currentColor" strokeOpacity=".10" strokeWidth="1"/></pattern><filter id="fn-glow"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
                 <rect width="980" height="410" fill="url(#fn-grid)" />
-                <g transform={`translate(${pan.x} ${pan.y}) translate(490 205) scale(${zoom}) translate(-490 -205)`}>
+                <g transform={`translate(${pan.x} ${pan.y}) translate(560 220) scale(${zoom}) translate(-560 -220)`}>
                   {LINKS.map(([a,b]) => { const p=node(a), q=node(b); const hot=active.includes(a)&&active.includes(b); return <g key={a+b}><path d={`M ${p.x} ${p.y} C ${(p.x+q.x)/2} ${p.y}, ${(p.x+q.x)/2} ${q.y}, ${q.x} ${q.y}`} className={`fn-link ${hot?'hot':''}`}/>{hot && <circle r="4" className="fn-packet"><animateMotion dur="1.8s" repeatCount="indefinite" path={`M ${p.x} ${p.y} C ${(p.x+q.x)/2} ${p.y}, ${(p.x+q.x)/2} ${q.y}, ${q.x} ${q.y}`}/></circle>}</g> })}
-                  {NODES.map((n) => { const hot=active.includes(n.id); return <g key={n.id} transform={`translate(${n.x} ${n.y})`} className={`fn-node ${hot?'active':''} ${trace.phase==='done'?'complete':''}`}><rect x="-70" y="-32" width="140" height="64" rx="13"/><circle cx="-51" cy="-12" r="4"/><text x="0" y="1" textAnchor="middle" className="fn-node-title">{n.label}</text><text x="0" y="18" textAnchor="middle" className="fn-node-sub">{n.sub}</text><text x="0" y="47" textAnchor="middle" className="fn-node-metric">{n.id === 'input' ? '≈ ' + trace.inputTokensEstimate + ' tokens' : n.id === 'context' ? (trace.promptTokens != null ? 'Prompt: ' + trace.promptTokens + ' tokens' : 'Contexto: estimando') : n.id === 'tools' ? 'Según solicitud' : n.id === 'gateway' ? '≈ ' + (trace.inputTokensEstimate + trace.outputTokensEstimate) + ' tokens' : n.id === 'model' ? (trace.completionTokens != null ? trace.completionTokens + ' tokens salida' : 'Proveedor externo') : n.id === 'stream' ? '≈ ' + trace.outputTokensEstimate + ' tokens' : (trace.tokenUsage != null ? trace.tokenUsage + ' tokens total' : 'Total en cálculo')}</text></g> })}
+                  {NODES.map((n) => { const hot=active.includes(n.id); return <g key={n.id} transform={`translate(${n.x} ${n.y})`} className={`fn-node ${hot?'active':''} ${trace.phase==='done'?'complete':''}`}><rect x="-70" y="-32" width="140" height="64" rx="13"/><circle cx="-51" cy="-12" r="4"/><text x="0" y="1" textAnchor="middle" className="fn-node-title">{n.label}</text><text x="0" y="18" textAnchor="middle" className="fn-node-sub">{n.sub}</text><text x="0" y="47" textAnchor="middle" className="fn-node-metric">{n.id === 'input' ? '≈ ' + trace.inputTokensEstimate + ' tokens' : n.id === 'context' ? (trace.promptTokens != null ? 'Prompt: ' + trace.promptTokens + ' tokens' : 'Contexto: estimando') : n.id === 'attachments' ? 'Adjuntos: según entrada' : n.id === 'tools' ? 'Según solicitud' : n.id === 'gateway' ? '≈ ' + (trace.inputTokensEstimate + trace.outputTokensEstimate) + ' tokens' : n.id === 'model' ? (trace.completionTokens != null ? trace.completionTokens + ' tokens salida' : 'Proveedor externo') : n.id === 'stream' ? '≈ ' + trace.outputTokensEstimate + ' tokens' : n.id === 'post' ? (trace.phase === 'done' ? 'Formato finalizado' : 'Validación / formato') : n.id === 'storage' ? (trace.phase === 'done' ? 'Respuesta guardada' : 'Guardado pendiente') : (trace.tokenUsage != null ? trace.tokenUsage + ' tokens total' : 'Total en cálculo')}</text></g> })}
                 </g>
               </svg>
               <div className="functioning-zoom"><button onClick={() => zoomBy(.1)} aria-label="Acercar">＋</button><span>{Math.round(zoom*100)}%</span><button onClick={() => zoomBy(-.1)} aria-label="Alejar">−</button><button onClick={() => {setZoom(1);setPan({x:0,y:0})}} aria-label="Restablecer vista">↺</button></div>
