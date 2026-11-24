@@ -172,11 +172,13 @@ function Chips({ list }: { list: Attachment[] }) {
     <>
       {images.length > 0 && <div className="chat-image-attachments" aria-label="Imágenes adjuntas">
         {images.map((item) => urls[item.id] ? (
-          <button className="chat-image-thumb" key={item.id} onClick={() => setSelected(item)} title="Ampliar imagen">
-            <img src={urls[item.id]} alt={item.file_name} loading="lazy" />
-            <span>{item.file_name}</span>
-          </button>
-          <button className="btn ghost sm" onClick={() => void downloadAttachment(item).catch((e) => toast('error', (e as Error).message))}>Descargar</button>
+          <>
+            <button className="chat-image-thumb" key={item.id} onClick={() => setSelected(item)} title="Ampliar imagen">
+              <img src={urls[item.id]} alt={item.file_name} loading="lazy" />
+              <span>{item.file_name}</span>
+            </button>
+            <button className="btn ghost sm" onClick={() => void downloadAttachment(item).catch((e) => toast('error', (e as Error).message))}>Descargar</button>
+          </>
         ) : (
           <span className="chat-image-loading" key={item.id}>{item.file_name} · cargando imagen…</span>
         ))}
