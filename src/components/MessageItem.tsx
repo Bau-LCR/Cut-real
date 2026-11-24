@@ -263,7 +263,7 @@ export const MessageItem = memo(function MessageItem({ msg, isLast, busy, modelN
           <div className="message-usage" aria-label="Métricas de respuesta">
             {msg.token_usage != null && <span><b>{msg.token_usage.toLocaleString('es-AR')}</b> tokens</span>}
             {msg.duration_ms != null && <span><b>{(msg.duration_ms / 1000).toFixed(2).replace('.', ',')}</b> s</span>}
-            <small>Uso informado por el proveedor; puede ser estimado si no se recibió el desglose exacto.</small>
+            <small>{msg.usage_exact === true ? 'Consumo exacto informado por el proveedor.' : 'Consumo estimado: el proveedor no informó el desglose exacto.'}</small>
           </div>
         )}
         {!generating && (
