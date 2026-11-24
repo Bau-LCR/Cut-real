@@ -1085,3 +1085,10 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
  .message-usage{width:100%;gap:7px 12px}
  .functioning-svg.view-3d{transform:perspective(700px) rotateX(22deg) rotateZ(-3deg) scale(.88)}
 }
+
+@media(max-width:600px){
+ .functioning-canvas{overflow:auto;overscroll-behavior:contain}
+ .functioning-svg{width:900px;min-width:900px;height:350px;min-height:350px;max-width:none}
+ .functioning-svg.view-3d{transform:perspective(850px) rotateX(17deg) rotateZ(-2deg) scale(.94);transform-origin:left center}
+ .functioning-zoom{position:sticky;left:calc(100% - 175px);bottom:8px;width:max-content}
+}
