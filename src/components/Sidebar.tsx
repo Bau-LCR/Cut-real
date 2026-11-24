@@ -65,12 +65,11 @@ export function Sidebar({ activeId }: { activeId?: string }) {
     <>
       {open && <div className="scrim" onClick={close} aria-hidden="true" />}
       <aside className={`sidebar${open ? ' open' : ''}`} aria-label="Barra lateral">
-        <div className="brand"><img src={`${import.meta.env.BASE_URL}brand/Logo_Original.png`} alt="" />Cut-real <b>2</b></div>
+        <Link to="/" className="brand" aria-label="Inicio de Cut-real 2" title="Ir al inicio"><img src={`${import.meta.env.BASE_URL}brand/Logo_Original.png`} alt="" />Cut-real <b>2</b></Link>
         <div className="side-actions">
           <button className="btn" onClick={() => { nav('/'); close() }}><Plus className="sm" />Nueva conversación</button>
-          <button className="btn" onClick={() => { nav('/studio'); close() }}><span className="studio-nav-icon" aria-hidden="true">{'</>'}</span>Programación</button>
-          <button className="btn" onClick={() => { nav('/simulation'); close() }}><span className="studio-nav-icon" aria-hidden="true">◎</span>Simulación</button>
           <button className="btn" onClick={() => { nav('/calls'); close() }}><span className="studio-nav-icon" aria-hidden="true">◷</span>Registro de llamadas</button>
+          <button className="btn" onClick={() => { nav('/studio'); close() }}><span className="studio-nav-icon" aria-hidden="true">{'</>'}</span>Programación</button>
           <div className="side-search">
             <Search className="sm" />
             <input className="field" placeholder="Buscar conversaciones" aria-label="Buscar conversaciones" value={q} onChange={(e) => setQ(e.target.value)} />
