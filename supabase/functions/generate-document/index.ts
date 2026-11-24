@@ -176,7 +176,7 @@ async function makePdf(title: string, md: string, images: Map<string,DocumentIma
       b.rows.forEach((row: string[], rowIndex: number) => {
         const cells = Array.from({ length: cols }, (_, i) => row[i] ?? '')
         const wrapped = cells.map((cell: string, i: number) => {
-          const words = cell.split(/\\s+/); const lines: string[] = []; let line = ''
+          const words = cell.split(/\s+/); const lines: string[] = []; let line = ''
           for (const word of words) { const nextLine = line ? line + ' ' + word : word; if (regular.widthOfTextAtSize(nextLine, 8.5) > widths[i] - 12 && line) { lines.push(line); line = word } else line = nextLine }
           if (line) lines.push(line); return lines
         })
