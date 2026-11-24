@@ -6,7 +6,7 @@ export function setLocalLearningEnabled(value:boolean){try{localStorage.setItem(
 export function readLocalLearning():LocalChatRecord[]{try{return JSON.parse(localStorage.getItem(DATA)||'[]') as LocalChatRecord[]}catch{return[]}}
 export function recordLocalConversation(conversationId:string,question:string,answer:string){
  if(!localLearningEnabled()||!question.trim()||!answer.trim())return;
- const intent=/\\b(hola|buenas|buenos dias)\\b/i.test(question)?'saludo':/\\b(gracias|te agradezco)\\b/i.test(question)?'agradecimiento':/\\b(adios|hasta luego|chau)\\b/i.test(question)?'despedida':/\\b(quien sos|quien eres)\\b/i.test(question)?'identidad':'busqueda';
+ const intent=/\b(hola|buenas|buenos dias)\b/i.test(question)?'saludo':/\b(gracias|te agradezco)\b/i.test(question)?'agradecimiento':/\b(adios|hasta luego|chau)\b/i.test(question)?'despedida':/\b(quien sos|quien eres)\b/i.test(question)?'identidad':'busqueda';
  const all=readLocalLearning();all.push({id:Math.random().toString(36).slice(2),conversationId,createdAt:new Date().toISOString(),question:question.slice(0,6000),answer:answer.slice(0,12000),intent});
  try{localStorage.setItem(DATA,JSON.stringify(all.slice(-150)))}catch{try{localStorage.setItem(DATA,JSON.stringify(all.slice(-30)))}catch{}}
  window.dispatchEvent(new CustomEvent('cutreal:local-learning',{detail:true}));
