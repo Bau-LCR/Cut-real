@@ -1,4 +1,12 @@
-import type { Conversation } from './types'
+import type { Conversation, Message } from './types'
+
+/** Combina una lectura del historial con mensajes que llegaron mientras la consulta estaba en curso. */
+export function mergeMessageSnapshot(fetched: Message[], current: Message[], preserveCurrent: boolean): Message[] {
+  if (!preserveCurrent) return fetched
+  const byId = new Map(fetched.map((message) => [message.id, message]))
+  for (const message of current) byId.set(message.id, message)
+  return [...byId.values()].sort((a, b) => (a.seq ?? Number.MAX_SAFE_INTEGER) - (b.seq ?? Number.MAX_SAFE_INTEGER))
+}
 
 export function groupConversations(list: Conversation[], now = new Date()): { label: string; items: Conversation[] }[] {
   const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
