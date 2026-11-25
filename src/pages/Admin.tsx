@@ -36,6 +36,9 @@ const Err = ({ e }: { e: string | null }) => (e ? <div className="notice error" 
 // ---------------- Resumen ----------------
 function Overview() {
   const { data: s, err } = useAdmin<any>('stats')
+  const [dbStorage, setDbStorage] = useState<any>(null)
+  const [dbStorageError, setDbStorageError] = useState<string | null>(null)
+  useEffect(() => { let live = true; void supabase.rpc('cr_admin_database_storage_stats').then(({ data, error }) => { if (!live) return; if (error) setDbStorageError(error.message); else setDbStorage(data) }); return () => { live = false } }, [])
   if (err) return <Err e={err} />
   if (!s) return <p className="hint">Cargando…</p>
   const max = Math.max(1, ...s.daily.map((d: any) => d.requests))
@@ -45,6 +48,7 @@ function Overview() {
   return (
     <>
       <div className="stats">{cards.map(([l, v]) => <div className="stat" key={l}><b>{v.toLocaleString('es-AR')}</b><span>{l}</span></div>)}</div>
+      <div className="panel"><h3>Almacenamiento de la base de datos Cut-real</h3>{dbStorage ? <div className="grid2"><div><b style={{fontSize:24}}>{Number(dbStorage.used_mb).toFixed(2)} MB</b><p className="hint">{Number(dbStorage.used_bytes).toLocaleString('es-AR')} bytes ocupados en PostgreSQL.</p></div><div><b style={{fontSize:16}}>Medición real</b><p className="hint">Incluye el tamaño de la base de datos; no incluye archivos externos de Supabase Storage.</p></div></div> : <p className="hint">{dbStorageError || 'Consultando tamaño real de la base de datos…'}</p>}<p className="hint">La cuota máxima depende del plan de Supabase y no está expuesta por este endpoint; por eso no se inventa un porcentaje.</p></div>
       <div className="panel"><h3>Actividad diaria (solicitudes; rojo = con errores)</h3><p className="hint">Las solicitudes cuentan llamadas registradas por Cut-real. Los tokens suman entrada + salida durante el período del resumen; no representan el máximo permitido por Groq.</p>
         {s.daily.length ? <div className="bars" aria-label="Actividad diaria">{s.daily.map((d: any) => <i key={d.day} className={d.errors > 0 ? 'err' : ''} style={{ height: `${(d.requests / max) * 100}%` }} title={`${d.day}: ${d.requests} solicitudes, ${d.errors} errores`} />)}</div> : <p className="hint">Sin actividad todavía.</p>}</div>
       <div className="grid2">
