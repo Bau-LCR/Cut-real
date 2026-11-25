@@ -44,6 +44,13 @@ function classify(s:string,ws:number[][]){const t=normalize(s);if(/\b(hola|buena
 function sim(a:string,b:string){const words=(s:string)=>new Set(normalize(s).match(/[a-z0-9]{3,}/g)||[]);const x=words(a),y=words(b);let n=0;x.forEach(w=>{if(y.has(w))n++});return n/Math.max(1,x.size+y.size-n)}
 function localIntent(q:string){const t=normalize(q);return /\b(hola|buenas|buen dia|buenos dias|que tal)\b/.test(t)?'saludo':/\b(gracias|agradezco)\b/.test(t)?'agradecimiento':/\b(chau|adios|hasta luego)\b/.test(t)?'despedida':/\b(quien sos|quien eres)\b/.test(t)?'identidad':'busqueda'}
 function brief(text:string){return text.replace(/\[[^\]]*\]/g,'').replace(/\s+/g,' ').trim().slice(0,650)}
+function executeNeuronSignals(brain:Brain,text:string){
+ const values=new Map<string,number>();const tokens=normalize(text).match(/[a-z0-9]+/g)||[];
+ values.set('n0',Math.min(1,tokens.length/24));
+ const ordered=brain.nodes.slice().sort((a,b)=>Number(a.id.slice(1))-Number(b.id.slice(1)));
+ for(const node of ordered){if(node.id==='n0'||!node.enabled)continue;const incoming=brain.edges.filter(e=>e.to===node.id&&values.has(e.from));const sum=incoming.reduce((v,e)=>v+(values.get(e.from)||0)*e.weight,0);const tokenIndex=Number(node.id.slice(1))%Math.max(1,tokens.length);const lexical=tokens.length?((tokens[tokenIndex]?.length||0)%7)/14:0;const z=sum+lexical;let out=1/(1+Math.exp(-Math.max(-12,Math.min(12,z))));if(node.kind==='reason'||node.kind==='context')out=Math.tanh(z);else if(node.kind==='memory'||node.kind==='search'||node.kind==='evaluate')out=Math.max(0,z)/(1+Math.max(0,z));else if(node.kind==='safety'||node.kind==='validate')out=Math.min(1,Math.max(0,out));values.set(node.id,out)}
+ return values
+}
 function activeNodes(brain:Brain){const seen=new Set<string>();const walk=(id:string)=>{if(seen.has(id))return;const n=brain.nodes.find(x=>x.id===id);if(!n?.enabled)return;seen.add(id);brain.edges.filter(e=>e.from===id).forEach(e=>walk(e.to))};walk('n0');return seen}
 export function NeuralLab(){
  const {settingsOpen,functioningOpen,setSidebar}=useUi()
@@ -66,22 +73,23 @@ export function NeuralLab(){
  const restoreLayout=()=>{edit(b=>({...b,nodes:baseNodes.map(n=>({...n})),edges:baseEdges.map(e=>({...e}))}));setViewBox({x:0,y:0,w:2300,h:2350})}
  const addBrain=()=>{const b=fresh();b.name='Red neuronal '+(brains.length+1);setBrains(p=>[...p,b]);setActive(b.id);setTab('graph')}
  const trainNow=()=>{const training=[...brain.examples,...records.map(r=>({text:r.question,intent:r.intent}))];const weights=train(training);edit(b=>({...b,weights,trainedAt:new Date().toISOString()}));setNotice('Entrenamiento local completado: ejemplos propios y conversaciones autorizadas incorporados a los pesos del clasificador.')}
- const send=async()=>{const q=prompt.trim();if(!q||busy)return;setPrompt('');setBusy(true);const start=performance.now();setMessages(p=>[...p,{role:'user',text:q}]);const path=activeNodes(brain);const pulse=Array.from(path);setActivated([]);for(let i=0;i<pulse.length;i+=5){setActivated(pulse.slice(0,i+5));await new Promise(r=>setTimeout(r,8))}
+ const send=async()=>{const q=prompt.trim();if(!q||busy)return;setPrompt('');setBusy(true);const start=performance.now();setMessages(p=>[...p,{role:'user',text:q}]);const path=activeNodes(brain);const signals=executeNeuronSignals(brain,q);const pulse=Array.from(signals.entries()).filter(([,v])=>v>0.01).map(([id])=>id);setActivated([]);for(let i=0;i<pulse.length;i+=40){setActivated(pulse.slice(0,i+40));await new Promise(r=>setTimeout(r,2))}
  try{
   const weights=brain.weights.length?brain.weights:train([...brain.examples,...records.map(r=>({text:r.question,intent:r.intent}))]);if(!brain.weights.length)edit(b=>({...b,weights,trainedAt:new Date().toISOString()}))
   const prediction=path.has('n4')?classify(q,weights):{intent:'sin_clasificador',confidence:0}
-  const localMatches=path.has('n24')?allDocs.map(d=>({d,score:sim(q,d.title+' '+d.text)})).sort((a,b)=>b.score-a.score).filter(x=>x.score>.12).slice(0,2):[]
+  const memoryNode=brain.nodes.find(n=>n.kind==='memory')?.id;const searchNode=brain.nodes.find(n=>n.kind==='search')?.id;const localMatches=memoryNode&&path.has(memoryNode)?allDocs.map(d=>({d,score:sim(q,d.title+' '+d.text)})).sort((a,b)=>b.score-a.score).filter(x=>x.score>.12).slice(0,2):[]
   let answer='',meta='';const hello=prediction.intent==='saludo'||prediction.intent==='agradecimiento'||prediction.intent==='despedida'
-  if(!path.has('n0')||!path.has('n99'))answer='La ruta de procesamiento no llega a la salida. Revisá las conexiones y las neuronas activas.'
+  if(!path.has('n0')||!path.has('n920'))answer='La ruta de procesamiento no llega a la salida. Revisá las conexiones y las neuronas activas.'
   else if(hello)answer=prediction.intent==='saludo'?'¡Hola! ¿Qué te gustaría hacer o consultar hoy?':prediction.intent==='agradecimiento'?'¡De nada! Me alegra que te haya servido.':'¡Hasta luego! Cuando vuelvas, seguimos desde acá.'
-  else if(prediction.intent==='identidad')answer='Soy el módulo neuronal local de Cut-real. Proceso señales y clasifico intenciones en tu dispositivo; uso recuerdos locales y búsqueda pública como apoyo. No soy un modelo generativo grande.'
+  else if(/(cut.?real|qt.?real)/i.test(q))answer='Cut-real 2 es el proyecto de asistente que estás utilizando. Integra conversaciones, herramientas, administración y un Laboratorio neuronal experimental. El laboratorio ejecuta un clasificador y una red de procesamiento en el dispositivo, conserva su memoria según la configuración y sincroniza la arquitectura administrada con la nube. No es un modelo lingüístico grande ni debe confundirse con el motor generativo principal de Cut-real.'
+  else if(prediction.intent==='identidad')answer='Soy el Laboratorio neuronal local de Cut-real 2. Proceso señales con una arquitectura de 921 unidades, clasifico intenciones y recupero memoria; puedo consultar una fuente pública cuando la pregunta necesita datos externos. Mi modelo generativo todavía es limitado, así que no invento una respuesta cuando no tengo evidencia.'
   else if(localMatches.length&&localMatches[0].score>.2){answer=localMatches.map(x=>brief(x.d.text)).join('\n\n');meta='Respuesta recuperada de memoria local'}
-  else if(web&&path.has('n35')&&/\?|\b(que es|qué es|como|cómo|cuando|cuándo|donde|dónde|quien|quién|por que|por qué|actual|hoy|noticia|precio|capital)\b/i.test(q)){
+  else if(web&&searchNode&&path.has(searchNode)&&/\?|\b(que es|qué es|como|cómo|cuando|cuándo|donde|dónde|quien|quién|por que|por qué|actual|hoy|noticia|precio|capital)\b/i.test(q)){
     const query=q.replace(/[?¿!¡]/g,'').trim();const url='https://es.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch='+encodeURIComponent(query)+'&gsrlimit=3&prop=extracts&exintro=1&explaintext=1&format=json&origin=*';const response=await fetch(url,{signal:AbortSignal.timeout(9000)});if(response.ok){const data=await response.json();const pages=Object.values(data.query?.pages||{}) as {title:string;extract?:string}[];const useful=pages.filter(p=>p.extract&&p.extract.length>100).slice(0,2);if(useful.length){answer=useful.map(p=>brief(p.extract||'')).join('\n\n');meta='Información externa consultada y resumida'} }
   }
   if(!answer&&prediction.confidence<.48)answer='No tengo suficiente contexto para responder con seguridad. ¿Podés reformular la pregunta o contarme un poco más qué necesitás?'
   else if(!answer)answer='No encontré información suficientemente relacionada en la memoria ni en la fuente pública disponible. Podés agregar conocimiento en la pestaña Memoria o ampliar la pregunta.'
-  if(!path.has('n84')||!path.has('n99'))answer='El flujo está incompleto: habilitá las neuronas de validación y salida para entregar la respuesta.'
+  if(!path.has('n920'))answer='El flujo está incompleto: habilitá las neuronas de validación y salida para entregar la respuesta.'
   setMessages(p=>[...p,{role:'assistant',text:answer,time:(performance.now()-start)/1000,meta:meta||'Procesamiento local · '+prediction.intent+' · activación '+(prediction.confidence*100).toFixed(1)+'%'}])
  }catch(e){setMessages(p=>[...p,{role:'assistant',text:'No pude completar la consulta externa. La memoria local sigue disponible. '+(e instanceof Error?e.message:'Error de red')}])}
  finally{setBusy(false);setActivated([...path])}
