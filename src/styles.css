@@ -1290,3 +1290,11 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
 .sidebar.collapsed .profile{width:46px;min-height:46px;display:flex;align-items:center;justify-content:center;padding:0;margin:0}
 .sidebar.collapsed .side-foot .menu{display:none}
 @media(max-width:700px){.neural-chat form{grid-template-columns:auto minmax(0,1fr) auto}.neural-neuron-list{grid-template-columns:repeat(2,minmax(0,1fr))}.sidebar.collapsed{position:fixed;left:0;top:0;bottom:0;width:68px;min-width:68px;z-index:80}}
+
+
+.sidebar.collapsed .side-foot .menu{display:block;position:fixed;left:74px;bottom:12px;z-index:120;min-width:210px;box-shadow:0 12px 40px rgba(0,0,0,.4)}
+.neural-neuron-list,.neural-neuron-list *{box-sizing:border-box}
+.neural-neuron-list{align-items:stretch;align-content:start}
+.neural-neuron-list button{width:100%;min-height:48px;white-space:normal;overflow-wrap:anywhere}
+.neural-chat form{align-items:center}
+.neural-chat form .btn{white-space:nowrap}
