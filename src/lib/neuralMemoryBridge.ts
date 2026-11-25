@@ -59,7 +59,7 @@ export async function readNeuralBrain(): Promise<{ brain: any | null; records: N
 
 export async function saveNeuralBrain(brain: unknown): Promise<BridgeResult> {
   const raw = JSON.stringify(brain)
-  const chunks = raw.match(/[\\s\\S]{1,18000}/g) ?? ['']
+  const chunks = raw.match(/.{1,18000}/gs) ?? ['']
   const records: Array<{key:string;category:string;shared:boolean;data:Record<string,unknown>}> = chunks.map((content, index) => ({
     key: 'architecture-main-part-' + String(index).padStart(4, '0'),
     category: 'custom',
