@@ -50,13 +50,13 @@ const nodeTasks:Record<NodeKind,string[]>={
 }
 function nodeDescription(node:NNode){const i=Number(node.id.slice(1));const tasks=nodeTasks[node.kind];return descriptions[node.kind]+' Esta unidad es la '+(i+1)+' del sistema y ejecuta la subfunción: '+tasks[i%tasks.length]+'. Recibe señales de las conexiones entrantes, aplica su transformación numérica y transmite su activación a las unidades siguientes.'}
 const layerKinds:NodeKind[][]=[
- ['normalize','language','intent'],
- ['context','memory','memory-write'],
- ['evaluate','search','query'],
- ['rank','reason'],
- ['personality','safety'],
- ['compose'],
- ['validate'],
+ ['normalize','language','embedding','entity','intent'],
+ ['context','temporal','attention','memory','memory-write','retrieval'],
+ ['evaluate','search','query','source-check','uncertainty'],
+ ['rank','semantic','reason','math','planning'],
+ ['personality','response-style','safety'],
+ ['compose','compression'],
+ ['validate','source-check','uncertainty'],
  ['output']
 ]
 const baseNodes:NNode[]=[{id:'n0',kind:'input',name:'Entrada principal',x:20,y:25,enabled:true},...Array.from({length:8*115},(_,k)=>{const layer=Math.floor(k/115),unit=k%115,kind=layerKinds[layer][unit%layerKinds[layer].length];return{id:'n'+(k+1),kind,name:labels[kind]+' · '+String(unit+1).padStart(3,'0'),x:260+layer*250,y:22+unit*19,enabled:true}})]
