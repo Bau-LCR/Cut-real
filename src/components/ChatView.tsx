@@ -64,9 +64,10 @@ export function ChatView({ convId }: { convId?: string }) {
       <div className="topbar">
         <button className="icon-btn menu-btn" onClick={() => setSidebar(true)} aria-label="Abrir menú"><Menu /></button>
         <div className="title">{conv?.title ?? 'Nueva conversación'}</div>
-        <select className="field model-select" value={modelId ?? ''} onChange={(e) => setModel(e.target.value)} aria-label="Modelo">
+        <select className="field model-select" value={modelId === '__local_neural__' ? modelId : (modelId ?? '')} onChange={(e) => { if (e.target.value === '__local_neural__') { nav('/neural'); return } setModel(e.target.value) }} aria-label="Modelo">
           {models.length === 0 && <option value="">Sin modelos</option>}
           {models.map((m) => <option key={m.id} value={m.id}>{m.display_name}</option>)}
+          <option value="__local_neural__">Laboratorio neuronal · Local (CPU)</option>
         </select>
       </div>
 
