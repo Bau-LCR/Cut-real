@@ -11,8 +11,6 @@ function ConvItem({ c, active, onOpen }: { c: Conversation; active: boolean; onO
   const busy = useChat((s) => !!s.gens[c.id])
   const { rename, pin, remove } = useChat.getState()
   const [menu, setMenu] = useState(false)
-  const [collapsed,setCollapsed]=useState(()=>localStorage.getItem('cutreal.sidebar.collapsed')==='true')
-  const toggleCollapsed=()=>setCollapsed(v=>{const next=!v;localStorage.setItem('cutreal.sidebar.collapsed',String(next));return next})
   const [renaming, setRenaming] = useState(false)
   const [title, setTitle] = useState(c.title)
   const ref = useRef<HTMLDivElement>(null)
@@ -58,6 +56,8 @@ export function Sidebar({ activeId }: { activeId?: string }) {
   const setFunctioning = useUi((s) => s.setFunctioning)
   const [q, setQ] = useState('')
   const [menu, setMenu] = useState(false)
+  const [collapsed,setCollapsed]=useState(()=>localStorage.getItem('cutreal.sidebar.collapsed')==='true')
+  const toggleCollapsed=()=>setCollapsed(v=>{const next=!v;localStorage.setItem('cutreal.sidebar.collapsed',String(next));return next})
   useEffect(() => { const t = setTimeout(() => void search(q), 250); return () => clearTimeout(t) }, [q, search])
   const list = searchResults ?? conversations
   const groups = groupConversations(list)
