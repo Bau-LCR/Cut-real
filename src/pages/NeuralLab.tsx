@@ -142,7 +142,7 @@ export function NeuralLab(){
    else if(isGreeting)answer=/gracias/.test(normalized)?'¡De nada! ¿Qué más querés consultar?':/chau|adios|hasta luego/.test(normalized)?'¡Hasta luego! Cuando quieras, seguimos.':'¡Hola! Soy el Laboratorio neuronal de Cut-real 2. ¿Qué te gustaría consultar?';
    else if(isAboutProduct){answer='Cut-real 2 es una aplicación de inteligencia artificial con chat, herramientas y un Laboratorio neuronal experimental. El Laboratorio ejecuta cálculos y clasificación local, consulta memoria curada y puede recuperar información pública. No es todavía un LLM generativo grande: sus 121.000 unidades del mapa no equivalen por sí solas a un modelo lingüístico preentrenado.';meta='Conocimiento del sistema · contexto interno';}
    else if(prediction.intent==='identidad'){answer='Soy el Laboratorio neuronal experimental de Cut-real 2. Proceso señales localmente, recupero conocimiento curado y puedo consultar fuentes públicas. Si la evidencia no alcanza, debo reconocerlo en lugar de inventar.';meta='Identidad del sistema';}
-   else if(asksFact&&web&&path.has('nSearch')){
+   else if(asksFact&&web&&brain.nodes.some(n=>n.kind==='search'&&path.has(n.id))){
     const query=q.replace(/[¿?¡!]/g,' ').replace(/\s+/g,' ').trim(),url='https://es.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch='+encodeURIComponent(query)+'&gsrlimit=5&prop=extracts&exintro=1&explaintext=1&format=json&origin=*';
     const response=await fetch(url,{signal:AbortSignal.timeout(12000)});if(!response.ok)throw new Error('La fuente pública respondió con HTTP '+response.status);
     const data=await response.json(),pages=Object.values(data.query?.pages||{}) as {title:string;extract?:string}[];
