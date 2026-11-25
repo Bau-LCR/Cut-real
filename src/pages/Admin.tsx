@@ -5,6 +5,7 @@ import { Back, X } from '../components/icons'
 import { callFn } from '../lib/functions'
 import { useAuth } from '../store/auth'
 import { useUi } from '../store/ui'
+import { supabase } from '../lib/supabase'
 
 const act = <T,>(action: string, p: object = {}) => callFn<T>('admin', { action, ...p })
 const fmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' }) : '—')
@@ -462,7 +463,13 @@ function Audit() {
   )
 }
 
-const TABS = [['overview', 'Resumen', Overview], ['users', 'Usuarios', Users], ['providers', 'Proveedores y modelos', Providers], ['keys', 'API keys', Keys], ['integrations', 'Integraciones', Integrations], ['memory-task', 'Memory Task', MemoryTaskTab], ['usage', 'Llamadas', UsageHistory], ['audit', 'Auditoría', Audit]] as const
+function NeuralAdmin(){
+ const [state,setState]=useState<any>(null),[count,setCount]=useState(0),[error,setError]=useState('');
+ useEffect(()=>{let live=true;(async()=>{const [{data,error:e},{count:n,error:ce}]=await Promise.all([supabase.from('cr_neural_state').select('payload,updated_at,updated_by').eq('id','main').maybeSingle(),supabase.from('cr_neural_contributions').select('*',{count:'exact',head:true})]);if(!live)return;if(e||ce)setError((e||ce)?.message||'No se pudieron leer las métricas');else{setState(data);setCount(n||0)}})();return()=>{live=false}},[]);
+ return <div className="panel"><h3>Laboratorio neuronal · Estado global</h3><p className="hint">Panel administrativo de la arquitectura compartida. Los usuarios normales no pueden abrir ni modificar el laboratorio. Las conversaciones privadas no se recopilan automáticamente: solo se aceptan aportes explícitos y voluntarios.</p>{error&&<Err e={error}/>}<div className="stats"><div className="stat"><b>{state?.payload?.nodes?.length??'—'}</b><span>Neuronas sincronizadas</span></div><div className="stat"><b>{state?.payload?.edges?.length??'—'}</b><span>Conexiones</span></div><div className="stat"><b>{count}</b><span>Ejemplos aportados con consentimiento</span></div></div><p className="hint">Última sincronización: {fmt(state?.updated_at)}</p><p className="hint">La red se guarda en Supabase y se descarga al iniciar sesión desde otro dispositivo del administrador.</p></div>
+}
+
+const TABS = [['neural', 'Laboratorio neuronal', NeuralAdmin], ['overview', 'Resumen', Overview], ['users', 'Usuarios', Users], ['providers', 'Proveedores y modelos', Providers], ['keys', 'API keys', Keys], ['integrations', 'Integraciones', Integrations], ['memory-task', 'Memory Task', MemoryTaskTab], ['usage', 'Llamadas', UsageHistory], ['audit', 'Auditoría', Audit]] as const
 
 export default function Admin() {
   const nav = useNavigate()
