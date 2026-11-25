@@ -37,14 +37,14 @@ const nodeTasks:Record<NodeKind,string[]>={
 }
 function nodeDescription(node:NNode){const i=Number(node.id.slice(1));const tasks=nodeTasks[node.kind];return descriptions[node.kind]+' Esta unidad es la '+(i+1)+' del sistema y ejecuta la subfunción: '+tasks[i%tasks.length]+'. Recibe señales de las conexiones entrantes, aplica su transformación numérica y transmite su activación a las unidades siguientes.'}
 const layerKinds:NodeKind[][]=[
- ['normalize','language','intent','context','memory','search','query','evaluate','rank','reason','personality','safety','compose','validate','output'],
- ['normalize','normalize','language','language','intent','intent','context','memory','search','evaluate','rank','reason','personality','safety','compose'],
- ['language','intent','intent','context','context','memory','memory','search','query','evaluate','rank','reason','safety','compose','validate'],
- ['normalize','language','intent','context','memory','memory-write','search','query','evaluate','rank','reason','personality','safety','compose','validate'],
- ['language','intent','context','memory','memory-write','search','query','evaluate','rank','reason','personality','safety','compose','validate','output'],
- ['normalize','language','intent','context','memory','search','query','evaluate','rank','reason','personality','safety','compose','validate','output'],
- ['language','intent','context','memory','search','query','evaluate','rank','reason','personality','safety','compose','validate','output','output'],
- ['intent','context','memory','search','evaluate','rank','reason','personality','safety','compose','validate','output','output','output','output']
+ ['normalize','language','intent'],
+ ['context','memory','memory-write'],
+ ['evaluate','search','query'],
+ ['rank','reason'],
+ ['personality','safety'],
+ ['compose'],
+ ['validate'],
+ ['output']
 ]
 const baseNodes:NNode[]=[{id:'n0',kind:'input',name:'Entrada principal',x:20,y:25,enabled:true},...Array.from({length:8*115},(_,k)=>{const layer=Math.floor(k/115),unit=k%115,kind=layerKinds[layer][unit%layerKinds[layer].length];return{id:'n'+(k+1),kind,name:labels[kind]+' · '+String(unit+1).padStart(3,'0'),x:260+layer*250,y:22+unit*19,enabled:true}})]
 const baseEdges:Edge[]=[...Array.from({length:115},(_,i)=>({id:'e0-'+i,from:'n0',to:'n'+(i+1),weight:1})),...Array.from({length:7},(_,layer)=>Array.from({length:115},(_,i)=>Array.from({length:3},(_,j)=>{const from=1+layer*115+((i+j*37)%115),to=1+(layer+1)*115+i;return{id:'e'+layer+'-'+i+'-'+j,from:'n'+from,to:'n'+to,weight:j===0?0.6:j===1?0.3:0.1}})).flat()).flat()]
