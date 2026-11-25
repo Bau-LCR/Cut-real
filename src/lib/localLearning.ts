@@ -12,3 +12,9 @@ export function recordLocalConversation(conversationId:string,question:string,an
  window.dispatchEvent(new CustomEvent('cutreal:local-learning',{detail:true}));
 }
 export function clearLocalLearning(){try{localStorage.removeItem(DATA);window.dispatchEvent(new CustomEvent('cutreal:local-learning',{detail:localLearningEnabled()}))}catch{}}
+
+const SHARE_PREF='cutreal.shared-neural-contribution.enabled.v1';
+export function sharedLearningEnabled(){try{return localStorage.getItem(SHARE_PREF)==='true'}catch{return false}}
+export function setSharedLearningEnabled(value:boolean){try{localStorage.setItem(SHARE_PREF,String(value));window.dispatchEvent(new CustomEvent('cutreal:shared-learning',{detail:value}))}catch{}}
+export function anonymizeTrainingText(value:string){return value.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,' [correo] ').replace(/https?:\/\/\S+/gi,' [enlace] ').replace(/\b(?:\+?\d[\d .()/-]{7,}\d)\b/g,' [numero] ').replace(/\b[0-9a-f]{8}-[0-9a-f-]{27,}\b/gi,' [id] ').replace(/@\w+/g,' [usuario] ').replace(/\s+/g,' ').trim().slice(0,800)}
+export function inferLocalIntent(question:string){const q=question.toLowerCase();return /\b(hola|buenas|buenos dias|buen dia)\b/.test(q)?'saludo':/\b(gracias|agradezco)\b/.test(q)?'agradecimiento':/\b(quien sos|quien eres|que sos)\b/.test(q)?'identidad':/\b(que es|qué es|explica|define)\b/.test(q)?'definicion':'busqueda'}
