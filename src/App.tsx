@@ -50,7 +50,7 @@ export default function App() {
         <Route path="/login" element={!ready ? <Splash /> : ready && session ? <Navigate to="/" replace /> : <Login />} />
         <Route path="/admin" element={<Guard admin><Suspense fallback={<Splash />}><Admin /></Suspense></Guard>} />
         <Route path="/studio" element={<Guard><Suspense fallback={<Splash />}><StudioPage /></Suspense></Guard>} />
-        <Route path="/neural" element={<Guard><Suspense fallback={<Splash />}><NeuralLab /></Suspense></Guard>} />
+        <Route path="/neural" element={<Guard admin><Suspense fallback={<Splash />}><NeuralLab /></Suspense></Guard>} />
         <Route path="/projects" element={<Navigate to="/" replace />} />
         <Route path="/simulation" element={<Navigate to="/" replace />} />
         <Route path="/legal" element={<LegalPage />} />
