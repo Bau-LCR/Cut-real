@@ -1258,3 +1258,5 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
 .neural-neuron-list button{display:flex;flex-direction:column;text-align:left;padding:7px;background:var(--surface);border:1px solid var(--line);border-radius:7px;color:var(--text);font-size:10px}
 .neural-neuron-list button small{color:var(--muted);font-size:9px}
 @media(max-width:700px){.neural-neuron-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.neural-admin-examples{display:grid;gap:7px;margin:12px 0}.neural-admin-examples>div{padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--slate)}.neural-admin-examples p{margin:5px 0;color:var(--text);font-size:12px}.neural-admin-examples small{color:var(--muted);font-size:10px}
