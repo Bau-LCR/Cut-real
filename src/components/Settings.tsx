@@ -5,7 +5,7 @@ import { useChat } from '../store/chat'
 import { useSpeech } from '../store/speech'
 import { useUi } from '../store/ui'
 import { X } from './icons'
-import { localLearningEnabled, setLocalLearningEnabled } from '../lib/localLearning'
+import { localLearningEnabled, setLocalLearningEnabled, sharedLearningEnabled, setSharedLearningEnabled } from '../lib/localLearning'
 
 export const PRIVACY_TEXT = 'Cut-real 2 es un servicio privado de acceso restringido: iniciar sesión o registrarse no habilita automáticamente una cuenta; el propietario o un administrador debe aprobar el acceso. Cut-real almacena datos de cuenta, configuración, conversaciones, archivos adjuntos y proyectos generales o de programación para prestar el servicio. Cada proyecto puede conservar una conversación privada asociada para mantener la continuidad entre solicitudes. Cuando pedís continuar un trabajo o resumir chats anteriores, Cut-real puede recuperar títulos y mensajes recientes de hasta 20 conversaciones de tu misma cuenta. Si habilitaste Memory Task y autorizaste records:read, también puede consultar recuerdos de esa misma cuenta externa para dar continuidad; solo guarda información allí cuando lo pedís expresamente y autorizaste records:write. Los datos permanecen vinculados a la cuenta. El Laboratorio neuronal guarda en el almacenamiento local del navegador las conversaciones completadas para memoria y ejemplos del clasificador si la opción de aprendizaje local (activada por defecto) permanece encendida; se puede desactivar desde Configuración o el Laboratorio y borrar los recuerdos locales desde Memoria. Ese aprendizaje se ejecuta en el dispositivo y no envía los chats a un servidor de entrenamiento. Los recuerdos locales no se sincronizan entre dispositivos. El uso de chat tiene un límite de referencia de 70.000 tokens por usuario y día, con renovación diaria a las 00:00 UTC; el consumo se estima cuando el proveedor no informa el uso exacto. Las funciones de IA, búsqueda web, transcripción/voz y análisis de archivos pueden enviar el contenido estrictamente necesario a proveedores externos configurados por el administrador; esos proveedores lo procesan según sus propias condiciones y políticas. No ingreses contraseñas, datos bancarios, documentos de identidad ni información sensible propia o de terceros. El acceso administrativo a conversaciones y datos debe limitarse a soporte o revisión de reportes, exige un motivo y queda registrado cuando la función de auditoría está disponible. Podés solicitar información, corrección o eliminación de tus datos contactando al responsable del proyecto. Los datos pueden conservarse mientras sean necesarios para prestar el servicio, mantener la seguridad y cumplir obligaciones aplicables. Este aviso es informativo, no constituye asesoramiento legal y no reemplaza las políticas de los proveedores.'
 
@@ -26,6 +26,7 @@ export function Settings() {
   const [usageClock, setUsageClock] = useState(Date.now())
   const [appearanceSaving, setAppearanceSaving] = useState(false)
   const [learnFromChats, setLearnFromChats] = useState(localLearningEnabled())
+  const [shareTraining,setShareTraining]=useState(sharedLearningEnabled())
 
   const changeAppearance = async (value: 'original' | 'white' | 'liquid-glass' | 'cybercore', label: string) => {
     if (appearanceSaving || value === appearance) return
@@ -146,6 +147,7 @@ export function Settings() {
         <section className="settings-section"><div className="settings-section-heading"><h3>Aprendizaje local</h3><span className="settings-section-tag">PRIVACIDAD</span></div>
           <label className="switch"><span>Usar mis conversaciones para memoria y entrenamiento local<br /><span className="hint">Activado por defecto. Guarda las conversaciones en este dispositivo para mejorar la memoria y los ejemplos del clasificador. No las envía a un servidor de entrenamiento. Podés desactivarlo cuando quieras.</span></span>
             <input type="checkbox" checked={learnFromChats} onChange={(e) => { setLearnFromChats(e.target.checked); setLocalLearningEnabled(e.target.checked) }} /></label>
+          <label className="switch"><span>Compartir ejemplos anonimizados para mejorar la red común<br /><span className="hint">Desactivado por defecto y separado de la memoria privada. Si lo activás, se comparte solo el texto de la pregunta tras ocultar correos, enlaces, teléfonos e identificadores; no se comparte la respuesta ni el historial completo. La anonimización automática puede no detectar todos los datos personales: no incluyas información sensible.</span></span><input type="checkbox" checked={shareTraining} onChange={e=>{setShareTraining(e.target.checked);setSharedLearningEnabled(e.target.checked)}}/></label>
         </section>
 
         <section className="settings-section"><div className="settings-section-heading"><h3>Voz</h3><span className="settings-section-tag">AUDIO</span></div>
