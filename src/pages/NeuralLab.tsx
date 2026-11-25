@@ -160,7 +160,7 @@ export function NeuralLab(){
    if(!path.has('n920'))answer='El flujo está incompleto: habilitá las neuronas de validación y salida para entregar la respuesta.';
    setMessages(p=>[...p,{role:'assistant',text:answer,time:(performance.now()-start)/1000,meta:meta||'Procesamiento local · '+prediction.intent+' · '+core.units.toLocaleString('es-AR')+' unidades calculadas · '+core.layers+' capas'}]);
    // No se guardan respuestas del laboratorio como hechos: solo la señal de entrada puede servir al clasificador.
-   recordLocalConversation('neural-lab',q,'');
+   recordLocalConversation('neural-lab',q,'');const savedSignal=readLocalLearning().slice(-1)[0];if(savedSignal)void neuralMemoryAction('sync',{records:[{id:savedSignal.id,question:savedSignal.question,answer:'',intent:savedSignal.intent,createdAt:savedSignal.createdAt}]}).catch(()=>setCloudMemoryStatus('Señal guardada localmente; Memory Task se sincronizará al reconectar'));
   }catch(e){setMessages(p=>[...p,{role:'assistant',text:'No pude verificar una respuesta fiable. La memoria local sigue disponible y no voy a guardar esta respuesta como conocimiento. '+(e instanceof Error?e.message:'Error de consulta')}]);}
   finally{setBusy(false);setActivated([...path])}
  }
