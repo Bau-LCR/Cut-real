@@ -11,7 +11,8 @@ function ConvItem({ c, active, onOpen }: { c: Conversation; active: boolean; onO
   const busy = useChat((s) => !!s.gens[c.id])
   const { rename, pin, remove } = useChat.getState()
   const [menu, setMenu] = useState(false)
-  const [collapsed,setCollapsed]=useState(false)
+  const [collapsed,setCollapsed]=useState(()=>localStorage.getItem('cutreal.sidebar.collapsed')==='true')
+  const toggleCollapsed=()=>setCollapsed(v=>{const next=!v;localStorage.setItem('cutreal.sidebar.collapsed',String(next));return next})
   const [renaming, setRenaming] = useState(false)
   const [title, setTitle] = useState(c.title)
   const ref = useRef<HTMLDivElement>(null)
@@ -68,7 +69,7 @@ export function Sidebar({ activeId }: { activeId?: string }) {
       {open && <div className="scrim" onClick={close} aria-hidden="true" />}
       <aside className={"sidebar" + (open ? " open" : "") + (collapsed ? " collapsed" : "")} aria-label="Barra lateral">
         <Link to="/" className="brand" aria-label="Inicio de Cut-real 2" title="Ir al inicio"><img src={`${import.meta.env.BASE_URL}brand/Logo_Original.png`} alt="" />Cut-real <b>2</b></Link>
-        <button className="sidebar-collapse" onClick={()=>setCollapsed(v=>!v)} aria-label="Contraer o expandir barra lateral">{collapsed?"»":"«"}</button>
+        <button className="sidebar-collapse" onClick={toggleCollapsed} aria-label="Contraer o expandir barra lateral">{collapsed?"»":"«"}</button>
         <div className="side-actions">
           <button className="btn" onClick={() => { nav('/'); close() }}><Plus className="sm" />Nueva conversación</button>
           <button className="btn" onClick={() => { nav('/calls'); close() }}><span className="studio-nav-icon" aria-hidden="true">◷</span>Registro de llamadas</button>
