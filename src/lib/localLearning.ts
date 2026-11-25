@@ -41,7 +41,7 @@ export function importLocalConversations(rows:{conversation_id:string;role:strin
  for(const [conversationId,pairs] of grouped)for(const pair of pairs){
   const key=conversationId+'|'+pair.question.slice(0,120)+'|'+pair.createdAt;if(seen.has(key))continue;
   const question=pair.question.slice(0,6000),answer=pair.answer.slice(0,12000);
-  const intent=/\\b(hola|buenas|buenos dias)\\b/i.test(question)?'saludo':/\\b(gracias|te agradezco)\\b/i.test(question)?'agradecimiento':/\\b(adios|hasta luego|chau)\\b/i.test(question)?'despedida':/\\b(quien sos|quien eres)\\b/i.test(question)?'identidad':/\\b(que es|qué es|explica|explicame|derivada|define)\\b/i.test(question)?'definicion':'busqueda';
+  const intent=/\b(hola|buenas|buenos dias)\b/i.test(question)?'saludo':/\b(gracias|te agradezco)\b/i.test(question)?'agradecimiento':/\b(adios|hasta luego|chau)\b/i.test(question)?'despedida':/\b(quien sos|quien eres)\b/i.test(question)?'identidad':/\b(que es|qué es|explica|explicame|derivada|define)\b/i.test(question)?'definicion':'busqueda';
   existing.push({id:Math.random().toString(36).slice(2),conversationId,createdAt:pair.createdAt,question,answer,intent});seen.add(key);imported++;
  }
  try{localStorage.setItem(DATA,JSON.stringify(existing.slice(-500)))}catch{try{localStorage.setItem(DATA,JSON.stringify(existing.slice(-120)))}catch{}}
