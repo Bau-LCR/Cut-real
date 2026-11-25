@@ -1245,3 +1245,16 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
 .sidebar.collapsed .sidebar-collapse{margin:6px auto}
 .sidebar-brand-row{display:flex;align-items:center;justify-content:space-between}
 @media(max-width:700px){.neural-neuron-list{grid-template-columns:repeat(2,minmax(0,1fr))}.neural-graph-toolbar{position:sticky}.sidebar.collapsed{width:68px;min-width:68px}}
+
+
+.app:has(.sidebar.collapsed){grid-template-columns:68px minmax(0,1fr)}
+.sidebar.collapsed .side-foot .menu{display:block}
+@media(max-width:700px){.app:has(.sidebar.collapsed){grid-template-columns:1fr}.sidebar.collapsed{position:fixed;left:0;top:0;bottom:0;width:68px;min-width:68px;z-index:80}}
+.neural-graph-large{height:min(72vh,850px);min-height:460px;overflow:auto;position:relative;touch-action:none}
+.neural-graph-large svg{width:2300px;height:2350px;min-width:2300px;max-width:none;cursor:grab;touch-action:none}
+.neural-graph-large svg:active{cursor:grabbing}
+.neural-graph-toolbar{position:sticky;left:0;top:0;z-index:4;display:flex;flex-wrap:wrap;gap:7px;padding:8px;background:rgba(11,15,26,.94);border-bottom:1px solid var(--line);width:max-content;max-width:100%}
+.neural-neuron-list{max-height:360px;overflow:auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:9px;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.neural-neuron-list button{display:flex;flex-direction:column;text-align:left;padding:7px;background:var(--surface);border:1px solid var(--line);border-radius:7px;color:var(--text);font-size:10px}
+.neural-neuron-list button small{color:var(--muted);font-size:9px}
+@media(max-width:700px){.neural-neuron-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
