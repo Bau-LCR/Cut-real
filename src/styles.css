@@ -1260,3 +1260,33 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
 @media(max-width:700px){.neural-neuron-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 .neural-admin-examples{display:grid;gap:7px;margin:12px 0}.neural-admin-examples>div{padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--slate)}.neural-admin-examples p{margin:5px 0;color:var(--text);font-size:12px}.neural-admin-examples small{color:var(--muted);font-size:10px}
+
+/* Neural Lab usability refinements */
+.neural-loading-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#090b14;color:#f5f6ff;text-align:center;padding:24px}
+.neural-loading-screen p,.neural-loading-screen span{color:#aab0c9;margin:0}.neural-loading-screen span{font-size:12px}
+.neural-loading-orbit{width:68px;height:68px;border:2px solid rgba(105,125,255,.25);border-top-color:#8a8fff;border-radius:50%;display:grid;place-items:center;font-size:32px;animation:neural-spin 1.3s linear infinite}
+@keyframes neural-spin{to{transform:rotate(360deg)}}
+.neural-chat{min-height:0;height:100%;display:flex;flex-direction:column}
+.neural-messages{flex:1;min-height:240px;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+.neural-chat form{position:sticky;bottom:0;z-index:5;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;padding:10px 0;background:linear-gradient(180deg,transparent,var(--panel) 18%)}
+.neural-chat form input{min-width:0}
+.neural-graph-list-toggle{display:block;min-width:0;max-width:100%;overflow:hidden;margin:10px 0}
+.neural-neuron-list{box-sizing:border-box;width:100%;max-height:340px;overflow:auto;contain:content;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.neural-neuron-list button{min-width:0;overflow:hidden;overflow-wrap:anywhere}
+.neural-neuron-list button small{white-space:normal;overflow-wrap:anywhere}
+.neural-graph-toolbar{width:auto;max-width:100%;box-sizing:border-box;position:sticky}
+.neural-graph-large{isolation:isolate}
+.sidebar.collapsed{display:flex;flex-direction:column;align-items:center;width:68px;min-width:68px;overflow:visible}
+.sidebar.collapsed .brand{width:100%;height:54px;display:flex;align-items:center;justify-content:center;padding:8px 0;box-sizing:border-box}
+.sidebar.collapsed .brand img{display:block;width:30px;height:30px;object-fit:contain;margin:0}
+.sidebar.collapsed .sidebar-collapse{flex:0 0 34px;margin:5px auto 12px}
+.sidebar.collapsed .side-actions{width:100%;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 0 10px}
+.sidebar.collapsed .side-actions>.btn{width:46px;min-width:46px;height:44px;min-height:44px;padding:0;display:flex;align-items:center;justify-content:center;box-sizing:border-box}
+.sidebar.collapsed .side-actions>.btn svg,.sidebar.collapsed .side-actions>.btn .studio-nav-icon{width:19px;height:19px;display:inline-flex;align-items:center;justify-content:center;margin:0;font-size:18px;line-height:1}
+.sidebar.collapsed .side-actions>.btn span:not(.studio-nav-icon){display:none}
+.sidebar.collapsed .side-search{width:46px;height:44px;min-height:44px;display:flex;align-items:center;justify-content:center;padding:0;box-sizing:border-box}
+.sidebar.collapsed .side-search>svg{margin:0}
+.sidebar.collapsed .side-foot{width:100%;margin-top:auto;display:flex;justify-content:center;padding:8px 0}
+.sidebar.collapsed .profile{width:46px;min-height:46px;display:flex;align-items:center;justify-content:center;padding:0;margin:0}
+.sidebar.collapsed .side-foot .menu{display:none}
+@media(max-width:700px){.neural-chat form{grid-template-columns:auto minmax(0,1fr) auto}.neural-neuron-list{grid-template-columns:repeat(2,minmax(0,1fr))}.sidebar.collapsed{position:fixed;left:0;top:0;bottom:0;width:68px;min-width:68px;z-index:80}}
