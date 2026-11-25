@@ -11,6 +11,7 @@ function ConvItem({ c, active, onOpen }: { c: Conversation; active: boolean; onO
   const busy = useChat((s) => !!s.gens[c.id])
   const { rename, pin, remove } = useChat.getState()
   const [menu, setMenu] = useState(false)
+  const [collapsed,setCollapsed]=useState(false)
   const [renaming, setRenaming] = useState(false)
   const [title, setTitle] = useState(c.title)
   const ref = useRef<HTMLDivElement>(null)
