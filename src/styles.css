@@ -1330,3 +1330,5 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; } table.t th 
 .neural-core-list-toggle{white-space:normal}
 
 .neural-storage-card{display:grid;gap:8px}.neural-storage-track{height:7px;overflow:hidden;border-radius:999px;background:var(--line);margin-top:7px}.neural-storage-track i{display:block;height:100%;border-radius:inherit;background:#38bdf8}
+
+.neural-memory-group{display:grid;gap:10px;margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--graphite)}.neural-memory-group>summary{cursor:pointer;font-weight:650;color:var(--text);font-size:13px;list-style:none}.neural-memory-group>summary::-webkit-details-marker{display:none}.neural-memory-group>summary:after{content:'⌄';float:right;color:var(--muted)}.neural-memory-group[open]>summary:after{content:'⌃'}
