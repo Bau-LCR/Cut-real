@@ -364,6 +364,52 @@ const handlers: Record<string, Handler> = {
     return { ok: true, key, record: result.record ?? null }
   },
 
+  async 'integrations.memory_task_neural_list'(ctx) {
+    const { data: integration } = await ctx.db.from('cr_integrations').select('status').eq('slug', 'memory-task').maybeSingle()
+    if (integration?.status !== 'enabled') throw new HttpError(409, 'integration_disabled', 'Memory Task no está habilitado en las integraciones.')
+    const result = await callMemoryTask(ctx, 'list', { limit: 100 })
+    return { records: result.records ?? [], count: result.count ?? 0 }
+  },
+  async 'integrations.memory_task_neural_put'(ctx, p, req) {
+    const { data: integration } = await ctx.db.from('cr_integrations').select('status').eq('slug', 'memory-task').maybeSingle()
+    if (integration?.status !== 'enabled') throw new HttpError(409, 'integration_disabled', 'Memory Task no está habilitado en las integraciones.')
+    const key = text(p.key, 'La clave', 1, 180)
+    const title = text(p.title, 'El título', 1, 160)
+    const content = text(p.content, 'El contenido', 1, 20000)
+    const category = ['custom', 'chat', 'document'].includes(String(p.category)) ? String(p.category) : 'custom'
+    const result = await callMemoryTask(ctx, 'put', { key: 'neural-' + key, category, data: { title, content, source: 'Cut-real 2 · Laboratorio neuronal', kind: String(p.kind || 'knowledge').slice(0,40), tags: Array.isArray(p.tags) ? p.tags.slice(0,20) : [], updated_at: new Date().toISOString() } })
+    await audit(ctx.db, { actorId: ctx.userId, action: 'integration.memory_task_neural_put', targetType: 'integration', targetId: 'memory-task', metadata: { record_key: key, bytes: new TextEncoder().encode(content).byteLength }, ip: clientIp(req) })
+    return { ok: true, record: result.record ?? null }
+  },
+  async 'integrations.memory_task_neural_sync'(ctx, p, req) {
+    const { data: integration } = await ctx.db.from('cr_integrations').select('status').eq('slug', 'memory-task').maybeSingle()
+    if (integration?.status !== 'enabled') throw new HttpError(409, 'integration_disabled', 'Memory Task no está habilitado en las integraciones.')
+    if (!Array.isArray(p.records) || p.records.length > 50) throw new HttpError(400, 'bad_request', 'Se admiten hasta 50 recuerdos por lote.')
+    let stored = 0, bytes = 0
+    for (const item of p.records) {
+      if (!item || typeof item !== 'object') continue
+      const id = text(item.id, 'El identificador', 1, 120).replace(/[^a-zA-Z0-9_-]/g, '_')
+      const question = typeof item.question === 'string' ? item.question.slice(0, 6000) : ''
+      const answer = typeof item.answer === 'string' ? item.answer.slice(0, 12000) : ''
+      if (!question || !answer) continue
+      const content = 'Pregunta: ' + question + '\n\nRespuesta: ' + answer
+      const size = new TextEncoder().encode(content).byteLength
+      if (size > 240000) continue
+      await callMemoryTask(ctx, 'put', { key: 'neural-chat-' + id, category: 'chat', data: { title: question.slice(0, 140), content, source: 'Cut-real 2 · historial propio', intent: String(item.intent || 'general').slice(0,40), created_at: String(item.createdAt || new Date().toISOString()) } })
+      stored++; bytes += size
+    }
+    await audit(ctx.db, { actorId: ctx.userId, action: 'integration.memory_task_neural_sync', targetType: 'integration', targetId: 'memory-task', metadata: { stored, bytes }, ip: clientIp(req) })
+    return { ok: true, stored, bytes }
+  },
+  async 'integrations.memory_task_neural_delete'(ctx, p, req) {
+    const { data: integration } = await ctx.db.from('cr_integrations').select('status').eq('slug', 'memory-task').maybeSingle()
+    if (integration?.status !== 'enabled') throw new HttpError(409, 'integration_disabled', 'Memory Task no está habilitado en las integraciones.')
+    const key = text(p.key, 'La clave', 1, 180)
+    const result = await callMemoryTask(ctx, 'delete', { key: 'neural-' + key })
+    await audit(ctx.db, { actorId: ctx.userId, action: 'integration.memory_task_neural_delete', targetType: 'integration', targetId: 'memory-task', metadata: { record_key: key }, ip: clientIp(req) })
+    return { ok: true, deleted: result.deleted === true }
+  },
+
   // ---- Integraciones y auditoría --------------------------------------------------------
   async 'integrations.list'(ctx) {
     const { data } = await ctx.db.from('cr_integrations').select('*').order('created_at')
