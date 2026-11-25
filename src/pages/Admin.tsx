@@ -6,6 +6,7 @@ import { callFn } from '../lib/functions'
 import { useAuth } from '../store/auth'
 import { useUi } from '../store/ui'
 import { supabase } from '../lib/supabase'
+import { neuralMemoryAction, readNeuralBrain } from '../lib/neuralMemoryBridge'
 
 const act = <T,>(action: string, p: object = {}) => callFn<T>('admin', { action, ...p })
 const fmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' }) : '—')
@@ -395,35 +396,31 @@ function Integrations() {
 
 
 function MemoryTaskTab() {
-  const toast = useUi((s) => s.toast)
-  const { data, err, reload } = useAdmin<any>('integrations.list')
-  const integration = data?.integrations.find((item: any) => item.slug === 'memory-task')
-  const toggle = async () => {
-    if (!integration) return
-    try {
-      await act('integrations.save', {
-        id: integration.id,
-        status: integration.status === 'enabled' ? 'disabled' : 'enabled',
-        allowed_scopes: integration.allowed_scopes,
-      })
-      toast('info', integration.status === 'enabled' ? 'Integración deshabilitada.' : 'Integración habilitada.')
-      void reload()
-    } catch (e) { toast('error', (e as Error).message) }
-  }
-  return (
-    <>
-      <Err e={err} />
-      {integration ? <>
-        <div className="panel">
-          <div className="row"><h3 style={{ margin: 0 }}>Memory Task</h3><span className="grow" /><span className={`badge ${integration.status === 'enabled' ? 'ok' : 'bad'}`}>{integration.status === 'enabled' ? 'habilitada' : 'deshabilitada'}</span>
-            <button className="btn sm" onClick={() => void toggle()}>{integration.status === 'enabled' ? 'Deshabilitar' : 'Habilitar'}</button>
-          </div>
-          <p className="hint">Configurá la conexión de Cut-real con tu cuenta de Memory Task, comprobá las credenciales y enviá información de prueba.</p>
-        </div>
-        <MemoryTaskPanel integration={integration} />
-      </> : data ? <div className="notice error">No se encontró la integración Memory Task en la configuración de Cut-real. Revisá la migración de datos iniciales.</div> : <p className="hint">Cargando integración…</p>}
-    </>
-  )
+  const [data, setData] = useState<any>(null)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const reload = useCallback(async () => {
+    setLoading(true)
+    try { const result = await neuralMemoryAction<any>('list'); setData(result); setError('') }
+    catch (e) { setError((e as Error).message || 'No se pudo consultar Memory Task.') }
+    finally { setLoading(false) }
+  }, [])
+  useEffect(() => { void reload() }, [reload])
+  const storage = data?.storage
+  const mb = (bytes: number) => (Number(bytes || 0) / 1048576).toFixed(2) + ' MB'
+  return <>
+    <div className="panel">
+      <div className="row"><div className="grow"><h3 style={{margin:0}}>Memory Task · Laboratorio neuronal</h3><p className="hint">Almacenamiento de servicio separado para la arquitectura, personalidad, memoria privada y entrenamiento del Laboratorio neuronal.</p></div><button className="btn sm" onClick={() => void reload()} disabled={loading}>Actualizar</button></div>
+      <Err e={error || null}/>
+      {loading ? <p className="hint">Consultando almacenamiento…</p> : storage ? <div className="stats">
+        <div className="stat"><b>{mb(storage.usedBytes)}</b><span>Almacenamiento usado</span></div>
+        <div className="stat"><b>{mb(storage.quotaBytes)}</b><span>Cuota asignada</span></div>
+        <div className="stat"><b>{Number(storage.percent).toFixed(2)}%</b><span>Cuota utilizada</span></div>
+        <div className="stat"><b>{data.count ?? data.records?.length ?? 0}</b><span>Registros accesibles a esta cuenta</span></div>
+      </div> : null}
+      <p className="hint">La cuota y el porcentaje se calculan desde los bytes de los registros de la cuenta de servicio de Memory Task. La arquitectura global solo puede modificarse desde una sesión administradora de Cut-real.</p>
+    </div>
+  </>
 }
 
 function UsageHistory() {
@@ -468,9 +465,10 @@ function Audit() {
 }
 
 function NeuralAdmin(){
- const [state,setState]=useState<any>(null),[count,setCount]=useState(0),[contributions,setContributions]=useState<any[]>([]),[error,setError]=useState('');
- useEffect(()=>{let live=true;(async()=>{const [{data,error:e},{count:n,error:ce}]=await Promise.all([supabase.from('cr_neural_state').select('payload,updated_at,updated_by').eq('id','main').maybeSingle(),supabase.from('cr_neural_contributions').select('example,created_at',{count:'exact'}).order('created_at',{ascending:false}).limit(8)]);if(!live)return;if(e||ce)setError((e||ce)?.message||'No se pudieron leer las métricas');else{setState(data);setCount(n||0);setContributions((await supabase.from('cr_neural_contributions').select('example,created_at').order('created_at',{ascending:false}).limit(8)).data||[])}})();return()=>{live=false}},[]);
- return <div className="panel"><h3>Laboratorio neuronal · Estado global</h3><p className="hint">Panel administrativo de la arquitectura compartida. Los usuarios normales no pueden abrir ni modificar el laboratorio. Las conversaciones privadas no se recopilan automáticamente: solo se aceptan aportes explícitos y voluntarios.</p>{error&&<Err e={error}/>}<div className="stats"><div className="stat"><b>{state?.payload?.nodes?.length??'—'}</b><span>Neuronas sincronizadas</span></div><div className="stat"><b>{state?.payload?.edges?.length??'—'}</b><span>Conexiones</span></div><div className="stat"><b>{count}</b><span>Ejemplos aportados con consentimiento</span></div></div><h4>Últimos ejemplos aportados voluntariamente</h4><div className="neural-admin-examples">{contributions.map((item:any,i)=><div key={i}><b>{item.example?.intent||'sin etiqueta'}</b><p>{item.example?.text||'—'}</p><small>{fmt(item.created_at)}</small></div>)}{!contributions.length&&<p className="hint">Todavía no hay ejemplos compartidos.</p>}</div><p className="hint">Última sincronización: {fmt(state?.updated_at)}</p><p className="hint">La red se guarda en Supabase y se descarga al iniciar sesión desde otro dispositivo del administrador.</p></div>
+ const [state,setState]=useState<any>(null),[count,setCount]=useState(0),[contributions,setContributions]=useState<any[]>([]),[storage,setStorage]=useState<any>(null),[records,setRecords]=useState<any[]>([]),[error,setError]=useState('');
+ useEffect(()=>{let live=true;(async()=>{const [memory,contrib]=await Promise.all([readNeuralBrain(),supabase.from('cr_neural_contributions').select('example,created_at',{count:'exact'}).order('created_at',{ascending:false}).limit(8)]);if(!live)return;if(contrib.error)throw contrib.error;setState(memory.brain);setStorage(memory.storage);setRecords(memory.records||[]);setCount(contrib.count||0);setContributions(contrib.data||[])})().catch(e=>{if(live)setError((e as Error).message||'No se pudieron leer las métricas')});return()=>{live=false}},[]);
+ const mb=(bytes:number)=>(Number(bytes||0)/1048576).toFixed(2)+' MB';
+ return <div className="panel"><h3>Laboratorio neuronal · Estado global</h3><p className="hint">La arquitectura principal, personalidad, pesos y posiciones se administran desde Memory Task. El Laboratorio está reservado a administradores y propietarios. Las conversaciones privadas no se recopilan automáticamente de otras cuentas.</p>{error&&<Err e={error}/>}<div className="stats"><div className="stat"><b>121.000</b><span>Unidades del mapa</span></div><div className="stat"><b>{state?.nodes?.length??'—'}</b><span>Funciones editables</span></div><div className="stat"><b>{state?.edges?.length??'—'}</b><span>Conexiones editables</span></div><div className="stat"><b>{count}</b><span>Ejemplos aportados voluntariamente</span></div></div><div className="stats"><div className="stat"><b>{storage?mb(storage.usedBytes):'—'}</b><span>Memory Task · usado</span></div><div className="stat"><b>{storage?mb(storage.quotaBytes):'—'}</b><span>Memory Task · cuota</span></div><div className="stat"><b>{storage?Number(storage.percent).toFixed(2)+'%':'—'}</b><span>Memory Task · porcentaje</span></div><div className="stat"><b>{records.filter(r=>String(r.payload?.kind||'')==='chat-memory').length}</b><span>Recuerdos de chats propios</span></div></div><h4>Últimos ejemplos aportados voluntariamente</h4><div className="neural-admin-examples">{contributions.map((item:any,i)=><div key={i}><b>{item.example?.intent||'sin etiqueta'}</b><p>{item.example?.text||'—'}</p><small>{fmt(item.created_at)}</small></div>)}{!contributions.length&&<p className="hint">Todavía no hay ejemplos compartidos.</p>}</div><p className="hint">La arquitectura se recupera desde Memory Task al iniciar el Laboratorio en otro dispositivo del administrador. El chat privado del administrador se conserva bajo su propio identificador y no se mezcla con la arquitectura global.</p></div>
 }
 
 const TABS = [['neural', 'Laboratorio neuronal', NeuralAdmin], ['overview', 'Resumen', Overview], ['users', 'Usuarios', Users], ['providers', 'Proveedores y modelos', Providers], ['keys', 'API keys', Keys], ['integrations', 'Integraciones', Integrations], ['memory-task', 'Memory Task', MemoryTaskTab], ['usage', 'Llamadas', UsageHistory], ['audit', 'Auditoría', Audit]] as const
