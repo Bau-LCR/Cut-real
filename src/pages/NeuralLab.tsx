@@ -34,7 +34,19 @@ const nodeTasks:Record<NodeKind,string[]>={
  safety:['detectar datos sensibles','evitar afirmaciones no respaldadas','aplicar límites de seguridad'],
  compose:['organizar ideas','redactar explicación','construir ejemplos','ordenar pasos'],
  validate:['comprobar relación con la pregunta','detectar respuestas vacías','validar coherencia'],
- output:['preparar respuesta final','comprobar formato','entregar resultado']
+ output:['preparar respuesta final','comprobar formato','entregar resultado'],
+ embedding:['proyectar tokens en rasgos numéricos','normalizar vectores','agrupar señales lingüísticas'],
+ attention:['ponderar señales entrantes','reforzar contexto pertinente','atenuar ruido contextual'],
+ semantic:['detectar relaciones conceptuales','comparar significados','inferir categoría semántica'],
+ entity:['detectar nombres propios','extraer lugares y fechas','identificar conceptos mencionados'],
+ temporal:['ordenar eventos por fecha','resolver expresiones temporales','detectar actualidad requerida'],
+ math:['detectar operaciones','reconocer expresiones algebraicas','seleccionar reglas matemáticas'],
+ retrieval:['buscar fragmentos relevantes','combinar memoria y contexto','recuperar explicaciones previas'],
+ 'source-check':['comparar afirmaciones con evidencia','detectar fuentes débiles','marcar datos no verificados'],
+ uncertainty:['medir falta de evidencia','estimar confianza','activar aclaración si hace falta'],
+ planning:['ordenar subtareas','definir estructura de respuesta','priorizar pasos explicativos'],
+ compression:['eliminar redundancias','resumir señales sin perder conceptos','limitar contexto irrelevante'],
+ 'response-style':['adaptar tono','ajustar nivel de detalle','organizar formato de salida']
 }
 function nodeDescription(node:NNode){const i=Number(node.id.slice(1));const tasks=nodeTasks[node.kind];return descriptions[node.kind]+' Esta unidad es la '+(i+1)+' del sistema y ejecuta la subfunción: '+tasks[i%tasks.length]+'. Recibe señales de las conexiones entrantes, aplica su transformación numérica y transmite su activación a las unidades siguientes.'}
 const layerKinds:NodeKind[][]=[
