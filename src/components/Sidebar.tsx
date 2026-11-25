@@ -66,7 +66,7 @@ export function Sidebar({ activeId }: { activeId?: string }) {
   return (
     <>
       {open && <div className="scrim" onClick={close} aria-hidden="true" />}
-      <aside className={`sidebar${open ? ' open' : ''}`} aria-label="Barra lateral">
+      <aside className={"sidebar" + (open ? " open" : "") + (collapsed ? " collapsed" : "")} aria-label="Barra lateral">
         <Link to="/" className="brand" aria-label="Inicio de Cut-real 2" title="Ir al inicio"><img src={`${import.meta.env.BASE_URL}brand/Logo_Original.png`} alt="" />Cut-real <b>2</b></Link>
         <button className="sidebar-collapse" onClick={()=>setCollapsed(v=>!v)} aria-label="Contraer o expandir barra lateral">{collapsed?"»":"«"}</button>
         <div className="side-actions">
