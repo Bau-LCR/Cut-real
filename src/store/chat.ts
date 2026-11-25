@@ -7,6 +7,7 @@ import { useAuth } from './auth'
 import { useUi } from './ui'
 import { useSpeech } from './speech'
 import { useTelemetry } from './telemetry'
+import { recordLocalConversation, sharedLearningEnabled, anonymizeTrainingText, inferLocalIntent } from '../lib/localLearning'
 
 const CONV_PAGE = 25
 const MSG_PAGE = 40
@@ -383,7 +384,20 @@ export const useChat = create<ChatState>((set, get) => {
         sources: [], web_search_used: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
       }
       set((s) => ({ messages: { ...s.messages, [convId]: [...(s.messages[convId] ?? []), tmp] }, attachments: opts.attachments?.length ? { ...s.attachments, [tmp.id]: opts.attachments } : s.attachments }))
-      return run(convId, { mode: 'send', conversationId: convId, modelId: currentModel(), content: text.trim(), attachmentIds: opts.attachments?.map((a) => a.id), webSearch: !!opts.webSearch, imageSearch: !!opts.imageSearch, taskMode: opts.taskMode }, { optimisticId: tmp.id, attachments: opts.attachments, silent: opts.silent, ephemeral: opts.ephemeral })
+      const result = await run(convId, { mode: 'send', conversationId: convId, modelId: currentModel(), content: text.trim(), attachmentIds: opts.attachments?.map((a) => a.id), webSearch: !!opts.webSearch, imageSearch: !!opts.imageSearch, taskMode: opts.taskMode }, { optimisticId: tmp.id, attachments: opts.attachments, silent: opts.silent, ephemeral: opts.ephemeral })
+      if (result.ok && !opts.ephemeral) {
+        const assistantText = result.content ?? (get().messages[convId] ?? []).filter((m) => m.role === 'assistant' && m.status === 'done').slice(-1)[0]?.content ?? ''
+        if (assistantText) recordLocalConversation(convId, text.trim(), assistantText)
+        if (sharedLearningEnabled()) {
+          const sample = anonymizeTrainingText(text.trim())
+          const userId = useAuth.getState().me?.userId
+          if (userId && sample.length >= 8) {
+            const { error } = await supabase.from('cr_neural_contributions').insert({ user_id: userId, example: { text: sample, intent: inferLocalIntent(sample) } })
+            if (error) console.warn('No se pudo compartir el ejemplo neuronal:', error.message)
+          }
+        }
+      }
+      return result
     },
 
     async regenerate(convId, assistantId, webSearch = false) {
