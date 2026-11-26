@@ -77,8 +77,17 @@ export async function loadModel(db: SupabaseClient, modelId: string): Promise<{ 
   if (!model || !model.enabled) throw new HttpError(400, 'model_unavailable', 'Ese modelo no está disponible.')
   const { data: provider } = await db.from('cr_providers').select('*').eq('id', model.provider_id).maybeSingle()
   if (!provider || !provider.enabled) throw new HttpError(400, 'model_unavailable', 'El proveedor de ese modelo está deshabilitado.')
-  const apiKey = Deno.env.get(provider.api_key_env)
-  if (!apiKey) throw new HttpError(503, 'provider_not_configured', `El proveedor ${provider.name} todavía no tiene su clave configurada en el servidor.`)
+  // Selección de credencial del lado servidor. Las claves de respaldo se usan para distribuir
+  // solicitudes normales entre credenciales configuradas; no se rota ante errores 429
+  // ni se intenta eludir límites de cuota del proveedor.
+  const envNames = provider.slug === 'groq'
+    ? ['GROQ_API_KEY', 'GROQ_API_KEY_SLOT_2', 'GROQ_API_KEY_SLOT_3', 'GROQ_API_KEY_SLOT_4', 'GROQ_API_KEY_SLOT_5']
+    : provider.slug === 'gemini'
+      ? ['GEMINI_API_KEY', 'GEMINI_API_KEY_SLOT_2', 'GEMINI_API_KEY_SLOT_3']
+      : [provider.api_key_env]
+  const keys = [...new Set(envNames.map((name) => Deno.env.get(name)?.trim()).filter((key): key is string => !!key))]
+  if (!keys.length) throw new HttpError(503, 'provider_not_configured', `El proveedor ${provider.name} todavía no tiene su clave configurada en el servidor.`)
+  const apiKey = keys[Math.floor(Math.random() * keys.length)]
   return { model, provider, apiKey }
 }
 
