@@ -176,18 +176,16 @@ const handlers: Record<string, Handler> = {
 
   // ---- Consumo de proveedores (sin exponer secretos) -----------------------------------
   async 'providers.usage'(ctx) {
-    const { data: groqProvider } = await ctx.db.from('cr_providers').select('id,rpm_limit,daily_request_limit').eq('slug','groq').maybeSingle()
-    const now = Date.now()
-    const since24 = new Date(now - 86400_000).toISOString()
-    const since30 = new Date(now - 30 * 86400_000).toISOString()
-    let groq = { requests_24h: 0, tokens_24h: 0, tokens_30d: 0, app_rpm_limit: groqProvider?.rpm_limit ?? null, app_daily_limit: groqProvider?.daily_request_limit ?? null }
-    if (groqProvider?.id) {
+    const { data: providers } = await ctx.db.from('cr_providers').select('id,slug,name,rpm_limit,daily_request_limit').order('created_at')
+    const now = Date.now(), since24 = new Date(now - 86400_000).toISOString(), since30 = new Date(now - 30 * 86400_000).toISOString()
+    const usage: Record<string, any> = {}
+    for (const provider of providers ?? []) {
       const [{ data: recent }, { data: month }] = await Promise.all([
-        ctx.db.from('cr_usage_events').select('prompt_tokens,completion_tokens').eq('provider_id', groqProvider.id).in('kind',['chat','api']).gte('created_at',since24),
-        ctx.db.from('cr_usage_events').select('prompt_tokens,completion_tokens').eq('provider_id', groqProvider.id).in('kind',['chat','api']).gte('created_at',since30),
+        ctx.db.from('cr_usage_events').select('prompt_tokens,completion_tokens').eq('provider_id', provider.id).gte('created_at', since24),
+        ctx.db.from('cr_usage_events').select('prompt_tokens,completion_tokens').eq('provider_id', provider.id).gte('created_at', since30),
       ])
       const sum = (rows: any[] | null) => (rows ?? []).reduce((n, r) => n + Number(r.prompt_tokens ?? 0) + Number(r.completion_tokens ?? 0), 0)
-      groq = { ...groq, requests_24h: recent?.length ?? 0, tokens_24h: sum(recent), tokens_30d: sum(month) }
+      usage[provider.slug] = { name: provider.name, requests_24h: recent?.length ?? 0, tokens_24h: sum(recent), tokens_30d: sum(month), app_rpm_limit: provider.rpm_limit, app_daily_limit: provider.daily_request_limit }
     }
     const tavilyKey = Deno.env.get('TAVILY_API_KEY')
     let tavily: any = { configured: !!tavilyKey }
@@ -198,7 +196,7 @@ const handlers: Record<string, Handler> = {
         tavily = { configured: true, ...(await response.json()) }
       } catch { tavily = { configured: true, error: 'No se pudo consultar el uso de Tavily.' } }
     }
-    return { groq, tavily, checked_at: new Date().toISOString() }
+    return { providers: usage, groq: usage.groq ?? null, gemini: usage.gemini ?? usage.google ?? null, tavily, checked_at: new Date().toISOString() }
   },
 
   // ---- Proveedores y modelos ----------------------------------------------------------
