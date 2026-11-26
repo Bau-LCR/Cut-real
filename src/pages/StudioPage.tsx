@@ -94,6 +94,8 @@ export function StudioPage() {
   const userId = useAuth((s) => s.me?.userId)
   const toast = useUi((s) => s.toast)
   const modelId = useChat((s) => s.modelId)
+  const models = useChat((s) => s.models)
+  const setModel = useChat((s) => s.setModel)
   const [projects, setProjects] = useState<Project[]>([])
   const [active, setActive] = useState<Project | null>(null)
   const [file, setFile] = useState<keyof CodeFiles>('index.html')
@@ -114,7 +116,6 @@ export function StudioPage() {
   const [autonomy, setAutonomy] = useState(false)
   const [autonomyBusy, setAutonomyBusy] = useState(false)
   const [autonomyCycles, setAutonomyCycles] = useState(0)
-  const [autonomyLimit, setAutonomyLimit] = useState(30)
   const draftRef = useRef(draft)
   const activeRef = useRef(active)
   const autonomyCyclesRef = useRef(0)
@@ -286,7 +287,6 @@ export function StudioPage() {
     const wait = (ms: number) => new Promise<void>((resolve) => { timer = window.setTimeout(resolve, ms) })
     const runCycle = async () => {
       if (stopped || activeRef.current?.id !== projectId) return
-      if (autonomyCyclesRef.current >= autonomyLimit) { setAutonomy(false); toast('info', 'Modo autonomía finalizado: alcanzaste el límite de ciclos.'); return }
       setAutonomyBusy(true)
       const chat = useChat.getState()
       try {
@@ -328,14 +328,13 @@ export function StudioPage() {
         if (!stopped) setAutonomyBusy(false)
       }
       if (!stopped) {
-        if (autonomyCyclesRef.current >= autonomyLimit) { setAutonomy(false); toast('info', 'Modo autonomía finalizado: alcanzaste el límite de ciclos.'); return }
         await wait(20_000)
         if (!stopped) void runCycle()
       }
     }
     void runCycle()
     return () => { stopped = true; if (timer) window.clearTimeout(timer); setAutonomyBusy(false) }
-  }, [autonomy, active?.id, modelId, autonomyLimit])
+  }, [autonomy, active?.id, modelId])
 
   async function deleteProject() {
     if (!active || !confirm('¿Eliminar este proyecto y sus archivos?')) return
@@ -359,7 +358,7 @@ export function StudioPage() {
           </aside>
           <section className="studio-workspace">
             {!active ? <div className="studio-empty"><h2>Tu próximo proyecto empieza acá.</h2><p>Creá un proyecto para trabajar con HTML, CSS y JavaScript en archivos vinculados.</p><button className="btn primary" onClick={() => void createProject()}>Crear proyecto</button></div> : <>
-              <div className="workspace-toolbar"><input className="field project-name" value={active.name} onChange={(e) => setActive({ ...active, name: e.target.value })} aria-label="Nombre del proyecto" /><div className="workspace-actions"><span className="autosave-status">{saving ? 'Guardando…' : savedAt ? 'Guardado automáticamente' : 'Guardado automático activo'}</span><button className={`btn sm ${autonomy ? 'primary' : ''}`} onClick={() => { if (autonomy) setAutonomy(false); else { autonomyCyclesRef.current = 0; setAutonomyCycles(0); setAutonomy(true) } }} disabled={!modelId || generating}>{autonomy ? (autonomyBusy ? `Autonomía · ${autonomyCycles}/${autonomyLimit} · trabajando…` : `Pausar autonomía · ${autonomyCycles}/${autonomyLimit}`) : 'Modo autonomía'}</button><select className="field autonomy-limit" aria-label="Límite de mejoras autónomas" value={autonomyLimit} onChange={(e) => setAutonomyLimit(Number(e.target.value))} disabled={autonomy}><option value={30}>30 mejoras</option><option value={60}>60 mejoras</option><option value={120}>120 mejoras</option><option value={240}>240 mejoras</option><option value={360}>360 mejoras</option></select><button className="btn sm" onClick={() => void saveProject()} disabled={saving}>Guardar ahora</button><button className="btn danger sm" onClick={() => void deleteProject()}>Eliminar</button></div></div>
+              <div className="workspace-toolbar"><input className="field project-name" value={active.name} onChange={(e) => setActive({ ...active, name: e.target.value })} aria-label="Nombre del proyecto" /><div className="workspace-actions"><span className="autosave-status">{saving ? 'Guardando…' : savedAt ? 'Guardado automáticamente' : 'Guardado automático activo'}</span><button className={`btn sm ${autonomy ? 'primary' : ''}`} onClick={() => { if (autonomy) setAutonomy(false); else { autonomyCyclesRef.current = 0; setAutonomyCycles(0); setAutonomy(true) } }} disabled={!modelId || generating}>{autonomy ? (autonomyBusy ? `Autonomía · ${autonomyCycles} ciclos · trabajando…` : `Pausar autonomía · ${autonomyCycles} ciclos`) : 'Modo autonomía'}</button><label className="hint">Modelo de programación <select className="field" value={modelId ?? ''} onChange={(e) => setModel(e.target.value)} disabled={generating || autonomy}><option value="">Elegí un modelo</option>{models.map((m) => <option key={m.id} value={m.id}>{m.display_name}</option>)}</select></label><button className="btn sm" onClick={() => void saveProject()} disabled={saving}>Guardar ahora</button><button className="btn danger sm" onClick={() => void deleteProject()}>Eliminar</button></div></div>
               <div className="codegen"><div><b>Generar con Cut-real</b><p>Describí qué querés construir o modificar. Cada proyecto conserva su propio historial técnico.</p></div><div className="codegen-input"><textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Ej.: agregá un render 3D de figuras geométricas verdes sobre fondo negro, manteniendo lo que ya hicimos…" rows={2} /><button className={`icon-btn ${dictation === 'recording' ? 'on' : ''}`} type="button" title={dictation === 'recording' ? 'Detener dictado' : 'Dictar solicitud'} aria-label="Dictar solicitud por voz" disabled={dictation === 'transcribing'} onClick={() => void toggleDictation()}><Mic /></button>{dictation !== 'idle' && <small className="hint">{dictation === 'recording' ? 'Grabando…' : 'Transcribiendo…'}</small>}</div><button className="btn primary sm" onClick={() => void generateCode()} disabled={!prompt.trim() || generating || autonomy || autonomyBusy || !modelId}>{generating ? 'Generando…' : !modelId ? 'Cargando modelo…' : 'Generar / modificar'}</button></div>
               <div className="codegen-usage" aria-live="polite"><span>Última generación: <b>{lastGenerationTokens == null ? '—' : lastGenerationTokens.toLocaleString('es-AR') + ' tokens'}</b></span><span>Este proyecto: <b>{projectTokenUsage.toLocaleString('es-AR')} tokens registrados</b></span><small>Tokens informados por el proveedor o estimados cuando no hay dato exacto.</small></div>
               <div className={`studio-panels${showPreview ? '' : ' no-preview'}`}>
